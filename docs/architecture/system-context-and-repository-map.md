@@ -41,7 +41,7 @@ accounting, payroll, permissions, or compliance changes.
 
 | Path | Responsibility | Do not put here |
 | --- | --- | --- |
-| `apps/ai_erp_core/` | Cross-industry AI Proposal ledger, approval metadata, shared policy helpers. | Service-specific fields or provider SDK code. |
+| `apps/ai_erp_core/` | Cross-industry AI Proposal ledger, approval metadata, and shared policy helpers. The MVP intentionally keeps `ai_erp_core/proposals.py` to the single `service_closeout_summary` action approved by [ADR-0004](../adr/0004-stateless-ai-control-plane-and-proposal-ledger.md). | Service-specific fields or provider SDK code. |
 | `apps/ai_erp_service/` | First vertical workflow: service requests, work orders, closeout, parts, invoice readiness. | Generic AI policy, future industry assumptions, or upstream ERPNext edits. |
 | `apps/ai_erp_distribution/` | Reserved future distribution pack after discovery evidence exists. | MVP service-operations logic. |
 | `apps/ai_erp_manufacturing/` | Reserved future manufacturing pack after discovery evidence exists. | Service pack shortcuts or unverified production-planning scope. |
@@ -101,4 +101,3 @@ flowchart TB
 4. Use `security/ai-workflow-review.md` before adding or expanding AI behavior.
 5. Run `scripts/run-quality-gates.sh` before proposing publication or a pull
    request.
-
