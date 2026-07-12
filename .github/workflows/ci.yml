@@ -58,6 +58,4 @@ jobs:
       - name: Run static quality gates
         run: scripts/run-quality-gates.sh
       - name: Validate development compose configuration
-        run: |
-          cp development/.env.example development/.env
-          docker compose --env-file development/.env -f infra/compose/docker-compose.dev.yml config --quiet
+        run: scripts/dev.sh compose-config
