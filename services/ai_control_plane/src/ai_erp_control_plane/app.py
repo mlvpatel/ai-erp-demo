@@ -12,7 +12,7 @@ from .render import render_development_template
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
-	version="1.0.0",
+	version="1.1.0",
 	description=(
 		"Site-scoped, draft-only AI proposal boundary. The control plane never has "
 		"credentials for an ERP database and never receives permission to post ERP transactions."
@@ -46,6 +46,9 @@ def healthz():
 	responses={
 		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
 		422: {"description": "Invalid or unsupported request payload."},
+		status.HTTP_503_SERVICE_UNAVAILABLE: {
+			"description": "No approved production model adapter is configured."
+		},
 	},
 	dependencies=[Depends(require_service_key)],
 )
