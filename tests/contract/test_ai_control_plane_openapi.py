@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+import yaml
 from pydantic import ValidationError
 
 from ai_erp_control_plane.app import app
@@ -11,12 +12,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi" / "ai-control-plane-v1.yaml"
 HEALTH_PATH = "/healthz"
 SERVICE_CLOSEOUT_PATH = "/v1/proposals/service-closeout-summary"
+HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
+EXPECTED_RESPONSES = {
+	(HEALTH_PATH, "get"): frozenset({"200"}),
+	(SERVICE_CLOSEOUT_PATH, "post"): frozenset({"200", "401", "422", "503"}),
+}
 
 
 class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		cls.contract_text = CONTRACT_PATH.read_text()
+		cls.contract = yaml.safe_load(cls.contract_text)
 		cls.openapi = app.openapi()
 
 	def assert_contract_contains(self, *snippets):
@@ -59,6 +66,30 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		proposal_operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertIn("503", proposal_operation["responses"])
+
+	def test_path_and_response_sets_match_exactly(self):
+		contract_paths = self.contract["paths"]
+		generated_paths = self.openapi["paths"]
+		expected_paths = {path for path, _method in EXPECTED_RESPONSES}
+		self.assertEqual(set(contract_paths), expected_paths)
+		self.assertEqual(set(generated_paths), set(contract_paths))
+
+		for (path, method), expected_responses in EXPECTED_RESPONSES.items():
+			with self.subTest(path=path, method=method):
+				contract_item = contract_paths[path]
+				generated_item = generated_paths[path]
+				self.assertEqual(set(contract_item) & HTTP_METHODS, {method})
+				self.assertEqual(set(generated_item) & HTTP_METHODS, {method})
+
+				contract_responses = contract_item[method]["responses"]
+				generated_responses = generated_item[method]["responses"]
+				self.assertEqual(set(contract_responses), expected_responses)
+				self.assertEqual(set(generated_responses), set(contract_responses))
+
+		contract_health = contract_paths[HEALTH_PATH]["get"]
+		generated_health = generated_paths[HEALTH_PATH]["get"]
+		self.assertEqual(contract_health.get("security", []), [])
+		self.assertEqual(generated_health.get("security", []), [])
 
 	def test_security_scheme_matches_published_contract(self):
 		self.assert_contract_contains(
