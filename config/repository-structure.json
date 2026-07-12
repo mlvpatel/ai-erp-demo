@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable repository layout contract for AI ERP Demo. This keeps the repo ERPNext/Frappe-specific instead of drifting into a generic frontend/backend project.",
+  "required_directories": [
+    ".agents/skills/ai-erp-delivery",
+    ".agents/skills/erp-minimal-change",
+    ".github/ISSUE_TEMPLATE",
+    ".github/workflows",
+    "agents",
+    "apps",
+    "apps/ai_erp_connectors",
+    "apps/ai_erp_core",
+    "apps/ai_erp_distribution",
+    "apps/ai_erp_manufacturing",
+    "apps/ai_erp_service",
+    "config",
+    "contracts",
+    "contracts/events",
+    "contracts/openapi",
+    "development",
+    "docs/adr",
+    "docs/architecture",
+    "docs/discovery",
+    "docs/product",
+    "docs/runbooks",
+    "docs/security",
+    "docs/workflows",
+    "infra/compose",
+    "infra/kubernetes",
+    "infra/observability",
+    "infra/security",
+    "scripts",
+    "services/ai_control_plane",
+    "tests/contract",
+    "tests/e2e",
+    "tests/fixtures",
+    "tests/performance"
+  ],
+  "required_files": [
+    "README.md",
+    "AGENTS.md",
+    "apps/README.md",
+    "services/README.md",
+    "contracts/README.md",
+    "docs/architecture/system-context-and-repository-map.md",
+    "docs/architecture/system-boundaries.md",
+    "docs/architecture/domain-data-model.md",
+    "config/industry-packs.json",
+    "contracts/catalog.json"
+  ],
+  "forbidden_root_directories": [
+    "frontend",
+    "backend",
+    "client",
+    "server"
+  ],
+  "implemented_apps": [
+    {
+      "path": "apps/ai_erp_core",
+      "markers": [
+        "pyproject.toml",
+        "ai_erp_core/hooks.py",
+        "ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py"
+      ]
+    },
+    {
+      "path": "apps/ai_erp_service",
+      "markers": [
+        "pyproject.toml",
+        "ai_erp_service/hooks.py",
+        "ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py"
+      ]
+    }
+  ],
+  "reserved_doc_only_apps": [
+    "apps/ai_erp_distribution",
+    "apps/ai_erp_manufacturing",
+    "apps/ai_erp_connectors"
+  ],
+  "reserved_app_forbidden_markers": [
+    "pyproject.toml",
+    "hooks.py",
+    "modules.txt"
+  ],
+  "bounded_roots": {
+    "apps": "custom Frappe apps and reserved industry packs only",
+    "services": "AI control plane and future non-ERP support services only after ADR",
+    "contracts": "versioned OpenAPI and business-event contracts only",
+    "docs": "product, architecture, discovery, security, runbooks, and workflows",
+    "infra": "non-secret infrastructure configuration only",
+    "tests": "contract, e2e, fixture, and performance tests"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "policy_doc": "docs/workflows/release-process.md",
+  "changelog": "CHANGELOG.md",
+  "publication_runbook": "docs/runbooks/github-publication.md",
+  "release_readiness_manifest": "config/release-readiness.json",
+  "public_positioning_doc": "docs/product/public-positioning.md",
+  "versioning": {
+    "tag_pattern": "vMAJOR.MINOR.PATCH",
+    "pre_1_0_tag_prefix": "v0.",
+    "production_ready_tag": "v1.0.0"
+  },
+  "required_release_commands": [
+    "scripts/check-open-source-ready.sh --release",
+    "python3 scripts/check-release-readiness.py --strict",
+    "python3 scripts/check-publication-secrets.py",
+    "python3 scripts/check-upstream-upgrade-readiness.py",
+    "python3 scripts/check-operations-readiness.py",
+    "python3 scripts/check-observability-readiness.py",
+    "python3 scripts/check-performance-readiness.py",
+    "python3 scripts/check-license-metadata.py --strict",
+    "python3 scripts/check-owner-decisions.py --strict",
+    "scripts/run-quality-gates.sh",
+    "scripts/check-publication-source.sh --strict"
+  ],
+  "required_release_blockers": [
+    "root-license",
+    "generated-app-metadata",
+    "local-generated-artifacts",
+    "local-only-development-paths",
+    "github-ci-passes",
+    "fresh-clone-demo"
+  ],
+  "required_policy_phrases": [
+    "Do not tag a public release until",
+    "Use SemVer-style tags: `vMAJOR.MINOR.PATCH`.",
+    "Do not tag `v1.0.0` until a future ADR accepts production-readiness criteria",
+    "not production-ready"
+  ],
+  "required_changelog_phrases": [
+    "## Unreleased",
+    "## Release policy",
+    "scripts/check-open-source-ready.sh --release",
+    "fresh clone can complete the local demo runbook"
+  ],
+  "forbidden_public_claims_before_1_0": [
+    "production-ready",
+    "autonomous ERP posting",
+    "autonomous customer messaging",
+    "broad all-industry coverage"
+  ]
+}

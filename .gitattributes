@@ -1,0 +1,39 @@
+# Keep generated or local-only state out of Git-generated source archives.
+# This does not replace .gitignore or the release checks; it is a second guard
+# for `git archive` and GitHub release source exports.
+
+.env export-ignore
+.env.* export-ignore
+.env.example -export-ignore
+*.pem export-ignore
+*.key export-ignore
+*.sql export-ignore
+*.sql.gz export-ignore
+*.dump export-ignore
+*.backup export-ignore
+*-files.tar export-ignore
+*-private-files.tar export-ignore
+
+development/.env export-ignore
+development/frappe-bench/ export-ignore
+development/.venv/ export-ignore
+config/owner-decisions.local.json export-ignore
+
+sites/ export-ignore
+logs/ export-ignore
+private/ export-ignore
+public/assets/ export-ignore
+
+__pycache__/ export-ignore
+*.py[cod] export-ignore
+.pytest_cache/ export-ignore
+.mypy_cache/ export-ignore
+.ruff_cache/ export-ignore
+.venv/ export-ignore
+node_modules/ export-ignore
+dist/ export-ignore
+coverage/ export-ignore
+
+.DS_Store export-ignore
+.idea/ export-ignore
+.vscode/ export-ignore

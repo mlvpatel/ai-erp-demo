@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "publication_gate": [
+    "root-license-resolved",
+    "release-readiness-passed",
+    "maintainer-review-before-creation"
+  ],
+  "issues": [
+    {
+      "id": "docs-local-demo-walkthrough",
+      "title": "Add screenshot-assisted local demo walkthrough",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "documentation",
+        "good first issue"
+      ],
+      "area": "documentation",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "docs/runbooks/local-demo.md",
+        "docs/runbooks/demo-script.md",
+        "README.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "Screenshots or GIFs follow the demo script and contain no secrets, customer data, credentials, private prompts, or local-only paths."
+        },
+        {
+          "type": "command",
+          "command": "python3 scripts/check-doc-links.py"
+        }
+      ]
+    },
+    {
+      "id": "docs-service-operations-glossary",
+      "title": "Add a glossary for service operations and Frappe terms",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "documentation",
+        "good first issue"
+      ],
+      "area": "documentation",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "docs/workflows/service-operations.md",
+        "docs/architecture/domain-data-model.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "Glossary terms link to implemented DocTypes, ERPNext concepts, or existing project docs."
+        },
+        {
+          "type": "command",
+          "command": "python3 scripts/check-doc-links.py"
+        }
+      ]
+    },
+    {
+      "id": "tooling-demo-info-media-links",
+      "title": "Add README media links to demo-info after screenshots exist",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "developer tooling",
+        "good first issue"
+      ],
+      "area": "developer tooling",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "scripts/dev.sh",
+        "docs/runbooks/local-demo.md",
+        "docs/runbooks/demo-script.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "The helper links only checked-in demo docs or sanitized README media and does not print secrets, tokens, customer data, private prompts, or raw environment files."
+        },
+        {
+          "type": "command",
+          "command": "scripts/dev.sh help"
+        },
+        {
+          "type": "command",
+          "command": "scripts/dev.sh demo-info"
+        }
+      ]
+    },
+    {
+      "id": "docs-roadmap-issue-with-acceptance-criteria",
+      "title": "Turn one roadmap item into a scoped public issue",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "documentation",
+        "good first issue"
+      ],
+      "area": "documentation",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "ROADMAP.md",
+        "docs/workflows/issue-triage.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "The proposed issue references the roadmap item, names acceptance criteria, and avoids ERP posting, AI approval, permissions, payroll, or compliance changes."
+        }
+      ]
+    },
+    {
+      "id": "docs-industry-pack-example",
+      "title": "Add a filled example for the industry-pack design template",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "documentation",
+        "good first issue"
+      ],
+      "area": "documentation",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "docs/product/industry-pack-design-template.md",
+        "docs/product/industry-pack-roadmap.md",
+        "config/industry-packs.json"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "The example is clearly marked as illustrative and does not claim a new implemented industry pack."
+        },
+        {
+          "type": "command",
+          "command": "python3 scripts/check-industry-pack-manifest.py"
+        }
+      ]
+    }
+  ]
+}

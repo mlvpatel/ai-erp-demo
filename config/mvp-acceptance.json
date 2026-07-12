@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "source_doc": "docs/product/mvp-scope.md",
+  "acceptance_section": "Acceptance metrics",
+  "claims": [
+    {
+      "id": "technician-non-admin-workflow",
+      "source_metric": "A technician can complete the workflow on a non-administrator account.",
+      "status": "implemented",
+      "safety_boundary": "Technician execution is limited to the assigned non-admin user; final close and invoice-ready transitions require a manager role.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+        "docs/workflows/service-operations.md"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "def test_technician_scope_and_manager_only_close"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "frappe.set_user(self.technician)"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Only a service manager can close work or make it invoice-ready."
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh service-test"
+      ]
+    },
+    {
+      "id": "time-and-parts-responsibility",
+      "source_metric": "Every time/part entry links to a work order and responsible user.",
+      "status": "implemented",
+      "safety_boundary": "Time entries must belong to the assigned technician; parts remain child rows on the service work order and require deterministic stock issue before final close.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order_time/service_work_order_time.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order_part/service_work_order_part.json"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Time entries must belong to the assigned technician."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Technicians can record only their own time."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "\"technician\": self.technician"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "\"parts\""
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh service-test"
+      ]
+    },
+    {
+      "id": "invoice-readiness-closeout-gate",
+      "source_metric": "A work order cannot become invoice-ready without required closeout data or a tracked exception.",
+      "status": "implemented",
+      "safety_boundary": "Invoice readiness is blocked until closeout fields, issued parts, and closure-exception state satisfy deterministic ERP validation.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "At least one time entry is required before submitting closeout."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Closeout Notes are required before submitting closeout."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Open closure exceptions block invoice readiness."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "def test_cannot_close_creates_an_owned_exception"
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh service-test"
+      ]
+    },
+    {
+      "id": "manager-draft-invoice-idempotent",
+      "source_metric": "A manager can draft exactly one linked Sales Invoice after invoice readiness; the draft invoice does not submit or move stock.",
+      "status": "implemented",
+      "safety_boundary": "Only a manager-triggered deterministic action can create the linked Sales Invoice; it remains draft-only and does not update stock.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "docs/workflows/service-operations.md"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "def test_manager_creates_idempotent_draft_sales_invoice"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "self.assertEqual(invoice.docstatus, 0)"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "self.assertEqual(invoice.update_stock, 0)"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "work_order._require_manager()"
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh service-test"
+      ]
+    },
+    {
+      "id": "profitability-projection",
+      "source_metric": "A work order displays projected revenue, issued-parts cost, and margin before labor overhead from deterministic ERP fields.",
+      "status": "implemented",
+      "safety_boundary": "Projection uses deterministic bill rates and submitted ERPNext Stock Entry cost fields; it explicitly excludes labor overhead until ERPNext cost sources are adopted.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "docs/workflows/service-operations.md"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "self.projected_revenue = revenue"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "self.issued_parts_cost = parts_cost"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "contains": "Labor overhead is excluded."
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "self.assertEqual(work_order.projected_margin_before_labor, expected_revenue - expected_cost)"
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh service-test"
+      ]
+    },
+    {
+      "id": "ai-proposal-traceable-human-approved",
+      "source_metric": "An AI suggestion is traceable to its source inputs and cannot act without an authorized approval.",
+      "status": "implemented",
+      "safety_boundary": "The AI control plane returns draft-only proposals with citations; review approval records the decision but has no invoice, stock, payroll, permission, status, or email side effect.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "services/ai_control_plane/tests/test_render.py",
+        "tests/contract/test_ai_control_plane_openapi.py",
+        "docs/security/ai-workflow-review.md"
+      ],
+      "anchors": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "def test_ai_closeout_draft_is_cited_immutable_and_human_reviewed"
+        },
+        {
+          "path": "services/ai_control_plane/tests/test_render.py",
+          "contains": "self.assertEqual(response.policy.allowed_action, \"none\")"
+        },
+        {
+          "path": "tests/contract/test_ai_control_plane_openapi.py",
+          "contains": "requested_action"
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+          "contains": "self.assertEqual(frappe.db.count(\"Sales Invoice\"), invoices_before)"
+        }
+      ],
+      "verification_commands": [
+        "scripts/dev.sh control-plane-test",
+        "scripts/dev.sh contract-test",
+        "scripts/dev.sh service-test"
+      ]
+    }
+  ]
+}

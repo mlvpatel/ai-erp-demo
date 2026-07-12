@@ -1,0 +1,249 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 0,
+ "allow_rename": 0,
+ "autoname": "format:AIP-.{#####}",
+ "creation": "2026-07-10 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "proposal_type",
+  "proposal_status",
+  "policy_outcome",
+  "policy_reason",
+  "reference_section",
+  "reference_doctype",
+  "reference_name",
+  "sources",
+  "draft_section",
+  "draft_content",
+  "input_context_hash",
+  "output_hash",
+  "control_plane_request_id",
+  "requested_by",
+  "generated_at",
+  "model_section",
+  "model_provider",
+  "model_name",
+  "prompt_version",
+  "review_section",
+  "reviewed_by",
+  "reviewed_at",
+  "reviewer_note"
+ ],
+ "fields": [
+  {
+   "fieldname": "proposal_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Proposal Type",
+   "options": "Service Closeout Summary",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "proposal_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Proposal Status",
+   "options": "Draft\nApproved\nRejected",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Draft Only",
+   "fieldname": "policy_outcome",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Policy Outcome",
+   "options": "Draft Only",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "policy_reason",
+   "fieldtype": "Small Text",
+   "label": "Policy Reason",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_section",
+   "fieldtype": "Section Break",
+   "label": "ERP Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Record",
+   "options": "reference_doctype",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "sources",
+   "fieldtype": "Table",
+   "label": "Cited Sources",
+   "options": "AI Proposal Source",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "draft_section",
+   "fieldtype": "Section Break",
+   "label": "Draft-only Output"
+  },
+  {
+   "fieldname": "draft_content",
+   "fieldtype": "Text",
+   "label": "Draft Content",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "input_context_hash",
+   "fieldtype": "Data",
+   "label": "Input Context Hash",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "output_hash",
+   "fieldtype": "Data",
+   "label": "Output Hash",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "control_plane_request_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Control Plane Request ID",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "generated_at",
+   "fieldtype": "Datetime",
+   "label": "Generated At",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "model_section",
+   "fieldtype": "Section Break",
+   "label": "Model Metadata"
+  },
+  {
+   "fieldname": "model_provider",
+   "fieldtype": "Data",
+   "label": "Model Provider",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "model_name",
+   "fieldtype": "Data",
+   "label": "Model Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "prompt_version",
+   "fieldtype": "Data",
+   "label": "Prompt Version",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "review_section",
+   "fieldtype": "Section Break",
+   "label": "Human Review"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewed_at",
+   "fieldtype": "Datetime",
+   "label": "Reviewed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewer_note",
+   "fieldtype": "Text",
+   "label": "Reviewer Note",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-10 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI ERP Core",
+ "name": "AI Proposal",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AI Proposal Approver",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "AI Proposal Requester",
+   "share": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "reference_name",
+ "track_changes": 1
+}

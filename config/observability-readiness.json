@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable observability readiness contract for the AI ERP Demo.",
+  "workflow_doc": "docs/workflows/observability-readiness.md",
+  "infra_readme": "infra/observability/README.md",
+  "alert_rules_example": "infra/observability/alert-rules.example.yml",
+  "operations_readiness_doc": "docs/workflows/operations-readiness.md",
+  "incident_response_runbook": "docs/runbooks/incident-response.md",
+  "backup_restore_runbook": "docs/runbooks/backup-restore.md",
+  "data_classification_doc": "docs/security/data-classification.md",
+  "threat_model": "docs/security/threat-model.md",
+  "github_publication_runbook": "docs/runbooks/github-publication.md",
+  "quality_gates_doc": "docs/workflows/quality-gates.md",
+  "traceability_doc": "docs/product/requirements-traceability.md",
+  "signal_groups": [
+    {
+      "id": "frappe-site",
+      "required_terms": [
+        "HTTP availability",
+        "request error rate",
+        "p95 latency",
+        "scheduler status"
+      ]
+    },
+    {
+      "id": "queues-and-jobs",
+      "required_terms": [
+        "Queue backlog",
+        "stuck jobs",
+        "failed background jobs",
+        "retry count"
+      ]
+    },
+    {
+      "id": "database-and-redis",
+      "required_terms": [
+        "MariaDB",
+        "Redis",
+        "connection failures",
+        "disk pressure"
+      ]
+    },
+    {
+      "id": "backup-and-restore",
+      "required_terms": [
+        "Last successful backup timestamp",
+        "restore-drill timestamp",
+        "checksum verification"
+      ]
+    },
+    {
+      "id": "ai-control-plane",
+      "required_terms": [
+        "/healthz",
+        "request validation failures",
+        "provider failures",
+        "output safety rejections"
+      ]
+    },
+    {
+      "id": "erp-safety",
+      "required_terms": [
+        "Unauthorized role attempts",
+        "idempotency conflicts",
+        "AI approval-bypass attempts",
+        "tenant-boundary failures"
+      ]
+    },
+    {
+      "id": "integrations",
+      "required_terms": [
+        "Event delivery failures",
+        "duplicate event keys",
+        "connector retry exhaustion",
+        "contract validation failures"
+      ]
+    }
+  ],
+  "required_alerts": [
+    "AIERPServiceDown",
+    "AIERPQueueStalled",
+    "AIERPSchedulerStopped",
+    "AIERPDatabaseUnavailable",
+    "AIERPRedisUnavailable",
+    "AIERPBackupStale",
+    "AIERPAIControlPlaneErrorRateHigh",
+    "AIERPUnexpectedAIPayloadRejected",
+    "AIERPUnapprovedMutationAttempt",
+    "AIERPTenantBoundaryFailure",
+    "AIERPAuthorizationBypassAttempt",
+    "AIERPIdempotencyConflict",
+    "AIERPConnectorDeliveryFailures"
+  ],
+  "forbidden_observability_snippets": [
+    "webhook_url:",
+    "api_key:",
+    "password:",
+    "customer_email:",
+    "customer_phone:",
+    "service_address:",
+    "prompt_body:",
+    "provider_response:"
+  ],
+  "required_doc_phrases": [
+    {
+      "path": "docs/workflows/observability-readiness.md",
+      "phrases": [
+        "Keep telemetry free of secrets, customer contact details, service addresses, attachment contents, prompt bodies, model keys, database credentials, and backup storage URLs.",
+        "Minimum signal map",
+        "AI approval-bypass attempts",
+        "python3 scripts/check-observability-readiness.py"
+      ]
+    },
+    {
+      "path": "infra/observability/README.md",
+      "phrases": [
+        "It intentionally does not vendor Prometheus, Grafana, OpenTelemetry collectors, SIEM rules, or hosted monitoring configuration.",
+        "Minimum deployment signals",
+        "permission bypass attempts, tenant-boundary failures, AI approval-bypass attempts, idempotency conflicts, and connector delivery failures"
+      ]
+    },
+    {
+      "path": "infra/observability/alert-rules.example.yml",
+      "phrases": [
+        "AIERPUnapprovedMutationAttempt",
+        "AIERPTenantBoundaryFailure",
+        "AIERPConnectorDeliveryFailures",
+        "do not commit real alert routes, webhook URLs"
+      ]
+    },
+    {
+      "path": "docs/workflows/operations-readiness.md",
+      "phrases": [
+        "docs/workflows/observability-readiness.md",
+        "Monitoring, logging, retention, and incident-response ownership are named"
+      ]
+    },
+    {
+      "path": "docs/runbooks/incident-response.md",
+      "phrases": [
+        "observability evidence",
+        "Do not paste raw logs, trace payloads, customer data, prompt bodies, or alert routing secrets into public GitHub issues."
+      ]
+    },
+    {
+      "path": "docs/security/data-classification.md",
+      "phrases": [
+        "trace exports",
+        "observability exports"
+      ]
+    },
+    {
+      "path": "docs/security/threat-model.md",
+      "phrases": [
+        "Observability guidance must keep logs, metrics, and traces free of customer data, prompt bodies, and secrets.",
+        "Production SIEM routing remains deployment-specific."
+      ]
+    },
+    {
+      "path": "docs/runbooks/github-publication.md",
+      "phrases": [
+        "config/observability-readiness.json",
+        "python3 scripts/check-observability-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/workflows/quality-gates.md",
+      "phrases": [
+        "observability readiness consistency"
+      ]
+    },
+    {
+      "path": "docs/product/requirements-traceability.md",
+      "phrases": [
+        "Define observability and alerting boundaries"
+      ]
+    }
+  ]
+}

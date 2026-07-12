@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable operations and recovery readiness contract for the AI ERP Demo.",
+  "workflow_doc": "docs/workflows/operations-readiness.md",
+  "backup_restore_runbook": "docs/runbooks/backup-restore.md",
+  "incident_response_runbook": "docs/runbooks/incident-response.md",
+  "support_doc": "SUPPORT.md",
+  "security_policy": "SECURITY.md",
+  "data_classification_doc": "docs/security/data-classification.md",
+  "release_process_doc": "docs/workflows/release-process.md",
+  "github_publication_runbook": "docs/runbooks/github-publication.md",
+  "quality_gates_doc": "docs/workflows/quality-gates.md",
+  "traceability_doc": "docs/product/requirements-traceability.md",
+  "publication_scan_manifest": "config/publication-secret-scan.json",
+  "gitignore": ".gitignore",
+  "gitattributes": ".gitattributes",
+  "publication_source_script": "scripts/check-publication-source.sh",
+  "required_gitignore_patterns": [
+    "sites/",
+    "logs/",
+    "private/",
+    "development/frappe-bench/",
+    "development/.env",
+    "*.sql",
+    "*.sql.gz",
+    "*.dump",
+    "*.backup",
+    "*-files.tar",
+    "*-private-files.tar"
+  ],
+  "required_export_ignore_patterns": [
+    "sites/",
+    "logs/",
+    "private/",
+    "development/frappe-bench/",
+    "development/.env",
+    "*.sql",
+    "*.sql.gz",
+    "*.dump",
+    "*.backup",
+    "*-files.tar",
+    "*-private-files.tar"
+  ],
+  "required_publication_source_snippets": [
+    "-path './sites'",
+    "-path './logs'",
+    "-path './private'",
+    "-path './development/frappe-bench'",
+    "-path './development/.env'",
+    "-name '*.sql'",
+    "-name '*.sql.gz'",
+    "-name '*.dump'",
+    "-name '*.backup'",
+    "-name '*-files.tar'",
+    "-name '*-private-files.tar'"
+  ],
+  "publication_scan_required_exclusions": [
+    "sites/",
+    "logs/",
+    "private/",
+    "development/frappe-bench/",
+    "development/.env",
+    "*.sql",
+    "*.sql.gz",
+    "*.dump",
+    "*.backup",
+    "*-files.tar",
+    "*-private-files.tar"
+  ],
+  "required_doc_phrases": [
+    {
+      "path": "docs/runbooks/backup-restore.md",
+      "phrases": [
+        "bench --site <site> backup --with-files",
+        "bench --site <site> restore <path/to/database.sql.gz>",
+        "restore drill",
+        "never commit backup artifacts to this repository",
+        "AI Proposal records keep model metadata, source hashes, review metadata, and ERP record links"
+      ]
+    },
+    {
+      "path": "docs/runbooks/incident-response.md",
+      "phrases": [
+        "AI output can create or submit stock, financial, payroll, access-control, or compliance changes without deterministic ERP validation and authorized human approval",
+        "tenant/site boundary is bypassed",
+        "Do not disclose vulnerability details publicly until a fix and disclosure date are agreed",
+        "python3 scripts/check-operations-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/workflows/operations-readiness.md",
+      "phrases": [
+        "Do not use real customer, accounting, payroll, inventory, supplier, or employee data until",
+        "A restore drill has passed in a clean environment",
+        "The checker is intentionally static"
+      ]
+    },
+    {
+      "path": "SUPPORT.md",
+      "phrases": [
+        "backup/restore plan",
+        "deployment hardening",
+        "tenant-isolation and permission audit"
+      ]
+    },
+    {
+      "path": "SECURITY.md",
+      "phrases": [
+        "Do not disclose the issue publicly until a fix and disclosure date have been agreed",
+        "path from AI output to an unapproved stock, financial, payroll, access-control, or compliance mutation"
+      ]
+    },
+    {
+      "path": "docs/security/data-classification.md",
+      "phrases": [
+        "database dump and backup artifacts",
+        "Do not paste secrets or customer data into issues, pull requests, screenshots, test logs, or AI prompts."
+      ]
+    },
+    {
+      "path": "docs/workflows/release-process.md",
+      "phrases": [
+        "backup/restore expectations",
+        "python3 scripts/check-operations-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/runbooks/github-publication.md",
+      "phrases": [
+        "python3 scripts/check-operations-readiness.py",
+        "database dumps, backups, private files, or generated assets"
+      ]
+    },
+    {
+      "path": "docs/workflows/quality-gates.md",
+      "phrases": [
+        "operations and recovery readiness consistency"
+      ]
+    },
+    {
+      "path": "docs/product/requirements-traceability.md",
+      "phrases": [
+        "Define backup, restore, and incident-response boundaries"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable status map for AI ERP Demo industry packs. The manifest prevents broad industry claims from drifting away from implementation and discovery evidence.",
+  "packs": [
+    {
+      "id": "field_service",
+      "order": 1,
+      "title": "Field service",
+      "status": "implemented",
+      "app_path": "apps/ai_erp_service",
+      "docs": [
+        "apps/ai_erp_service/README.md",
+        "docs/workflows/service-operations.md",
+        "docs/runbooks/local-demo.md"
+      ],
+      "entry_gate": "passed_for_mvp",
+      "first_proof_workflow": "Service request to work order to technician closeout to manager parts issue to invoice-ready draft Sales Invoice.",
+      "erpnext_reuse": [
+        "CRM",
+        "Stock",
+        "Selling",
+        "Accounting"
+      ],
+      "ai_allowed": [
+        "Cited closeout summary draft for human review"
+      ],
+      "ai_forbidden": [
+        "Direct financial posting",
+        "Direct inventory posting",
+        "Direct payroll mutation",
+        "Direct permission or access mutation",
+        "Direct compliance filing or regulated external submission"
+      ],
+      "verification": [
+        "scripts/dev.sh service-test",
+        "scripts/dev.sh demo-check"
+      ]
+    },
+    {
+      "id": "distribution",
+      "order": 2,
+      "title": "Distribution",
+      "status": "reserved",
+      "app_path": "apps/ai_erp_distribution",
+      "docs": [
+        "apps/ai_erp_distribution/README.md",
+        "docs/product/industry-pack-roadmap.md",
+        "docs/product/industry-pack-design-template.md"
+      ],
+      "entry_gate": "not_started",
+      "first_proof_workflow": "Sales Order to pick/pack review to stock availability exception to delivery handoff to delivery exception summary.",
+      "erpnext_reuse": [
+        "Stock",
+        "Selling",
+        "Buying",
+        "Accounting"
+      ],
+      "ai_allowed": [
+        "Delivery or shortage explanation draft with cited source records"
+      ],
+      "ai_forbidden": [
+        "Direct financial posting",
+        "Direct inventory posting",
+        "Direct payroll mutation",
+        "Direct permission or access mutation",
+        "Direct compliance filing or regulated external submission"
+      ],
+      "verification": [
+        "Complete docs/product/industry-pack-design-template.md before generated app code"
+      ]
+    },
+    {
+      "id": "light_manufacturing",
+      "order": 3,
+      "title": "Light manufacturing",
+      "status": "reserved",
+      "app_path": "apps/ai_erp_manufacturing",
+      "docs": [
+        "apps/ai_erp_manufacturing/README.md",
+        "docs/product/industry-pack-roadmap.md",
+        "docs/product/industry-pack-design-template.md"
+      ],
+      "entry_gate": "not_started",
+      "first_proof_workflow": "Make-to-order quote to BOM/work-order review to material availability exception to production status summary to invoice-ready handoff.",
+      "erpnext_reuse": [
+        "Manufacturing",
+        "Stock",
+        "Selling"
+      ],
+      "ai_allowed": [
+        "Production exception summary draft with cited source records"
+      ],
+      "ai_forbidden": [
+        "Direct financial posting",
+        "Direct inventory posting",
+        "Direct payroll mutation",
+        "Direct permission or access mutation",
+        "Direct compliance filing or regulated external submission"
+      ],
+      "verification": [
+        "Complete docs/product/industry-pack-design-template.md before generated app code"
+      ]
+    },
+    {
+      "id": "professional_services",
+      "order": 4,
+      "title": "Professional services",
+      "status": "planned",
+      "app_path": null,
+      "docs": [
+        "docs/product/industry-pack-roadmap.md",
+        "docs/product/industry-pack-design-template.md"
+      ],
+      "entry_gate": "not_started",
+      "first_proof_workflow": "Project kickoff to timesheet review to billing exception summary to draft invoice.",
+      "erpnext_reuse": [
+        "Projects",
+        "Selling",
+        "Accounting"
+      ],
+      "ai_allowed": [
+        "Statement-of-work, time-summary, or billing-review draft with cited source records"
+      ],
+      "ai_forbidden": [
+        "Direct financial posting",
+        "Direct inventory posting",
+        "Direct payroll mutation",
+        "Direct permission or access mutation",
+        "Direct compliance filing or regulated external submission"
+      ],
+      "verification": [
+        "Create discovery brief before reserving an app folder"
+      ]
+    },
+    {
+      "id": "maintenance_assets",
+      "order": 5,
+      "title": "Maintenance and assets",
+      "status": "planned",
+      "app_path": null,
+      "docs": [
+        "docs/product/industry-pack-roadmap.md",
+        "docs/product/industry-pack-design-template.md"
+      ],
+      "entry_gate": "not_started",
+      "first_proof_workflow": "Preventive schedule to service work order to asset maintenance history and exception summary.",
+      "erpnext_reuse": [
+        "Assets",
+        "Maintenance",
+        "Stock"
+      ],
+      "ai_allowed": [
+        "Asset-history or preventive-maintenance summary draft with cited source records"
+      ],
+      "ai_forbidden": [
+        "Direct financial posting",
+        "Direct inventory posting",
+        "Direct payroll mutation",
+        "Direct permission or access mutation",
+        "Direct compliance filing or regulated external submission"
+      ],
+      "verification": [
+        "Create discovery brief before reserving an app folder"
+      ]
+    }
+  ]
+}

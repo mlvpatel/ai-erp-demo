@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable audit evidence contract for AI-supported ERP actions. It keeps AI Proposal ledger fields, source hashes, review metadata, deterministic transaction links, tests, and docs aligned.",
+  "workflow_doc": "docs/workflows/audit-evidence.md",
+  "review_checklist": "docs/security/ai-workflow-review.md",
+  "threat_model": "docs/security/threat-model.md",
+  "service_workflow_doc": "docs/workflows/service-operations.md",
+  "service_work_order_tests": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+  "doctype_fields": [
+    {
+      "id": "ai-proposal-ledger-fields",
+      "doctype": "AI Proposal",
+      "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.json",
+      "required_fields": [
+        {
+          "fieldname": "proposal_type",
+          "fieldtype": "Select"
+        },
+        {
+          "fieldname": "proposal_status",
+          "fieldtype": "Select"
+        },
+        {
+          "fieldname": "policy_outcome",
+          "fieldtype": "Select"
+        },
+        {
+          "fieldname": "policy_reason",
+          "fieldtype": "Small Text"
+        },
+        {
+          "fieldname": "reference_doctype",
+          "fieldtype": "Link",
+          "options": "DocType"
+        },
+        {
+          "fieldname": "reference_name",
+          "fieldtype": "Dynamic Link",
+          "options": "reference_doctype"
+        },
+        {
+          "fieldname": "sources",
+          "fieldtype": "Table",
+          "options": "AI Proposal Source"
+        },
+        {
+          "fieldname": "draft_content",
+          "fieldtype": "Text"
+        },
+        {
+          "fieldname": "input_context_hash",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "output_hash",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "control_plane_request_id",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "requested_by",
+          "fieldtype": "Link",
+          "options": "User"
+        },
+        {
+          "fieldname": "generated_at",
+          "fieldtype": "Datetime"
+        },
+        {
+          "fieldname": "model_provider",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "model_name",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "prompt_version",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "reviewed_by",
+          "fieldtype": "Link",
+          "options": "User"
+        },
+        {
+          "fieldname": "reviewed_at",
+          "fieldtype": "Datetime"
+        },
+        {
+          "fieldname": "reviewer_note",
+          "fieldtype": "Text"
+        }
+      ]
+    },
+    {
+      "id": "ai-proposal-source-fields",
+      "doctype": "AI Proposal Source",
+      "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal_source/ai_proposal_source.json",
+      "required_fields": [
+        {
+          "fieldname": "source_doctype",
+          "fieldtype": "Link",
+          "options": "DocType"
+        },
+        {
+          "fieldname": "source_name",
+          "fieldtype": "Dynamic Link",
+          "options": "source_doctype"
+        },
+        {
+          "fieldname": "source_field",
+          "fieldtype": "Data"
+        },
+        {
+          "fieldname": "content_hash",
+          "fieldtype": "Data"
+        }
+      ]
+    },
+    {
+      "id": "service-work-order-transaction-links",
+      "doctype": "Service Work Order",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.json",
+      "required_fields": [
+        {
+          "fieldname": "parts",
+          "fieldtype": "Table",
+          "options": "Service Work Order Part"
+        },
+        {
+          "fieldname": "sales_invoice",
+          "fieldtype": "Link",
+          "options": "Sales Invoice"
+        }
+      ]
+    },
+    {
+      "id": "service-work-order-part-stock-link",
+      "doctype": "Service Work Order Part",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order_part/service_work_order_part.json",
+      "required_fields": [
+        {
+          "fieldname": "stock_entry",
+          "fieldtype": "Link",
+          "options": "Stock Entry"
+        }
+      ]
+    }
+  ],
+  "source_checks": [
+    {
+      "id": "ai-proposal-created-only-through-control-plane-boundary",
+      "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py",
+      "required_snippets": [
+        "if not self.flags.from_control_plane:",
+        "AI Proposals can only be created from the validated control-plane boundary.",
+        "IMMUTABLE_FIELDS",
+        "\"draft_content\"",
+        "Cited sources are immutable after proposal generation.",
+        "def review(self, outcome, reviewer_note=None):",
+        "self.reviewed_by = frappe.session.user",
+        "self.reviewed_at = now_datetime()",
+        "self.flags.review_action = True"
+      ]
+    },
+    {
+      "id": "proposal-storage-persists-hashes-and-model-metadata",
+      "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
+      "required_snippets": [
+        "if existing := frappe.db.exists(\"AI Proposal\", {\"control_plane_request_id\": request_id})",
+        "input_hash = content_hash(",
+        "\"sources\": [",
+        "\"content_hash\": source[\"content_hash\"]",
+        "\"input_context_hash\": input_hash",
+        "\"output_hash\": content_hash(response[\"draft_content\"])",
+        "\"requested_by\": request_payload[\"requested_by\"]",
+        "\"generated_at\": now_datetime()",
+        "\"model_provider\": response[\"model\"][\"provider\"]",
+        "\"model_name\": response[\"model\"][\"name\"]",
+        "\"prompt_version\": response[\"model\"][\"prompt_version\"]"
+      ]
+    },
+    {
+      "id": "payload-builder-records-requester-and-source-hashes",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_drafts.py",
+      "required_snippets": [
+        "\"requested_by\": frappe.session.user",
+        "\"sources\": _source_references(work_order, work_order_payload)",
+        "return {\"doctype\": doctype, \"name\": name, \"field\": field, \"content_hash\": content_hash(value)}"
+      ]
+    },
+    {
+      "id": "deterministic-erp-record-links-are-stored-on-source-records",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+      "required_snippets": [
+        "Part rows cannot be linked to a Stock Entry during creation.",
+        "Sales Invoice can only be linked by the draft invoice action.",
+        "work_order.flags.from_stock_issue = True",
+        "row.stock_entry = stock_entry.name",
+        "work_order.flags.from_invoice_creation = True",
+        "work_order.sales_invoice = invoice.name"
+      ]
+    }
+  ],
+  "test_anchors": [
+    "def test_ai_closeout_draft_is_cited_immutable_and_human_reviewed",
+    "self.assertEqual(control_plane.call_count, 1)",
+    "self.assertEqual(proposal.requested_by, self.technician)",
+    "self.assertEqual(proposal.model_provider, \"test-control-plane\")",
+    "self.assertIn(\"closeout_notes\", {source.source_field for source in proposal.sources})",
+    "self.assertNotIn(\"closeout_evidence\", {source.source_field for source in proposal.sources})",
+    "proposal.review(\"Approved\", \"Reviewed against cited field evidence.\")",
+    "self.assertEqual(proposal.reviewed_by, \"Administrator\")",
+    "self.assertEqual(work_order.parts[0].stock_entry, stock_entry_name)",
+    "self.assertEqual(work_order.sales_invoice, invoice.name)"
+  ],
+  "required_doc_phrases": [
+    "An audit reviewer must be able to trace an AI-supported transaction from the source ERP record to the AI Proposal and back to deterministic ERP records.",
+    "AI Proposal is the AI evidence ledger for the MVP.",
+    "source hashes",
+    "requested_by, generated_at, model provider, model name, prompt version",
+    "reviewed_by, reviewed_at, and reviewer_note",
+    "Stock Entry identifiers are stored on Service Work Order part rows.",
+    "Sales Invoice identifiers are stored on the Service Work Order.",
+    "What audit record proves who requested and reviewed the output?",
+    "AI proposal inputs, outputs, prompt versions, citations, review decisions, and source hashes."
+  ]
+}

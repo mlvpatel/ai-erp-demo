@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable public demo script contract. It keeps the README/demo walkthrough story aligned with actual MVP claims, local demo commands, screenshot safety rules, and first-public issue planning.",
+  "script_doc": "docs/runbooks/demo-script.md",
+  "local_demo_runbook": "docs/runbooks/local-demo.md",
+  "readme": "README.md",
+  "backlog": "BACKLOG.md",
+  "dev_helper": "scripts/dev.sh",
+  "mvp_acceptance": "config/mvp-acceptance.json",
+  "first_public_issues": "config/first-public-issues.json",
+  "first_public_issue_id": "docs-local-demo-walkthrough",
+  "required_dev_commands": [
+    "demo-info",
+    "seed-demo",
+    "demo-check"
+  ],
+  "story_beats": [
+    {
+      "id": "intake-and-schedule",
+      "title": "Act 1 — Intake and schedule",
+      "acceptance_claims": [
+        "technician-non-admin-workflow"
+      ],
+      "required_phrases": [
+        "Service Request created by the synthetic seed",
+        "linked draft Service Work Order",
+        "not a generic dashboard shell"
+      ],
+      "evidence_paths": [
+        "docs/runbooks/demo-script.md",
+        "apps/ai_erp_service/ai_erp_service/demo_seed.py",
+        "config/mvp-acceptance.json"
+      ]
+    },
+    {
+      "id": "technician-closeout",
+      "title": "Act 2 — Technician closeout",
+      "acceptance_claims": [
+        "technician-non-admin-workflow",
+        "time-and-parts-responsibility",
+        "invoice-readiness-closeout-gate"
+      ],
+      "required_phrases": [
+        "assigned technician scope",
+        "time entries, declared parts, closeout notes",
+        "final close and invoice-ready actions remain manager-only"
+      ],
+      "evidence_paths": [
+        "docs/runbooks/demo-script.md",
+        "docs/workflows/service-operations.md",
+        "config/mvp-acceptance.json"
+      ]
+    },
+    {
+      "id": "manager-transaction-controls",
+      "title": "Act 3 — Manager transaction controls",
+      "acceptance_claims": [
+        "time-and-parts-responsibility",
+        "manager-draft-invoice-idempotent",
+        "profitability-projection"
+      ],
+      "required_phrases": [
+        "manager-issued submitted ERPNext Material Issue",
+        "linked draft Sales Invoice",
+        "draft-only and does not update stock"
+      ],
+      "evidence_paths": [
+        "docs/runbooks/demo-script.md",
+        "docs/workflows/transaction-safety.md",
+        "config/mvp-acceptance.json"
+      ]
+    },
+    {
+      "id": "ai-closeout-proposal",
+      "title": "Act 4 — AI closeout proposal",
+      "acceptance_claims": [
+        "ai-proposal-traceable-human-approved"
+      ],
+      "required_phrases": [
+        "AI Proposal record for the work order",
+        "cited source rows, source hashes, model metadata, prompt version",
+        "approval records review evidence only"
+      ],
+      "evidence_paths": [
+        "docs/runbooks/demo-script.md",
+        "docs/workflows/audit-evidence.md",
+        "config/mvp-acceptance.json"
+      ]
+    },
+    {
+      "id": "safety-and-extensibility",
+      "title": "Act 5 — Safety and extensibility",
+      "acceptance_claims": [
+        "ai-proposal-traceable-human-approved",
+        "manager-draft-invoice-idempotent"
+      ],
+      "required_phrases": [
+        "ERPNext/Frappe stays upstream",
+        "AI orchestration lives in `services/ai_control_plane/`",
+        "future industry packs are planned through the industry-pack lifecycle"
+      ],
+      "evidence_paths": [
+        "docs/runbooks/demo-script.md",
+        "docs/architecture/system-context-and-repository-map.md",
+        "config/industry-pack-lifecycle.json"
+      ]
+    }
+  ],
+  "required_safety_phrases": [
+    "Use only synthetic records.",
+    "Do not record customer data",
+    "Do not show `development/.env`",
+    "Hide or crop local passwords",
+    "blur browser extensions and local usernames",
+    "Do not claim production readiness",
+    "Do not include screenshots until `scripts/dev.sh demo-check` passes"
+  ],
+  "required_readme_phrases": [
+    "docs/runbooks/demo-script.md",
+    "service-operations demo path"
+  ],
+  "required_runbook_phrases": [
+    "docs/runbooks/demo-script.md",
+    "README screenshot, GIF, maintainer walkthrough, or first public demo issue"
+  ],
+  "required_backlog_phrases": [
+    "docs/runbooks/demo-script.md",
+    "screenshot-assisted local demo walkthrough"
+  ]
+}

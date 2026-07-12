@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "workflow": "service_closeout_summary",
+  "proposal_type": "service_closeout_summary",
+  "payload_builder": {
+    "path": "apps/ai_erp_service/ai_erp_service/ai_drafts.py",
+    "function": "_closeout_summary_payload"
+  },
+  "control_plane_models": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+  "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+  "service_readme": "apps/ai_erp_service/README.md",
+  "security_docs": [
+    "docs/security/ai-workflow-review.md",
+    "docs/security/data-classification.md",
+    "docs/security/threat-model.md"
+  ],
+  "tests": [
+    "services/ai_control_plane/tests/test_render.py",
+    "tests/contract/test_ai_control_plane_openapi.py",
+    "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+  ],
+  "allowed_fields": {
+    "request": [
+      "schema_version",
+      "request_id",
+      "tenant_site",
+      "requested_by",
+      "work_order",
+      "sources"
+    ],
+    "work_order": [
+      "doctype",
+      "name",
+      "subject",
+      "status",
+      "description",
+      "closeout_notes",
+      "time_entries",
+      "parts"
+    ],
+    "time_entry": [
+      "technician",
+      "work_date",
+      "time_type",
+      "hours"
+    ],
+    "part_usage": [
+      "item",
+      "qty",
+      "source_warehouse",
+      "issued"
+    ],
+    "source_reference": [
+      "doctype",
+      "name",
+      "field",
+      "content_hash"
+    ],
+    "source_fields": [
+      "subject",
+      "closeout_notes",
+      "description",
+      "entry",
+      "usage"
+    ]
+  },
+  "required_policy": {
+    "decision": "draft_only",
+    "allowed_action": "none"
+  },
+  "forbidden_payload_keys": [
+    "customer",
+    "customer_name",
+    "contact",
+    "email",
+    "phone",
+    "address",
+    "service_location",
+    "closeout_evidence",
+    "attachment",
+    "credential",
+    "password",
+    "api_key",
+    "token",
+    "secret",
+    "prompt",
+    "payroll",
+    "bank",
+    "tax",
+    "ledger",
+    "account",
+    "stock_entry",
+    "stock_value",
+    "stock_valuation",
+    "sales_invoice",
+    "requested_action",
+    "submit",
+    "cancel",
+    "role",
+    "permission"
+  ],
+  "forbidden_payload_builder_snippets": [
+    "work_order.customer",
+    "work_order.service_location",
+    "work_order.closeout_evidence",
+    "\"customer\"",
+    "\"service_location\"",
+    "\"closeout_evidence\"",
+    "\"attachment\"",
+    "\"requested_action\"",
+    "\"sales_invoice\"",
+    "\"stock_entry\""
+  ],
+  "required_doc_phrases": [
+    "attachment contents",
+    "customer contact details",
+    "service addresses",
+    "credentials",
+    "stock valuation or accounting ledger lines",
+    "data from another tenant/site",
+    "AI output cannot directly mutate ERP state"
+  ],
+  "required_test_phrases": [
+    "requested_action",
+    "self.assertEqual(response.policy.allowed_action, \"none\")",
+    "self.assertEqual(frappe.db.count(\"Sales Invoice\"), invoices_before)",
+    "self.assertEqual(frappe.db.count(\"Stock Entry\"), stock_entries_before)"
+  ]
+}

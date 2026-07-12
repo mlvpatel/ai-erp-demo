@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "lifecycle_doc": "docs/workflows/contract-lifecycle.md",
+  "catalog": "contracts/catalog.json",
+  "contracts_readme": "contracts/README.md",
+  "events_readme": "contracts/events/README.md",
+  "status_flow": [
+    "planned",
+    "contract-only",
+    "implemented"
+  ],
+  "kind_rules": {
+    "openapi": {
+      "path_prefix": "contracts/openapi/",
+      "file_suffix_pattern": "-v{major}.yaml",
+      "version_style": "semver"
+    },
+    "business-event": {
+      "path_prefix": "contracts/events/",
+      "file_suffix_pattern": "-v{major}.yaml",
+      "version_style": "major",
+      "event_type_suffix_pattern": ".v{major}"
+    }
+  },
+  "required_lifecycle_doc_phrases": [
+    "Version public APIs and business events before implementing connectors",
+    "Contract IDs end with `-vN`",
+    "Contract filenames end with `-vN.yaml`.",
+    "OpenAPI `info.version` uses SemVer",
+    "event type ends with `.vN`",
+    "Never add unversioned webhooks"
+  ],
+  "required_contracts_readme_phrases": [
+    "`catalog.json` is the source of truth",
+    "new AI capabilities require a new versioned contract and policy review",
+    "Payloads are deliberately minimal"
+  ],
+  "required_events_readme_phrases": [
+    "Business event contracts are versioned here before connector implementations",
+    "Events are notifications. They do not grant permission to mutate ERP state.",
+    "New event types require a contract update, a producer/consumer test"
+  ],
+  "required_catalog_safety_terms": [
+    "mutation",
+    "money",
+    "stock",
+    "payroll",
+    "permission",
+    "compliance"
+  ]
+}

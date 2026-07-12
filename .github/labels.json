@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "labels": [
+    {
+      "name": "triage",
+      "color": "BFD4F2",
+      "description": "Needs initial maintainer review and routing."
+    },
+    {
+      "name": "good first issue",
+      "color": "7057FF",
+      "description": "Small, safe, contributor-friendly issue with clear acceptance criteria."
+    },
+    {
+      "name": "documentation",
+      "color": "0075CA",
+      "description": "Documentation-only or example-only change."
+    },
+    {
+      "name": "developer tooling",
+      "color": "C5DEF5",
+      "description": "Local scripts, static checks, CI helpers, or contributor workflow tooling."
+    },
+    {
+      "name": "ci",
+      "color": "EDEDED",
+      "description": "GitHub Actions, branch protection, or continuous-integration behavior."
+    },
+    {
+      "name": "bug",
+      "color": "D73A4A",
+      "description": "Reproducible defect in the demo, tooling, contracts, or docs."
+    },
+    {
+      "name": "enhancement",
+      "color": "A2EEEF",
+      "description": "Feature request or improvement that still needs scope review."
+    },
+    {
+      "name": "discovery",
+      "color": "FBCA04",
+      "description": "Needs workflow evidence, user research, or design-partner validation before build."
+    },
+    {
+      "name": "erp-safety",
+      "color": "B60205",
+      "description": "Touches money, stock, payroll, permissions, compliance, tenant scope, or auditability."
+    },
+    {
+      "name": "ai-safety",
+      "color": "5319E7",
+      "description": "Touches AI proposal policy, prompts, citations, model behavior, tools, or approvals."
+    },
+    {
+      "name": "ai-control-plane",
+      "color": "6F42C1",
+      "description": "Changes the isolated AI control-plane service, models, or runtime."
+    },
+    {
+      "name": "industry-pack",
+      "color": "0E8A16",
+      "description": "Changes or proposes vertical workflow behavior."
+    },
+    {
+      "name": "contract",
+      "color": "1D76DB",
+      "description": "Changes versioned OpenAPI, event schemas, or compatibility tests."
+    },
+    {
+      "name": "dependency",
+      "color": "0366D6",
+      "description": "Changes package, image, Frappe, ERPNext, or runtime dependency pins."
+    },
+    {
+      "name": "runtime",
+      "color": "5319E7",
+      "description": "Changes Docker images, local services, or runtime/container behavior."
+    },
+    {
+      "name": "security",
+      "color": "EE0701",
+      "description": "Potential vulnerability, secret, private data exposure, or access-boundary issue."
+    },
+    {
+      "name": "blocked-license",
+      "color": "D4C5F9",
+      "description": "Requires maintainer review of a license or contribution-policy concern."
+    }
+  ]
+}

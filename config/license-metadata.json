@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "status": "selected",
+  "owner_decision_file": "config/owner-decisions.local.json",
+  "selected_policy": "AGPL-3.0-only",
+  "copyright_year": "2026",
+  "copyright_holder": "AI ERP Demo contributors",
+  "public_contact_email": "mlvpatel@users.noreply.github.com",
+  "placeholder_patterns": [
+    "[year]",
+    "[fullname]",
+    "opensource@ai-erp.example"
+  ],
+  "policies": {
+    "MIT": {
+      "display": "MIT",
+      "frappe_app_license": "mit",
+      "root_license_hint": "MIT License"
+    },
+    "AGPL-3.0-only": {
+      "display": "AGPL-3.0-only",
+      "frappe_app_license": "agpl-3.0",
+      "root_license_hint": "GNU AFFERO GENERAL PUBLIC LICENSE"
+    },
+    "GPL-3.0-only": {
+      "display": "GPL-3.0-only",
+      "frappe_app_license": "gpl-3.0",
+      "root_license_hint": "GNU GENERAL PUBLIC LICENSE"
+    },
+    "custom-split-policy": {
+      "display": "custom split policy",
+      "frappe_app_license": "custom",
+      "root_license_hint": null
+    }
+  },
+  "root_targets": [
+    "LICENSE",
+    "README.md",
+    "docs/adr/0005-root-license-required-before-github-publish.md",
+    "CONTRIBUTING.md"
+  ],
+  "frappe_apps": [
+    {
+      "name": "ai_erp_core",
+      "hook_path": "apps/ai_erp_core/ai_erp_core/hooks.py",
+      "pyproject_path": "apps/ai_erp_core/pyproject.toml",
+      "license_path": "apps/ai_erp_core/license.txt",
+      "readme_path": "apps/ai_erp_core/README.md"
+    },
+    {
+      "name": "ai_erp_service",
+      "hook_path": "apps/ai_erp_service/ai_erp_service/hooks.py",
+      "pyproject_path": "apps/ai_erp_service/pyproject.toml",
+      "license_path": "apps/ai_erp_service/license.txt",
+      "readme_path": "apps/ai_erp_service/README.md"
+    }
+  ],
+  "python_services": [
+    {
+      "name": "ai-erp-control-plane",
+      "pyproject_path": "services/ai_control_plane/pyproject.toml"
+    }
+  ]
+}

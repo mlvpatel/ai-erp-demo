@@ -1,0 +1,183 @@
+schema_version: 1
+catalog: ai-erp-service-operations
+status: contract-only
+description: >-
+  Versioned business-event shapes for the service-operations MVP. The local MVP
+  does not publish asynchronous events yet; future connectors must use these
+  minimal, non-PII payloads and remain idempotent.
+
+event_types:
+  - ai_erp.service.work_order.invoice_ready.v1
+  - ai_erp.service.work_order.draft_invoice_created.v1
+  - ai_erp.service.parts.issued.v1
+  - ai_erp.ai.proposal.reviewed.v1
+
+envelope:
+  type: object
+  additionalProperties: false
+  required:
+    - schema_version
+    - event_id
+    - event_type
+    - occurred_at
+    - tenant_site
+    - actor
+    - source
+    - payload
+  properties:
+    schema_version:
+      type: integer
+      const: 1
+    event_id:
+      type: string
+      format: uuid
+    event_type:
+      type: string
+      enum:
+        - ai_erp.service.work_order.invoice_ready.v1
+        - ai_erp.service.work_order.draft_invoice_created.v1
+        - ai_erp.service.parts.issued.v1
+        - ai_erp.ai.proposal.reviewed.v1
+    occurred_at:
+      type: string
+      format: date-time
+    tenant_site:
+      type: string
+      minLength: 1
+    actor:
+      type: string
+      minLength: 1
+      description: ERP user id that triggered the deterministic ERP action.
+    source:
+      type: object
+      additionalProperties: false
+      required: [doctype, name]
+      properties:
+        doctype:
+          type: string
+          enum: [Service Work Order, AI Proposal]
+        name:
+          type: string
+          minLength: 1
+    correlation_id:
+      type: string
+      minLength: 1
+      description: Optional request or job id used for idempotent downstream handling.
+    payload:
+      oneOf:
+        - $ref: '#/payloads/ServiceWorkOrderInvoiceReady'
+        - $ref: '#/payloads/ServiceWorkOrderDraftInvoiceCreated'
+        - $ref: '#/payloads/ServicePartsIssued'
+        - $ref: '#/payloads/AIProposalReviewed'
+
+payloads:
+  ServiceWorkOrderInvoiceReady:
+    type: object
+    additionalProperties: false
+    required:
+      - service_work_order
+      - status
+      - invoice_ready
+      - projected_revenue
+      - issued_parts_cost
+      - projected_margin_before_labor
+    properties:
+      service_work_order:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        const: Invoice Ready
+      invoice_ready:
+        type: boolean
+        const: true
+      projected_revenue:
+        type: number
+      issued_parts_cost:
+        type: number
+      projected_margin_before_labor:
+        type: number
+
+  ServiceWorkOrderDraftInvoiceCreated:
+    type: object
+    additionalProperties: false
+    required:
+      - service_work_order
+      - sales_invoice
+      - sales_invoice_docstatus
+      - updates_stock
+    properties:
+      service_work_order:
+        type: string
+        minLength: 1
+      sales_invoice:
+        type: string
+        minLength: 1
+      sales_invoice_docstatus:
+        type: integer
+        const: 0
+        description: ERPNext draft docstatus.
+      updates_stock:
+        type: boolean
+        const: false
+
+  ServicePartsIssued:
+    type: object
+    additionalProperties: false
+    required:
+      - service_work_order
+      - stock_entry
+      - stock_entry_docstatus
+      - purpose
+      - part_count
+    properties:
+      service_work_order:
+        type: string
+        minLength: 1
+      stock_entry:
+        type: string
+        minLength: 1
+      stock_entry_docstatus:
+        type: integer
+        const: 1
+        description: ERPNext submitted docstatus.
+      purpose:
+        type: string
+        const: Material Issue
+      part_count:
+        type: integer
+        minimum: 1
+
+  AIProposalReviewed:
+    type: object
+    additionalProperties: false
+    required:
+      - ai_proposal
+      - proposal_type
+      - proposal_status
+      - policy_decision
+      - allowed_action
+      - reference_doctype
+      - reference_name
+    properties:
+      ai_proposal:
+        type: string
+        minLength: 1
+      proposal_type:
+        type: string
+        enum: [Service Closeout Summary]
+      proposal_status:
+        type: string
+        enum: [Approved, Rejected]
+      policy_decision:
+        type: string
+        const: draft_only
+      allowed_action:
+        type: string
+        const: none
+      reference_doctype:
+        type: string
+        const: Service Work Order
+      reference_name:
+        type: string
+        minLength: 1

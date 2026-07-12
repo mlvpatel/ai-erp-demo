@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "workflow_doc": "docs/workflows/authorization-and-approvals.md",
+  "service_workflow_doc": "docs/workflows/service-operations.md",
+  "threat_model": "docs/security/threat-model.md",
+  "role_fixtures": [
+    "apps/ai_erp_service/ai_erp_service/fixtures/1_role.json",
+    "apps/ai_erp_core/ai_erp_core/fixtures/1_role.json"
+  ],
+  "required_roles": [
+    "Service Manager",
+    "Service Dispatcher",
+    "Service Technician",
+    "Service Closure Owner",
+    "AI Proposal Approver",
+    "AI Proposal Requester"
+  ],
+  "doctype_permissions": [
+    {
+      "doctype": "Service Work Order",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.json",
+      "required_roles": {
+        "Service Manager": ["read", "write", "create"],
+        "Service Dispatcher": ["read", "write", "create"],
+        "Service Technician": ["read", "write"]
+      },
+      "permission_query_hook": "ai_erp_service.permissions.service_work_order_query",
+      "has_permission_hook": "ai_erp_service.permissions.service_work_order_has_permission"
+    },
+    {
+      "doctype": "Service Closure Exception",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_closure_exception/service_closure_exception.json",
+      "required_roles": {
+        "Service Manager": ["read", "write", "create"],
+        "Service Closure Owner": ["read", "write"],
+        "Service Technician": ["read"]
+      },
+      "permission_query_hook": "ai_erp_service.permissions.service_closure_exception_query",
+      "has_permission_hook": "ai_erp_service.permissions.service_closure_exception_has_permission"
+    },
+    {
+      "doctype": "AI Proposal",
+      "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.json",
+      "required_roles": {
+        "AI Proposal Approver": ["read", "write"],
+        "AI Proposal Requester": ["read"]
+      },
+      "permission_query_hook": "ai_erp_core.permissions.ai_proposal_query",
+      "has_permission_hook": "ai_erp_core.permissions.ai_proposal_has_permission"
+    }
+  ],
+  "sensitive_actions": [
+    {
+      "id": "technician-assigned-work-only",
+      "description": "Technician can see and update only assigned Service Work Orders.",
+      "roles_allowed": ["Service Technician"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/permissions.py",
+          "required_snippets": [
+            "assigned_technician",
+            "return \"1=0\""
+          ]
+        },
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "Only the assigned technician can update execution status.",
+            "Technicians can record only their own time."
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_technician_scope_and_manager_only_close",
+        "frappe.set_user(self.technician)",
+        "self.assertEqual(visible, {assigned.name})"
+      ]
+    },
+    {
+      "id": "manager-only-close-and-invoice-ready",
+      "description": "Only manager roles can close work or make it invoice-ready.",
+      "roles_allowed": ["Service Manager", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "Only a service manager can close work or make it invoice-ready.",
+            "require_any_role(MANAGER_ROLES"
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_technician_scope_and_manager_only_close",
+        "with self.assertRaises(frappe.PermissionError):",
+        "self.assertEqual(assigned.invoice_ready, 1)"
+      ]
+    },
+    {
+      "id": "manager-only-stock-issue",
+      "description": "Only manager roles can create the submitted ERPNext Material Issue from declared parts.",
+      "roles_allowed": ["Service Manager", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "def issue_parts",
+            "work_order._require_manager()",
+            "stock_entry.submit()",
+            "from_stock_issue"
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_parts_issue_is_idempotent",
+        "self.assertEqual(frappe.db.get_value(\"Stock Entry\", stock_entry_name, \"docstatus\"), 1)",
+        "self.assertIsNone(issue_parts(work_order.name))"
+      ]
+    },
+    {
+      "id": "manager-only-draft-sales-invoice",
+      "description": "Only manager roles with ERPNext Sales Invoice create permission can create one linked draft invoice.",
+      "roles_allowed": ["Service Manager", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "def make_draft_sales_invoice",
+            "work_order._require_manager()",
+            "frappe.has_permission(\"Sales Invoice\", ptype=\"create\", throw=True)",
+            "invoice.update_stock = 0"
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_manager_creates_idempotent_draft_sales_invoice",
+        "with self.assertRaises(frappe.PermissionError):",
+        "self.assertEqual(invoice.docstatus, 0)",
+        "self.assertEqual(invoice.update_stock, 0)"
+      ]
+    },
+    {
+      "id": "ai-proposal-reviewer-only",
+      "description": "Only AI Proposal Approver/System Manager can approve or reject AI proposals, and review has no ERP side effect.",
+      "roles_allowed": ["AI Proposal Approver", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py",
+          "required_snippets": [
+            "Only an AI Proposal Approver can review AI output.",
+            "def approve",
+            "def reject",
+            "flags.review_action"
+          ]
+        },
+        {
+          "path": "apps/ai_erp_core/ai_erp_core/permissions.py",
+          "required_snippets": [
+            "AI Proposal Approver",
+            "AI Proposal Requester",
+            "requested_by"
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_ai_closeout_draft_is_cited_immutable_and_human_reviewed",
+        "self.assertEqual(frappe.db.count(\"Sales Invoice\"), invoices_before)",
+        "self.assertEqual(frappe.db.count(\"Stock Entry\"), stock_entries_before)"
+      ]
+    }
+  ],
+  "test_file": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+  "required_doc_phrases": [
+    "Service Technician records time, parts, closeout notes, and evidence.",
+    "Service Manager closes work, issues parts, and drafts invoices.",
+    "AI Proposal Approver reviews AI drafts without changing ERP state.",
+    "Role bypass"
+  ]
+}

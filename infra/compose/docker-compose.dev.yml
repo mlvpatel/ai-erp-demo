@@ -1,0 +1,72 @@
+name: ai-erp-dev
+
+services:
+  mariadb:
+    image: ${MARIADB_IMAGE:-mariadb@sha256:efb4959ef2c835cd735dbc388eb9ad6aab0c78dd64febcd51bc17481111890c4}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in development/.env}
+      MARIADB_AUTO_UPGRADE: "1"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - mariadb-data:/var/lib/mysql
+
+  redis-cache:
+    image: ${REDIS_IMAGE:-redis@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763}
+
+  redis-queue:
+    image: ${REDIS_IMAGE:-redis@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763}
+    volumes:
+      - redis-queue-data:/data
+
+  ai-control-plane:
+    build:
+      context: ../../services/ai_control_plane
+    environment:
+      AI_CONTROL_PLANE_SHARED_SECRET: ${AI_CONTROL_PLANE_SHARED_SECRET:?Set AI_CONTROL_PLANE_SHARED_SECRET in development/.env}
+      AI_ERP_PROVIDER: ${AI_ERP_PROVIDER:-template}
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/healthz')"]
+      start_period: 5s
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  frappe:
+    image: ${FRAPPE_BENCH_IMAGE:-frappe/bench@sha256:339ff7ad224304c566b4f468e19f3aba299deaf5b82b13beb50ebe95dd477d2c}
+    command: sleep infinity
+    environment:
+      SHELL: /bin/bash
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in development/.env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in development/.env}
+      SITE_NAME: ${SITE_NAME:-ai-erp.localhost}
+      FRAPPE_BRANCH: ${FRAPPE_BRANCH:-version-16}
+      AI_CONTROL_PLANE_URL: ${AI_CONTROL_PLANE_URL:-http://ai-control-plane:8090}
+      AI_CONTROL_PLANE_SHARED_SECRET: ${AI_CONTROL_PLANE_SHARED_SECRET:?Set AI_CONTROL_PLANE_SHARED_SECRET in development/.env}
+    working_dir: /workspace/development
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+      ai-control-plane:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:cached
+    ports:
+      - "8000-8005:8000-8005"
+      - "9000-9005:9000-9005"
+
+volumes:
+  mariadb-data:
+  redis-queue-data:

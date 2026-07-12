@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "status": "blocked-until-owner-and-publication-gates-pass",
+  "strict_release_command": "scripts/check-open-source-ready.sh --release",
+  "blockers": [
+    {
+      "id": "root-license",
+      "title": "Root license is selected and committed",
+      "category": "owner-decision",
+      "status": "prepared",
+      "evidence_paths": [
+        "docs/adr/0005-root-license-required-before-github-publish.md",
+        "docs/runbooks/license-decision.md"
+      ],
+      "github_metadata_text": "root LICENSE is selected and committed",
+      "traceability_text": "Repository-owned code is licensed under AGPL-3.0-only.",
+      "runbook_text": "Confirm the selected AGPL-3.0-only policy remains consistent across the root, apps, service, and contribution policy.",
+      "strict_checks": [
+        {
+          "type": "file_present",
+          "path": "LICENSE"
+        }
+      ]
+    },
+    {
+      "id": "generated-app-metadata",
+      "title": "Generated app license and contact metadata is reconciled",
+      "category": "owner-decision",
+      "status": "prepared",
+      "evidence_paths": [
+        "docs/runbooks/license-decision.md",
+        "config/license-metadata.json",
+        "apps/ai_erp_core/ai_erp_core/hooks.py",
+        "apps/ai_erp_core/pyproject.toml",
+        "apps/ai_erp_core/license.txt",
+        "apps/ai_erp_service/ai_erp_service/hooks.py",
+        "apps/ai_erp_service/pyproject.toml",
+        "apps/ai_erp_service/license.txt"
+      ],
+      "github_metadata_text": "generated app license/contact metadata is reconciled",
+      "traceability_text": "License and contact metadata is reconciled across the custom apps and AI control plane.",
+      "runbook_text": "Generated app and Python package license/contact metadata no longer contain scaffold placeholders.",
+      "strict_checks": [
+        {
+          "type": "no_metadata_placeholders"
+        }
+      ]
+    },
+    {
+      "id": "local-generated-artifacts",
+      "title": "Local generated artifacts are cleaned before archive publication",
+      "category": "local-state",
+      "status": "prepared",
+      "evidence_paths": [
+        ".gitignore",
+        ".gitattributes",
+        "scripts/local-artifacts.sh",
+        "docs/runbooks/github-publication.md"
+      ],
+      "github_metadata_text": "local generated artifacts are cleaned before archive publication",
+      "traceability_text": "Local generated artifacts are cleaned or excluded from the publication artifact.",
+      "runbook_text": "Run `scripts/local-artifacts.sh --check` before publishing a source archive.",
+      "strict_checks": [
+        {
+          "type": "local_artifacts_absent"
+        }
+      ]
+    },
+    {
+      "id": "local-only-development-paths",
+      "title": "Local-only development paths are excluded from manual archives",
+      "category": "local-state",
+      "status": "prepared",
+      "evidence_paths": [
+        ".gitignore",
+        ".gitattributes",
+        "scripts/check-publication-source.sh",
+        "docs/runbooks/github-publication.md"
+      ],
+      "github_metadata_text": "local-only development paths are excluded from manual archives",
+      "traceability_text": "A root Git repository is initialized and checked for forbidden tracked paths.",
+      "runbook_text": "Run `scripts/check-publication-source.sh --strict` before publishing a manual source archive.",
+      "strict_checks": [
+        {
+          "type": "publication_source_strict"
+        }
+      ]
+    },
+    {
+      "id": "github-ci-passes",
+      "title": "GitHub CI passes in the target repository",
+      "category": "external-verification",
+      "status": "manual",
+      "evidence_paths": [
+        ".github/workflows/ci.yml",
+        ".github/repository-metadata.json",
+        "docs/runbooks/github-publication.md"
+      ],
+      "github_metadata_text": "GitHub CI passes in the target repository",
+      "traceability_text": "GitHub CI passes in the actual target repository.",
+      "runbook_text": "CI passes on GitHub.",
+      "strict_checks": []
+    },
+    {
+      "id": "fresh-clone-demo",
+      "title": "Fresh clone verifies the local demo runbook",
+      "category": "external-verification",
+      "status": "manual",
+      "evidence_paths": [
+        "development/README.md",
+        "docs/runbooks/local-demo.md",
+        "config/fresh-clone-demo.json",
+        "docs/runbooks/github-publication.md"
+      ],
+      "github_metadata_text": "fresh clone verifies the local demo runbook",
+      "traceability_text": "A fresh clone verifies the local demo runbook.",
+      "runbook_text": "A fresh clone can bootstrap the dev stack using `development/README.md`.",
+      "strict_checks": []
+    }
+  ]
+}
