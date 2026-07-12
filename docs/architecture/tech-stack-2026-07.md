@@ -84,7 +84,7 @@ new tag exists. Update them together with:
 - a passing `scripts/check-reproducibility.sh`,
 - a Docker Compose config check,
 - a site migration,
-- focused service integration tests, and
+- whole service-app integration tests, and
 - an explanation of why the upgrade matters.
 
 ## Sources
@@ -98,4 +98,3 @@ new tag exists. Update them together with:
 - metasfresh GitHub repository: <https://github.com/metasfresh/metasfresh>
 - Axelor Open Suite GitHub repository:
   <https://github.com/axelor/axelor-open-suite>
-

@@ -129,7 +129,7 @@ For the local Frappe integration stack:
 ```bash
 cp development/.env.example /tmp/ai-erp-ci.env
 docker compose --env-file /tmp/ai-erp-ci.env -f infra/compose/docker-compose.dev.yml config --quiet
-docker compose --env-file development/.env -f infra/compose/docker-compose.dev.yml exec --workdir /workspace/development/frappe-bench frappe bench --site ai-erp.localhost run-tests --app ai_erp_service --doctype "Service Work Order" --test-category integration --failfast
+docker compose --env-file development/.env -f infra/compose/docker-compose.dev.yml exec --workdir /workspace/development/frappe-bench frappe bench --site ai-erp.localhost run-tests --app ai_erp_service --test-category integration --failfast
 ```
 
 ## 4. Initialize and push

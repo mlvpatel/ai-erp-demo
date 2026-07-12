@@ -28,7 +28,7 @@ Commands:
   contract-test         Run API contract tests in Docker.
   migrate               Run Frappe migrations for the local site.
   seed-demo             Create idempotent synthetic service demo data.
-  service-test          Run the focused service workflow integration tests.
+  service-test          Run all AI ERP Service integration tests.
   demo-check            Run the Docker-backed checks that prove the MVP demo.
 USAGE
 }
@@ -230,7 +230,7 @@ case "$command" in
     ;;
   service-test)
     require_local_env
-    compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" run-tests --app ai_erp_service --doctype "Service Work Order" --test-category integration --failfast
+    compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" run-tests --app ai_erp_service --test-category integration --failfast
     ;;
   demo-check)
     require_local_env

@@ -75,8 +75,9 @@ Or run the combined check:
 scripts/dev.sh demo-check
 ```
 
-The focused service test proves:
+The service-app integration suite proves:
 
+- Service Location creation enforces its required Customer link,
 - a Service Request creates a linked draft Service Work Order,
 - a non-admin technician can work only within their allowed scope,
 - manager-only closeout, parts issue, and draft-invoice controls hold,
