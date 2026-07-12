@@ -15,6 +15,17 @@ groups:
           summary: Frappe site is unavailable
           runbook: docs/runbooks/incident-response.md
 
+      - alert: AIERPFrappeP95LatencyHigh
+        expr: >-
+          histogram_quantile(0.95,
+          sum by (le) (rate(ai_erp_frappe_request_duration_seconds_bucket[5m]))) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Frappe p95 request latency is high
+          runbook: docs/workflows/observability-readiness.md
+
       - alert: AIERPQueueStalled
         expr: ai_erp_queue_oldest_job_age_seconds > 900
         for: 5m
