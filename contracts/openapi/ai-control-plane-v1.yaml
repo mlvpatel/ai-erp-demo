@@ -1,12 +1,19 @@
 openapi: 3.1.0
 info:
   title: AI ERP Control Plane API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Site-scoped, draft-only AI proposal boundary. The control plane never has
     credentials for an ERP database and never receives permission to post ERP
     transactions.
 paths:
+  /healthz:
+    get:
+      summary: Report control-plane process health
+      security: []
+      responses:
+        '200':
+          description: The control-plane process is healthy.
   /v1/proposals/service-closeout-summary:
     post:
       summary: Draft a cited service-work-order closeout summary
@@ -30,6 +37,8 @@ paths:
           description: Missing or invalid service credential.
         '422':
           description: Invalid or unsupported request payload.
+        '503':
+          description: No approved production model adapter is configured.
 components:
   securitySchemes:
     ControlPlaneServiceKey:

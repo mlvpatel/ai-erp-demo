@@ -9,6 +9,7 @@ from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi" / "ai-control-plane-v1.yaml"
+HEALTH_PATH = "/healthz"
 SERVICE_CLOSEOUT_PATH = "/v1/proposals/service-closeout-summary"
 
 
@@ -27,7 +28,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		self.assert_contract_contains(
 			"openapi: 3.1.0",
 			"title: AI ERP Control Plane API",
-			"version: 1.0.0",
+			"version: 1.1.0",
 			f"  {SERVICE_CLOSEOUT_PATH}:",
 			"operationId: draftServiceCloseoutSummary",
 			"ControlPlaneServiceKey: []",
@@ -35,7 +36,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		self.assertEqual(self.openapi["openapi"], "3.1.0")
 		self.assertEqual(self.openapi["info"]["title"], "AI ERP Control Plane API")
-		self.assertEqual(self.openapi["info"]["version"], "1.0.0")
+		self.assertEqual(self.openapi["info"]["version"], "1.1.0")
 
 		operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertEqual(operation["operationId"], "draftServiceCloseoutSummary")
@@ -43,6 +44,21 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		self.assertIn("200", operation["responses"])
 		self.assertIn("401", operation["responses"])
 		self.assertIn("422", operation["responses"])
+
+	def test_health_and_provider_unavailable_responses_are_published(self):
+		self.assert_contract_contains(
+			f"  {HEALTH_PATH}:",
+			"security: []",
+			"'503':",
+			"No approved production model adapter is configured.",
+		)
+
+		health_operation = self.openapi["paths"][HEALTH_PATH]["get"]
+		self.assertNotIn("security", health_operation)
+		self.assertIn("200", health_operation["responses"])
+
+		proposal_operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
+		self.assertIn("503", proposal_operation["responses"])
 
 	def test_security_scheme_matches_published_contract(self):
 		self.assert_contract_contains(
