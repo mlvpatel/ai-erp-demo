@@ -58,6 +58,62 @@
       ]
     },
     {
+      "id": "tests-next-ai-proposal-negative",
+      "title": "Add a negative test for the next approved AI proposal type before implementing it",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "developer tooling",
+        "good first issue"
+      ],
+      "area": "developer tooling",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "tests/contract/test_ai_control_plane_openapi.py",
+        "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+        "docs/workflows/ai-workflow-lifecycle.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "The test proves unsupported action fields are rejected without adding or enabling a proposal type, provider call, action, or ERP side effect."
+        },
+        {
+          "type": "command",
+          "command": "python -m unittest discover -s tests/contract -v"
+        }
+      ]
+    },
+    {
+      "id": "fixtures-synthetic-service-locations",
+      "title": "Add more synthetic demo service locations",
+      "template": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "labels": [
+        "developer tooling",
+        "good first issue"
+      ],
+      "area": "developer tooling",
+      "safety_class": "safe-first-issue",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/demo_seed.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "docs/security/data-classification.md"
+      ],
+      "acceptance_checks": [
+        {
+          "type": "review",
+          "description": "Every added location is explicitly synthetic and contains no real customer names, contacts, addresses, identifiers, credentials, or production-like data."
+        },
+        {
+          "type": "command",
+          "command": "scripts/dev.sh service-test"
+        },
+        {
+          "type": "command",
+          "command": "python3 scripts/check-publication-secrets.py"
+        }
+      ]
+    },
+    {
       "id": "tooling-demo-info-media-links",
       "title": "Add README media links to demo-info after screenshots exist",
       "template": ".github/ISSUE_TEMPLATE/feature_request.md",
