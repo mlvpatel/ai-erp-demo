@@ -48,6 +48,21 @@
     "config/industry-packs.json",
     "contracts/catalog.json"
   ],
+  "allowed_root_entries": [
+    ".DS_Store",
+    ".git",
+    ".gitattributes",
+    ".gitignore",
+    "BACKLOG.md",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "GOVERNANCE.md",
+    "LICENSE",
+    "ROADMAP.md",
+    "SECURITY.md",
+    "SUPPORT.md"
+  ],
   "forbidden_root_directories": [
     "frontend",
     "backend",
