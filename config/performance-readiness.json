@@ -80,7 +80,7 @@
     {
       "path": "README.md",
       "phrases": [
-        "performance/             # Planning-only load profile; no runner yet"
+        "performance/             # Planning-only — tracked in BACKLOG.md; no runner"
       ]
     },
     {
