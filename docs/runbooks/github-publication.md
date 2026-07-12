@@ -164,6 +164,17 @@ docker compose --env-file development/.env -f infra/compose/docker-compose.dev.y
 - Add repository topics only after the public positioning is settled, for
   example `erpnext`, `frappe`, `erp`, `ai`, `field-service`, and `open-source`.
 
+### Manual release-time evidence
+
+The `python3 scripts/check-owner-decisions.py --strict` and
+`python3 scripts/check-license-metadata.py --strict` checks are manual
+release-time gates. They require the maintainer-controlled, ignored owner
+decision file and a deliberate review of public license/contact metadata, so
+ordinary CI must not fabricate or publish that owner evidence. The
+`github-ci-passes` blocker is also manual and release-time-only because a local
+checkout cannot prove the required GitHub Actions checks passed on the exact
+target commit; confirm those checks in the target repository before tagging.
+
 ## 6. First public release gate
 
 Do not tag a release until:
