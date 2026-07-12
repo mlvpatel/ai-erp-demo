@@ -78,6 +78,7 @@
   ],
   "required_alerts": [
     "AIERPServiceDown",
+    "AIERPFrappeP95LatencyHigh",
     "AIERPQueueStalled",
     "AIERPSchedulerStopped",
     "AIERPDatabaseUnavailable",
