@@ -58,7 +58,7 @@ cannot serve the use case.
 │   ├── contract/                # API and event compatibility tests
 │   ├── e2e/                     # Browser and ERP workflow tests
 │   ├── fixtures/                # Synthetic, non-customer test data
-│   └── performance/             # Load and regression scenarios
+│   └── performance/             # Planning-only load profile; no runner yet
 ├── scripts/                     # Safe, documented developer automation
 ├── development/                 # Tracked bootstrap config; local bench is ignored
 ├── config/                      # Checked-in, environment-safe defaults
