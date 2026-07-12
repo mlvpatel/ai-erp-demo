@@ -64,6 +64,28 @@ def validate_required_paths(failures: list[str], manifest: dict[str, Any]) -> No
             fail(failures, f"missing required file: {file_path}")
 
 
+def validate_root_entries(failures: list[str], manifest: dict[str, Any]) -> None:
+    required_directories = require_string_list(failures, manifest, "required_directories")
+    required_files = require_string_list(failures, manifest, "required_files")
+    allowed_entries = require_string_list(failures, manifest, "allowed_root_entries")
+    bounded_roots = manifest.get("bounded_roots")
+    bounded_root_names = set(bounded_roots) if isinstance(bounded_roots, dict) else set()
+
+    if len(set(allowed_entries)) != len(allowed_entries):
+        fail(failures, "allowed_root_entries must not contain duplicates")
+    for entry in allowed_entries:
+        if "/" in entry or "\\" in entry or entry in {".", ".."}:
+            fail(failures, f"allowed_root_entries must contain root names only: {entry}")
+
+    allowed_names = set(allowed_entries) | bounded_root_names
+    allowed_names.update(Path(path).parts[0] for path in required_directories)
+    allowed_names.update(Path(path).parts[0] for path in required_files)
+
+    for entry in sorted(REPO_ROOT.iterdir(), key=lambda path: path.name):
+        if entry.name not in allowed_names:
+            fail(failures, f"unexpected repository root entry: {entry.name}")
+
+
 def validate_forbidden_root_dirs(failures: list[str], manifest: dict[str, Any]) -> None:
     for directory in require_string_list(failures, manifest, "forbidden_root_directories"):
         path = REPO_ROOT / directory
@@ -142,6 +164,7 @@ def main() -> int:
 
     if manifest:
         validate_required_paths(failures, manifest)
+        validate_root_entries(failures, manifest)
         validate_forbidden_root_dirs(failures, manifest)
         validate_implemented_apps(failures, manifest)
         validate_reserved_apps(failures, manifest)
