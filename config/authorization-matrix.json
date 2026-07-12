@@ -17,6 +17,26 @@
   ],
   "doctype_permissions": [
     {
+      "doctype": "Service Location",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_location/service_location.json",
+      "required_roles": {
+        "Service Manager": ["read", "write", "create"],
+        "Service Dispatcher": ["read", "write", "create"],
+        "Service Technician": ["read"]
+      },
+      "record_scope": "doctype_only"
+    },
+    {
+      "doctype": "Service Request",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_request/service_request.json",
+      "required_roles": {
+        "Service Manager": ["read", "write", "create"],
+        "Service Dispatcher": ["read", "write", "create"],
+        "Service Technician": ["read"]
+      },
+      "record_scope": "doctype_only"
+    },
+    {
       "doctype": "Service Work Order",
       "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.json",
       "required_roles": {
