@@ -70,8 +70,8 @@ has local changes, `scripts/bootstrap-frappe-dev.sh` stops instead of
 overwriting those changes. Image variables are digest-pinned so the local
 runtime does not silently change when a registry tag moves.
 
-After changing a custom app, apply its schema and run the focused service MVP
-test suite:
+After changing a custom app, apply its schema and run the whole service-app
+integration suite:
 
 ```sh
 docker compose --env-file development/.env \
@@ -88,7 +88,7 @@ docker compose --env-file development/.env \
   -f infra/compose/docker-compose.dev.yml exec \
   --workdir /workspace/development/frappe-bench frappe \
   bench --site ai-erp.localhost run-tests --app ai_erp_service \
-  --doctype "Service Work Order" --test-category integration --failfast
+  --test-category integration --failfast
 ```
 
 The compose stack also starts an internal-only, stateless AI control plane. The
