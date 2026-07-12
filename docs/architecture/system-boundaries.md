@@ -16,7 +16,8 @@ flowchart TB
     service["ai_erp_service\nservice work orders, closeout, parts, invoice readiness"]
     connectors["ai_erp_connectors\nfuture replaceable adapters"]
     db["MariaDB site database\ntransaction-authoritative state"]
-    redis["Redis and Frappe jobs\nqueues, cache, realtime"]
+    redis_cache["redis-cache\nFrappe cache"]
+    redis_queue["redis-queue\njob queue and realtime"]
     ai["AI control plane\nFastAPI, policy, prompt rendering, proposals"]
     contracts["contracts/\nOpenAPI and business events"]
     model["Future model/provider adapters"]
@@ -28,7 +29,8 @@ flowchart TB
     erp --> service
     erp --> connectors
     erp --> db
-    erp --> redis
+    erp --> redis_cache
+    erp --> redis_queue
     erp -- "approved, least-privilege request" --> ai
     ai -- "draft proposal with citations" --> erp
     ai --> contracts
