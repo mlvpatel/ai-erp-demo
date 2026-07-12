@@ -16,6 +16,10 @@ Start with:
 
 - [`audits/2026-07-12-remediation-status.md`](audits/2026-07-12-remediation-status.md)
   for the initial audit disposition and remaining external gates.
+- [`audits/2026-07-11-baseline-gap-analysis.md`](audits/2026-07-11-baseline-gap-analysis.md)
+  for the sanitized historical baseline findings.
+- [`audits/2026-07-12-remediation-work-order.md`](audits/2026-07-12-remediation-work-order.md)
+  for the sanitized historical remediation specification.
 - `architecture/tech-stack-2026-07.md` for the July 2026 stack decision.
 - `architecture/system-context-and-repository-map.md` for the contributor-facing
   product context and folder responsibility map.
