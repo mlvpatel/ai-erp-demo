@@ -116,12 +116,19 @@ docker compose --env-file development/.env \
 docker compose --env-file development/.env \
   -f infra/compose/docker-compose.dev.yml exec \
   --workdir /workspace/development/frappe-bench frappe \
+  bench --site ai-erp.localhost run-tests --app ai_erp_core \
+  --test-category integration --failfast
+
+docker compose --env-file development/.env \
+  -f infra/compose/docker-compose.dev.yml exec \
+  --workdir /workspace/development/frappe-bench frappe \
   bench --site ai-erp.localhost run-tests --app ai_erp_service \
   --doctype "Service Work Order" --test-category integration --failfast
 ```
 
 This gate must prove:
 
+- AI Proposal requesters cannot list or directly read another requester's proposal,
 - non-admin technician scope,
 - manager-only close/invoice/parts issue actions,
 - idempotent Stock Entry and draft Sales Invoice creation,
