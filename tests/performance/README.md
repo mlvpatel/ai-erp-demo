@@ -1,6 +1,8 @@
 # Performance tests
 
 This directory holds synthetic, non-customer performance planning artifacts.
+This layer is planning-only: it has no executable performance runner or
+benchmark command yet.
 Do not commit production exports, real logs, trace exports, dashboard
 screenshots, database dumps, or client identifiers here.
 

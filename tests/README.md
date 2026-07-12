@@ -3,7 +3,8 @@
 - `contract/`: prove external API and event compatibility.
 - `e2e/`: exercise complete ERP user workflows.
 - `fixtures/`: synthetic tenant, customer, product, and document data only.
-- `performance/`: realistic record-volume and concurrency checks.
+- `performance/`: planning-only record-volume and concurrency profiles; no
+  executable performance runner exists yet.
   Start with `performance/service-operations-load-profile.example.json` before
   making public performance or scalability claims.
 

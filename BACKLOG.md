@@ -44,6 +44,9 @@ transaction boundaries or AI governance.
 - Add a distribution or light-manufacturing discovery spike.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
 - Add an end-to-end browser smoke test for the service workflow.
+- Build an executable synthetic performance harness from
+  `tests/performance/service-operations-load-profile.example.json` before
+  making performance claims.
 - Add production deployment hardening after a real hosting target is chosen.
 
 ## Suggested labels

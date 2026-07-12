@@ -65,6 +65,7 @@
       "path": "tests/performance/README.md",
       "phrases": [
         "synthetic, non-customer performance planning artifacts",
+        "planning-only: it has no executable performance runner or benchmark command yet",
         "service-operations-load-profile.example.json",
         "Real benchmark results belong in private deployment evidence"
       ]
@@ -72,7 +73,20 @@
     {
       "path": "tests/README.md",
       "phrases": [
-        "performance/`: realistic record-volume and concurrency checks"
+        "performance/`: planning-only record-volume and concurrency profiles",
+        "no executable performance runner exists yet"
+      ]
+    },
+    {
+      "path": "README.md",
+      "phrases": [
+        "performance/             # Planning-only load profile; no runner yet"
+      ]
+    },
+    {
+      "path": "BACKLOG.md",
+      "phrases": [
+        "Build an executable synthetic performance harness"
       ]
     },
     {
