@@ -49,6 +49,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in development/.env}
       SITE_NAME: ${SITE_NAME:-ai-erp.localhost}
       FRAPPE_BRANCH: ${FRAPPE_BRANCH:-version-16}
+      FRAPPE_COMMIT: ${FRAPPE_COMMIT:-7699c7feefac77a36853d3a955d9b6b53552f55e}
+      ERPNEXT_COMMIT: ${ERPNEXT_COMMIT:-d1d3b241ae7bc21d18cf830a4bacd568e21a2a19}
       AI_CONTROL_PLANE_URL: ${AI_CONTROL_PLANE_URL:-http://ai-control-plane:8090}
       AI_CONTROL_PLANE_SHARED_SECRET: ${AI_CONTROL_PLANE_SHARED_SECRET:?Set AI_CONTROL_PLANE_SHARED_SECRET in development/.env}
     working_dir: /workspace/development
