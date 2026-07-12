@@ -101,6 +101,10 @@ Frappe Bench assumptions, follow
 For a contributor-friendly command list, run `scripts/dev.sh help`. For the
 first service-operations demo path, follow
 [docs/runbooks/local-demo.md](docs/runbooks/local-demo.md).
+In the current repository, an MVP claim marked `implemented` means its checked-in
+source and evidence anchors pass the static acceptance gate; it does not mean
+the Docker-backed Frappe behavioral tests are executed by GitHub CI. Run
+`scripts/dev.sh service-test` locally before relying on those behavioral claims.
 For a screenshot, GIF, maintainer walkthrough, or first public demo issue, use
 [docs/runbooks/demo-script.md](docs/runbooks/demo-script.md) so the
 service-operations demo path stays aligned with verified MVP claims.
