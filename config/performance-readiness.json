@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable performance readiness contract for the AI ERP Demo.",
+  "workflow_doc": "docs/workflows/performance-readiness.md",
+  "quality_gates_doc": "docs/workflows/quality-gates.md",
+  "load_profile": "tests/performance/service-operations-load-profile.example.json",
+  "performance_readme": "tests/performance/README.md",
+  "tests_readme": "tests/README.md",
+  "observability_readiness_doc": "docs/workflows/observability-readiness.md",
+  "operations_readiness_doc": "docs/workflows/operations-readiness.md",
+  "mvp_scope_doc": "docs/product/mvp-scope.md",
+  "traceability_doc": "docs/product/requirements-traceability.md",
+  "github_publication_runbook": "docs/runbooks/github-publication.md",
+  "required_profile": {
+    "profile_id": "service-operations-mvp-v1",
+    "synthetic_only": true,
+    "minimum_data_profile": {
+      "customers": 250,
+      "service_locations": 500,
+      "items": 750,
+      "service_requests": 1000,
+      "service_work_orders": 5000,
+      "service_work_order_time_rows": 10000,
+      "service_work_order_part_rows": 10000,
+      "ai_proposals": 1000,
+      "stock_entries": 2000,
+      "draft_sales_invoices": 1000
+    },
+    "required_targets": [
+      "interactive_p95_seconds",
+      "transaction_action_p95_seconds",
+      "ai_draft_p95_seconds_without_provider_latency",
+      "queue_backlog_clear_seconds",
+      "report_p95_seconds"
+    ],
+    "required_scenario_ids": [
+      "service-work-order-list",
+      "service-work-order-search",
+      "invoice-ready-draft-invoice",
+      "parts-issue-idempotency",
+      "ai-closeout-draft",
+      "queue-and-scheduler-backlog",
+      "service-profitability-report"
+    ],
+    "required_scenario_evidence_terms": [
+      "p95",
+      "role",
+      "idempotent",
+      "permissions",
+      "synthetic",
+      "no ERP side effect"
+    ]
+  },
+  "required_doc_phrases": [
+    {
+      "path": "docs/workflows/performance-readiness.md",
+      "phrases": [
+        "Load testing must not create duplicate Stock Entries, duplicate draft Sales Invoices, approval bypasses, tenant-boundary leaks, or AI side effects.",
+        "Minimum performance surfaces",
+        "tests/performance/service-operations-load-profile.example.json",
+        "python3 scripts/check-performance-readiness.py"
+      ]
+    },
+    {
+      "path": "tests/performance/README.md",
+      "phrases": [
+        "synthetic, non-customer performance planning artifacts",
+        "service-operations-load-profile.example.json",
+        "Real benchmark results belong in private deployment evidence"
+      ]
+    },
+    {
+      "path": "tests/README.md",
+      "phrases": [
+        "performance/`: realistic record-volume and concurrency checks"
+      ]
+    },
+    {
+      "path": "docs/workflows/quality-gates.md",
+      "phrases": [
+        "performance readiness consistency",
+        "python3 scripts/check-performance-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/workflows/observability-readiness.md",
+      "phrases": [
+        "queue backlog",
+        "p95"
+      ]
+    },
+    {
+      "path": "docs/workflows/operations-readiness.md",
+      "phrases": [
+        "performance readiness"
+      ]
+    },
+    {
+      "path": "docs/runbooks/github-publication.md",
+      "phrases": [
+        "config/performance-readiness.json",
+        "python3 scripts/check-performance-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/product/requirements-traceability.md",
+      "phrases": [
+        "Define performance and scalability boundaries"
+      ]
+    }
+  ]
+}

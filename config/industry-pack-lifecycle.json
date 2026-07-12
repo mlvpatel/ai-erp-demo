@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "lifecycle_doc": "docs/workflows/industry-pack-lifecycle.md",
+  "pack_manifest": "config/industry-packs.json",
+  "roadmap_doc": "docs/product/industry-pack-roadmap.md",
+  "design_template": "docs/product/industry-pack-design-template.md",
+  "status_flow": [
+    "planned",
+    "reserved",
+    "implemented"
+  ],
+  "allowed_entry_gates": [
+    "not_started",
+    "discovery_brief_ready",
+    "passed_for_mvp"
+  ],
+  "status_rules": {
+    "planned": {
+      "app_path": "must_be_null",
+      "allowed_entry_gates": [
+        "not_started"
+      ],
+      "required_verification_phrase": "Create discovery brief before reserving an app folder"
+    },
+    "reserved": {
+      "app_path": "must_be_directory",
+      "allowed_entry_gates": [
+        "not_started",
+        "discovery_brief_ready"
+      ],
+      "required_readme_phrases": [
+        "No Frappe app is generated",
+        "Do not add yet",
+        "Custom behavior only if proven"
+      ],
+      "forbidden_generated_markers": [
+        "pyproject.toml",
+        "hooks.py",
+        "modules.txt",
+        "patches.txt",
+        "fixtures",
+        "doctype"
+      ]
+    },
+    "implemented": {
+      "app_path": "must_be_directory",
+      "allowed_entry_gates": [
+        "passed_for_mvp"
+      ],
+      "required_verification_prefix": "scripts/dev.sh ",
+      "required_doc_phrase": "end-to-end demo workflow"
+    }
+  },
+  "required_lifecycle_doc_phrases": [
+    "planned → reserved → implemented",
+    "Do not generate a Frappe app for a planned pack.",
+    "Reserved folders are documentation-only until discovery proves a gap",
+    "An implemented pack must have an end-to-end demo workflow.",
+    "AI remains draft-only"
+  ],
+  "required_roadmap_phrases": [
+    "The same sequence is tracked in `config/industry-packs.json`",
+    "Use `industry-pack-design-template.md`",
+    "A pack is ready for implementation only when it has"
+  ],
+  "required_template_phrases": [
+    "ERPNext reuse map",
+    "Forbidden AI behavior for this pack",
+    "Ready to generate or expand a Frappe app.",
+    "Needs more discovery.",
+    "Should be handled through ERPNext configuration only."
+  ]
+}

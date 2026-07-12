@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "profile_id": "service-operations-mvp-v1",
+  "description": "Synthetic performance planning profile for the service-operations MVP. This is not a benchmark result.",
+  "synthetic_only": true,
+  "privacy_rules": [
+    "Do not use customer exports, production logs, production database snapshots, real contact details, or prompt bodies.",
+    "Keep benchmark results with infrastructure identifiers or operational logs outside the public repository.",
+    "Use deterministic fake customers, items, service locations, work orders, time rows, part rows, and AI proposals."
+  ],
+  "data_profile": {
+    "customers": 250,
+    "service_locations": 500,
+    "items": 750,
+    "service_requests": 1000,
+    "service_work_orders": 5000,
+    "service_work_order_time_rows": 10000,
+    "service_work_order_part_rows": 10000,
+    "ai_proposals": 1000,
+    "stock_entries": 2000,
+    "draft_sales_invoices": 1000
+  },
+  "targets": {
+    "interactive_p95_seconds": 2.0,
+    "transaction_action_p95_seconds": 3.0,
+    "ai_draft_p95_seconds_without_provider_latency": 3.0,
+    "queue_backlog_clear_seconds": 120,
+    "report_p95_seconds": 5.0
+  },
+  "scenarios": [
+    {
+      "id": "service-work-order-list",
+      "surface": "Frappe list and filters",
+      "roles": ["Service Technician", "Service Manager"],
+      "minimum_records": ["service_work_orders", "service_locations", "customers"],
+      "target": "interactive_p95_seconds",
+      "required_evidence": [
+        "p95 list latency recorded",
+        "role-scoped filters still hide unauthorized records",
+        "slow filters have an owner or mitigation"
+      ]
+    },
+    {
+      "id": "service-work-order-search",
+      "surface": "Search and link fields",
+      "roles": ["Service Technician", "Service Manager"],
+      "minimum_records": ["service_work_orders", "items", "customers"],
+      "target": "interactive_p95_seconds",
+      "required_evidence": [
+        "p95 search latency recorded",
+        "search uses synthetic data only",
+        "permissions still apply"
+      ]
+    },
+    {
+      "id": "invoice-ready-draft-invoice",
+      "surface": "Manager invoice-ready and draft invoice action",
+      "roles": ["Service Manager"],
+      "minimum_records": ["service_work_orders", "service_work_order_time_rows", "service_work_order_part_rows"],
+      "target": "transaction_action_p95_seconds",
+      "required_evidence": [
+        "draft invoice action p95 latency recorded",
+        "retry creates exactly one linked draft Sales Invoice",
+        "draft invoice does not submit or update stock"
+      ]
+    },
+    {
+      "id": "parts-issue-idempotency",
+      "surface": "Manager parts issue and stock handoff",
+      "roles": ["Service Manager"],
+      "minimum_records": ["service_work_orders", "service_work_order_part_rows", "items", "stock_entries"],
+      "target": "transaction_action_p95_seconds",
+      "required_evidence": [
+        "parts issue action p95 latency recorded",
+        "concurrent retry remains idempotent and creates exactly one submitted Stock Entry",
+        "linked part rows remain immutable after issue"
+      ]
+    },
+    {
+      "id": "ai-closeout-draft",
+      "surface": "AI closeout payload build, validation, proposal storage, and review",
+      "roles": ["Service Manager"],
+      "minimum_records": ["service_work_orders", "ai_proposals"],
+      "target": "ai_draft_p95_seconds_without_provider_latency",
+      "required_evidence": [
+        "AI draft path p95 latency recorded without provider latency",
+        "payload contains allow-listed fields only",
+        "approval records review only and has no ERP side effect"
+      ]
+    },
+    {
+      "id": "queue-and-scheduler-backlog",
+      "surface": "Background jobs and scheduler",
+      "roles": ["System Manager"],
+      "minimum_records": ["service_requests", "service_work_orders", "ai_proposals"],
+      "target": "queue_backlog_clear_seconds",
+      "required_evidence": [
+        "queue backlog clears within target",
+        "failed jobs are observable",
+        "scheduler remains healthy"
+      ]
+    },
+    {
+      "id": "service-profitability-report",
+      "surface": "Service profitability, exception, and invoice-readiness reports",
+      "roles": ["Service Manager"],
+      "minimum_records": ["service_work_orders", "service_work_order_time_rows", "service_work_order_part_rows", "draft_sales_invoices"],
+      "target": "report_p95_seconds",
+      "required_evidence": [
+        "report p95 latency recorded",
+        "report is scoped to authorized records",
+        "report does not require unsafe denormalization"
+      ]
+    }
+  ]
+}

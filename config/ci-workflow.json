@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "workflow": ".github/workflows/ci.yml",
+  "required_triggers": {
+    "push_branch": "main",
+    "pull_request": true
+  },
+  "required_permissions": {
+    "contents": "read"
+  },
+  "jobs": [
+    {
+      "id": "control-plane",
+      "name": "Control-plane unit tests",
+      "required_snippets": [
+        "working-directory: services/ai_control_plane",
+        "uses: actions/checkout@v4",
+        "uses: actions/setup-python@v5",
+        "python-version: '3.14'",
+        "python -m pip install .",
+        "python -m unittest discover -s tests -v"
+      ]
+    },
+    {
+      "id": "contracts",
+      "name": "Contract tests",
+      "required_snippets": [
+        "uses: actions/checkout@v4",
+        "uses: actions/setup-python@v5",
+        "python-version: '3.14'",
+        "python -m pip install ./services/ai_control_plane",
+        "python -m unittest discover -s tests/contract -v"
+      ]
+    },
+    {
+      "id": "repository",
+      "name": "Repository checks",
+      "required_snippets": [
+        "uses: actions/checkout@v4",
+        "uses: actions/setup-python@v5",
+        "python-version: '3.14'",
+        "scripts/run-quality-gates.sh",
+        "cp development/.env.example development/.env",
+        "docker compose --env-file development/.env -f infra/compose/docker-compose.dev.yml config --quiet"
+      ]
+    }
+  ],
+  "forbidden_snippets": [
+    "pull_request_target",
+    "permissions: write-all",
+    "contents: write",
+    "secrets.",
+    "docker compose up",
+    "docker compose push",
+    "gh release",
+    "npm publish",
+    "twine upload"
+  ]
+}

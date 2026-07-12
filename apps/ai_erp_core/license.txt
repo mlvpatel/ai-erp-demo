@@ -1,0 +1,6 @@
+Copyright (c) 2026 AI ERP Demo contributors
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+This app is licensed under the GNU Affero General Public License version 3
+only. The complete license text is in the repository root `LICENSE` file.

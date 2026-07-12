@@ -1,0 +1,51 @@
+import frappe
+
+from ai_erp_service.service_utils import DISPATCHER_ROLES, MANAGER_ROLES, has_any_role, user_roles
+
+
+def _is_privileged(user):
+	return user == "Administrator" or has_any_role(DISPATCHER_ROLES, user)
+
+
+def service_work_order_query(user=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return None
+	if "Service Technician" in user_roles(user):
+		return "`tabService Work Order`.`assigned_technician` = {0}".format(frappe.db.escape(user))
+	return "1=0"
+
+
+def service_work_order_has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return True
+	if "Service Technician" in user_roles(user):
+		return doc.assigned_technician == user
+	return False
+
+
+def service_closure_exception_query(user=None):
+	user = user or frappe.session.user
+	if user == "Administrator" or has_any_role(MANAGER_ROLES, user):
+		return None
+	if "Service Closure Owner" in user_roles(user):
+		return "`tabService Closure Exception`.`exception_owner` = {0}".format(frappe.db.escape(user))
+	if "Service Technician" in user_roles(user):
+		return (
+			"`tabService Closure Exception`.`work_order` IN "
+			"(SELECT `name` FROM `tabService Work Order` "
+			"WHERE `assigned_technician` = {0})"
+		).format(frappe.db.escape(user))
+	return "1=0"
+
+
+def service_closure_exception_has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if user == "Administrator" or has_any_role(MANAGER_ROLES, user):
+		return True
+	if "Service Closure Owner" in user_roles(user):
+		return doc.exception_owner == user
+	if "Service Technician" in user_roles(user):
+		return frappe.db.get_value("Service Work Order", doc.work_order, "assigned_technician") == user
+	return False

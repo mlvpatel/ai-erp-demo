@@ -1,0 +1,128 @@
+# Example alert names and metric shapes for deployment-specific monitoring.
+# These are intentionally non-secret and non-production. Adapt them to the
+# chosen monitoring stack; do not commit real alert routes, webhook URLs,
+# customer identifiers, log excerpts, trace exports, or dashboard snapshots.
+
+groups:
+  - name: ai-erp-platform
+    rules:
+      - alert: AIERPServiceDown
+        expr: ai_erp_frappe_site_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Frappe site is unavailable
+          runbook: docs/runbooks/incident-response.md
+
+      - alert: AIERPQueueStalled
+        expr: ai_erp_queue_oldest_job_age_seconds > 900
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Background queue appears stalled
+          runbook: docs/workflows/observability-readiness.md
+
+      - alert: AIERPSchedulerStopped
+        expr: ai_erp_scheduler_healthy == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Frappe scheduler is not healthy
+          runbook: docs/workflows/observability-readiness.md
+
+      - alert: AIERPDatabaseUnavailable
+        expr: ai_erp_database_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: ERP database is unavailable
+          runbook: docs/runbooks/incident-response.md
+
+      - alert: AIERPRedisUnavailable
+        expr: ai_erp_redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis is unavailable
+          runbook: docs/runbooks/incident-response.md
+
+      - alert: AIERPBackupStale
+        expr: time() - ai_erp_last_successful_backup_timestamp_seconds > 86400
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Latest site backup is stale
+          runbook: docs/runbooks/backup-restore.md
+
+  - name: ai-erp-ai-control-plane
+    rules:
+      - alert: AIERPAIControlPlaneErrorRateHigh
+        expr: rate(ai_erp_ai_control_plane_requests_total{status="error"}[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: AI control-plane error rate is high
+          runbook: docs/workflows/ai-workflow-lifecycle.md
+
+      - alert: AIERPUnexpectedAIPayloadRejected
+        expr: rate(ai_erp_ai_payload_validation_rejections_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: AI control plane rejected unexpected request fields
+          runbook: docs/security/ai-workflow-review.md
+
+      - alert: AIERPUnapprovedMutationAttempt
+        expr: ai_erp_unapproved_mutation_attempts_total > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: AI or integration path attempted an unapproved ERP mutation
+          runbook: docs/runbooks/incident-response.md
+
+  - name: ai-erp-erp-safety
+    rules:
+      - alert: AIERPTenantBoundaryFailure
+        expr: ai_erp_tenant_boundary_failures_total > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Tenant boundary failure detected
+          runbook: docs/runbooks/incident-response.md
+
+      - alert: AIERPAuthorizationBypassAttempt
+        expr: rate(ai_erp_authorization_denials_total{action=~"close|issue_parts|create_invoice|approve_ai"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sensitive ERP action denied by authorization controls
+          runbook: docs/workflows/authorization-and-approvals.md
+
+      - alert: AIERPIdempotencyConflict
+        expr: rate(ai_erp_idempotency_conflicts_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ERP idempotency conflict detected
+          runbook: docs/workflows/transaction-safety.md
+
+      - alert: AIERPConnectorDeliveryFailures
+        expr: rate(ai_erp_connector_delivery_failures_total[15m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Connector or business-event delivery is failing
+          runbook: docs/workflows/integration-safety.md

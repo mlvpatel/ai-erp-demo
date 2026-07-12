@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable registry of approved AI-assisted ERP workflows. It prevents new AI routes or proposal types from bypassing data-boundary, contract, documentation, and test requirements.",
+  "lifecycle_doc": "docs/workflows/ai-workflow-lifecycle.md",
+  "review_checklist": "docs/security/ai-workflow-review.md",
+  "threat_model": "docs/security/threat-model.md",
+  "workflows": [
+    {
+      "id": "service_closeout_summary",
+      "status": "implemented",
+      "route": "POST /v1/proposals/service-closeout-summary",
+      "proposal_type": "service_closeout_summary",
+      "policy": {
+        "decision": "draft_only",
+        "allowed_action": "none"
+      },
+      "data_boundary_manifest": "config/ai-data-boundary.json",
+      "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+      "control_plane_handler": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
+        "function": "draft_service_closeout_summary"
+      },
+      "control_plane_renderer": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/render.py",
+        "function": "render_development_template"
+      },
+      "request_model": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+        "class": "ServiceCloseoutSummaryRequest"
+      },
+      "payload_builder": {
+        "path": "apps/ai_erp_service/ai_erp_service/ai_drafts.py",
+        "function": "_closeout_summary_payload"
+      },
+      "frappe_requester": {
+        "path": "apps/ai_erp_service/ai_erp_service/ai_drafts.py",
+        "function": "request_closeout_summary"
+      },
+      "proposal_storage": {
+        "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
+        "function": "request_service_closeout_summary"
+      },
+      "docs": [
+        "apps/ai_erp_service/README.md",
+        "docs/security/ai-workflow-review.md",
+        "docs/security/data-classification.md",
+        "docs/security/threat-model.md",
+        "docs/workflows/service-operations.md"
+      ],
+      "tests": [
+        "services/ai_control_plane/tests/test_render.py",
+        "tests/contract/test_ai_control_plane_openapi.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+      ],
+      "proof_commands": [
+        "python3 scripts/check-ai-data-boundary.py",
+        "scripts/dev.sh control-plane-test",
+        "scripts/dev.sh contract-test",
+        "scripts/dev.sh service-test"
+      ],
+      "forbidden_direct_actions": [
+        "submit invoice",
+        "post stock",
+        "change payroll",
+        "alter permissions",
+        "submit compliance filing"
+      ]
+    }
+  ],
+  "required_lifecycle_doc_phrases": [
+    "The default policy is still draft-only",
+    "Do not add a control-plane route yet.",
+    "Add or update a machine-readable data-boundary manifest.",
+    "The only implemented workflow is `service_closeout_summary`",
+    "Do not add production model adapters, retrieval tools, new datastores, or external tool calls without an ADR."
+  ],
+  "required_review_doc_phrases": [
+    "Every new AI workflow needs",
+    "a versioned OpenAPI or event contract",
+    "strict request/response models",
+    "a negative test for unsupported action fields",
+    "review/approval does not create unauthorized ERP transactions"
+  ]
+}

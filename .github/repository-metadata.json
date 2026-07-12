@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "description": "AI-assisted ERP starter built on ERPNext/Frappe with a service-operations workflow and human approval for consequential actions.",
+  "default_branch": "main",
+  "visibility_before_release": "private",
+  "homepage": null,
+  "topics": [
+    "erpnext",
+    "frappe",
+    "erp",
+    "ai",
+    "field-service",
+    "service-management",
+    "open-source",
+    "workflow",
+    "human-in-the-loop"
+  ],
+  "features": {
+    "issues": true,
+    "discussions": false,
+    "wiki": false,
+    "projects": false
+  },
+  "branch_protection": {
+    "protected_branch": "main",
+    "require_pull_request_reviews": true,
+    "dismiss_stale_reviews": true,
+    "restrict_force_pushes": true,
+    "required_status_checks": [
+      "Control-plane unit tests",
+      "Contract tests",
+      "Repository checks"
+    ]
+  },
+  "community_files": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "GOVERNANCE.md",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "CHANGELOG.md",
+    "BACKLOG.md",
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
+    ".github/ISSUE_TEMPLATE/industry_pack.md",
+    ".github/ISSUE_TEMPLATE/ai_workflow.md",
+    ".github/pull_request_template.md",
+    ".github/labels.json"
+  ],
+  "public_release_blockers": [
+    "root LICENSE is selected and committed",
+    "generated app license/contact metadata is reconciled",
+    "local generated artifacts are cleaned before archive publication",
+    "local-only development paths are excluded from manual archives",
+    "GitHub CI passes in the target repository",
+    "fresh clone verifies the local demo runbook"
+  ]
+}

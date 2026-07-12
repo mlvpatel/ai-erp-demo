@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable integration and connector safety guardrail. It keeps the connector app reserved, business events notification-only, and future adapter boundaries contract-first.",
+  "workflow_doc": "docs/workflows/integration-safety.md",
+  "connector_readme": "apps/ai_erp_connectors/README.md",
+  "contracts_readme": "contracts/README.md",
+  "events_readme": "contracts/events/README.md",
+  "contract_lifecycle_doc": "docs/workflows/contract-lifecycle.md",
+  "threat_model": "docs/security/threat-model.md",
+  "event_contract": "contracts/events/service-operations-v1.yaml",
+  "contract_catalog": "contracts/catalog.json",
+  "event_contract_tests": "tests/contract/test_service_operations_events.py",
+  "reserved_connector_dir": "apps/ai_erp_connectors",
+  "reserved_connector_allowed_files": [
+    ".gitkeep",
+    "README.md"
+  ],
+  "connector_readme_required_phrases": [
+    "Reserved future Frappe app for external-system adapters.",
+    "Define public API or event contracts under `contracts/` before implementing an adapter.",
+    "Make every write idempotent.",
+    "Store external identifiers and sync status",
+    "Expose failures as reviewable ERP records",
+    "Never let an external AI tool directly post financial, inventory, payroll, permission, or compliance changes.",
+    "Unversioned webhooks or business events."
+  ],
+  "event_contract_required_snippets": [
+    "status: contract-only",
+    "minimal, non-PII payloads and remain idempotent",
+    "- event_id",
+    "- tenant_site",
+    "- actor",
+    "- source",
+    "- payload",
+    "additionalProperties: false",
+    "correlation_id:",
+    "Optional request or job id used for idempotent downstream handling.",
+    "AIProposalReviewed:",
+    "policy_decision:",
+    "const: draft_only",
+    "allowed_action:",
+    "const: none"
+  ],
+  "event_contract_forbidden_field_terms": [
+    "email",
+    "phone",
+    "address",
+    "contact",
+    "attachment",
+    "prompt",
+    "credential",
+    "password",
+    "submit",
+    "cancel",
+    "role",
+    "permission",
+    "ledger"
+  ],
+  "catalog_event_contract": {
+    "id": "service-operations-events-v1",
+    "kind": "business-event",
+    "status": "contract-only",
+    "path": "contracts/events/service-operations-v1.yaml",
+    "consumer": "apps/ai_erp_connectors",
+    "producer_contains": "future",
+    "required_safety_terms": [
+      "Notification-only",
+      "minimal non-PII payloads",
+      "do not authorize ERP mutations",
+      "no customer contact data",
+      "addresses",
+      "prompts",
+      "credentials",
+      "ledger lines",
+      "mutation instructions"
+    ]
+  },
+  "test_required_snippets": [
+    "test_payloads_are_strict_and_do_not_carry_sensitive_fields_or_mutation_instructions",
+    "self.assertFalse(payload_schema[\"additionalProperties\"])",
+    "\"address\"",
+    "\"credential\"",
+    "\"permission\"",
+    "\"ledger\"",
+    "test_ai_review_event_cannot_authorize_erp_action",
+    "self.assertEqual(payload[\"allowed_action\"][\"const\"], \"none\")"
+  ],
+  "required_doc_phrases": [
+    "Business events are notifications. They do not authorize ERP mutations.",
+    "New event types require a contract update, a producer/consumer test, and a security review for tenant, role, audit, and idempotency boundaries.",
+    "Contracts are versioned before implementation so industry apps and external connectors stay independently deployable.",
+    "Never add unversioned webhooks, direct ERP mutation instructions, production payload examples, customer exports, or secrets to a public contract.",
+    "Unreviewed connector action"
+  ]
+}

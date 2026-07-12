@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*-files.tar
+*-private-files.tar
+
+# Python and Node
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+node_modules/
+dist/
+coverage/
+
+# Frappe local state and generated artifacts
+sites/
+logs/
+private/
+public/assets/
+development/frappe-bench/
+development/.env
+development/.venv/
+
+# Local developer files
+.DS_Store
+.idea/
+.vscode/
+config/owner-decisions.local.json

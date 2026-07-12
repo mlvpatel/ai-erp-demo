@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "description": "Source-of-truth catalog for public AI ERP Demo contracts. Every OpenAPI or business-event contract must be listed here with status, owner, safety boundary, and verification.",
+  "contracts": [
+    {
+      "id": "ai-control-plane-v1",
+      "kind": "openapi",
+      "status": "implemented",
+      "version": "1.0.0",
+      "path": "contracts/openapi/ai-control-plane-v1.yaml",
+      "owner_area": "services/ai_control_plane",
+      "producer": "services/ai_control_plane",
+      "consumers": [
+        "apps/ai_erp_service"
+      ],
+      "safety_boundary": "Draft-only AI proposal API. The control plane cannot carry ERP mutation instructions and cannot post money, stock, payroll, permissions, or compliance changes.",
+      "tests": [
+        "tests/contract/test_ai_control_plane_openapi.py"
+      ],
+      "verification": [
+        "scripts/dev.sh contract-test"
+      ]
+    },
+    {
+      "id": "service-operations-events-v1",
+      "kind": "business-event",
+      "status": "contract-only",
+      "version": "1",
+      "path": "contracts/events/service-operations-v1.yaml",
+      "owner_area": "apps/ai_erp_service",
+      "producer": "future connector or Frappe job implementation",
+      "consumers": [
+        "apps/ai_erp_connectors"
+      ],
+      "safety_boundary": "Notification-only business events with minimal non-PII payloads. Events do not authorize ERP mutations for money, stock, payroll, permission, or compliance state and contain no customer contact data, addresses, prompts, credentials, ledger lines, or mutation instructions.",
+      "tests": [
+        "tests/contract/test_service_operations_events.py"
+      ],
+      "verification": [
+        "scripts/dev.sh contract-test"
+      ]
+    }
+  ]
+}

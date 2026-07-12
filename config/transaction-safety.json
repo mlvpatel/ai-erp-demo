@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "workflow_doc": "docs/workflows/transaction-safety.md",
+  "service_workflow_doc": "docs/workflows/service-operations.md",
+  "mvp_acceptance": "config/mvp-acceptance.json",
+  "service_work_order_controller": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+  "service_work_order_tests": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+  "ai_proposal_controller": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py",
+  "invariants": [
+    {
+      "id": "parts-issue-idempotent-submitted-material-issue",
+      "description": "Parts issue creates at most one submitted ERPNext Material Issue and links it only through the deterministic action.",
+      "code_snippets": [
+        "def issue_parts",
+        "SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE",
+        "if not unissued_parts:",
+        "return None",
+        "stock_entry.submit()",
+        "work_order.flags.from_stock_issue = True",
+        "Only the deterministic stock-issue action can link a Stock Entry.",
+        "Issued part rows are immutable."
+      ],
+      "test_anchors": [
+        "def test_parts_issue_is_idempotent",
+        "self.assertEqual(frappe.db.get_value(\"Stock Entry\", stock_entry_name, \"docstatus\"), 1)",
+        "self.assertIsNone(issue_parts(work_order.name))"
+      ],
+      "acceptance_claim": "time-and-parts-responsibility"
+    },
+    {
+      "id": "draft-sales-invoice-idempotent-no-stock",
+      "description": "Sales Invoice creation returns one linked draft invoice and never updates stock.",
+      "code_snippets": [
+        "def make_draft_sales_invoice",
+        "SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE",
+        "existing_invoice = _existing_sales_invoice(work_order)",
+        "return existing_invoice",
+        "invoice.insert()",
+        "invoice.update_stock = 0",
+        "work_order.flags.from_invoice_creation = True"
+      ],
+      "test_anchors": [
+        "def test_manager_creates_idempotent_draft_sales_invoice",
+        "self.assertEqual(make_draft_sales_invoice(work_order.name), invoice_name)",
+        "self.assertEqual(invoice.docstatus, 0)",
+        "self.assertEqual(invoice.update_stock, 0)",
+        "self.assertEqual(frappe.db.count(\"Stock Entry\"), stock_entries_after_issue)"
+      ],
+      "acceptance_claim": "manager-draft-invoice-idempotent"
+    },
+    {
+      "id": "billing-basis-immutable-after-invoice",
+      "description": "Billing fields, time rows, and part rows cannot change after a Sales Invoice is linked.",
+      "code_snippets": [
+        "def _validate_billing_basis_is_immutable_after_invoice",
+        "Billing fields cannot change after a Sales Invoice has been created.",
+        "Time entries cannot change after a Sales Invoice has been created.",
+        "Part rows cannot change after a Sales Invoice has been created."
+      ],
+      "test_anchors": [
+        "work_order.hourly_rate = 90",
+        "with self.assertRaises(frappe.ValidationError):",
+        "work_order.save()"
+      ],
+      "acceptance_claim": "manager-draft-invoice-idempotent"
+    },
+    {
+      "id": "invoice-readiness-gates-closeout-exceptions-and-parts",
+      "description": "Invoice readiness and invoice drafting are blocked by missing closeout, open exceptions, or unissued parts.",
+      "code_snippets": [
+        "At least one time entry is required before submitting closeout.",
+        "Closeout Notes are required before submitting closeout.",
+        "Closeout Evidence is required before submitting closeout.",
+        "Open closure exceptions block invoice readiness.",
+        "Open closure exceptions block invoice drafting.",
+        "All declared parts must be issued before drafting a Sales Invoice."
+      ],
+      "test_anchors": [
+        "def test_cannot_close_creates_an_owned_exception",
+        "Cannot Close",
+        "def test_manager_creates_idempotent_draft_sales_invoice"
+      ],
+      "acceptance_claim": "invoice-readiness-closeout-gate"
+    },
+    {
+      "id": "ai-review-has-no-erp-side-effect",
+      "description": "AI Proposal review records a decision only and cannot update work order, invoice, stock, payroll, permissions, or email state.",
+      "code_snippets": [
+        "def review",
+        "self.flags.review_action = True",
+        "AI Proposal review outcome must be Approved or Rejected.",
+        "Only an AI Proposal Approver can review AI output."
+      ],
+      "test_anchors": [
+        "def test_ai_closeout_draft_is_cited_immutable_and_human_reviewed",
+        "proposal.review(\"Approved\", \"Reviewed against cited field evidence.\")",
+        "self.assertEqual(work_order.status, \"Closeout Submitted\")",
+        "self.assertEqual(frappe.db.count(\"Sales Invoice\"), invoices_before)",
+        "self.assertEqual(frappe.db.count(\"Stock Entry\"), stock_entries_before)"
+      ],
+      "acceptance_claim": "ai-proposal-traceable-human-approved"
+    },
+    {
+      "id": "demo-seed-stays-before-transaction-actions",
+      "description": "Demo seed is idempotent, synthetic, and does not create Sales Invoices or issue declared service parts.",
+      "code_snippets": [
+        "def test_demo_seed_is_idempotent_and_stays_before_transaction_actions",
+        "self.assertEqual(frappe.db.count(\"Sales Invoice\"), invoices_before)",
+        "self.assertEqual(work_order.sales_invoice, None)",
+        "self.assertFalse(work_order.parts[0].stock_entry)"
+      ],
+      "test_anchors": [
+        "def test_demo_seed_is_idempotent_and_stays_before_transaction_actions",
+        "self.assertEqual(retry[\"service_work_order\"], result[\"service_work_order\"])",
+        "self.assertEqual(work_order.sales_invoice, None)",
+        "self.assertFalse(work_order.parts[0].stock_entry)"
+      ],
+      "acceptance_claim": "ai-proposal-traceable-human-approved"
+    }
+  ],
+  "required_doc_phrases": [
+    "Parts issue is manager-triggered",
+    "Draft invoice creation is manager-triggered, idempotent, draft-only, and never updates stock.",
+    "Billing fields, time rows, and part rows cannot change after a Sales Invoice is linked.",
+    "AI Proposal review records approval or rejection only",
+    "Demo seed creates synthetic setup data"
+  ]
+}

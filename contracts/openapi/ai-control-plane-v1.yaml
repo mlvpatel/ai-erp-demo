@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  title: AI ERP Control Plane API
+  version: 1.0.0
+  description: >-
+    Site-scoped, draft-only AI proposal boundary. The control plane never has
+    credentials for an ERP database and never receives permission to post ERP
+    transactions.
+paths:
+  /v1/proposals/service-closeout-summary:
+    post:
+      summary: Draft a cited service-work-order closeout summary
+      operationId: draftServiceCloseoutSummary
+      security:
+        - ControlPlaneServiceKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceCloseoutSummaryRequest'
+      responses:
+        '200':
+          description: A draft-only proposal. It has no ERP side effect.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalResponse'
+        '401':
+          description: Missing or invalid service credential.
+        '422':
+          description: Invalid or unsupported request payload.
+components:
+  securitySchemes:
+    ControlPlaneServiceKey:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-key
+  schemas:
+    SourceReference:
+      type: object
+      additionalProperties: false
+      required: [doctype, name, field, content_hash]
+      properties:
+        doctype:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        field:
+          type: string
+          minLength: 1
+        content_hash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+    TimeEntry:
+      type: object
+      additionalProperties: false
+      required: [technician, work_date, time_type, hours]
+      properties:
+        technician:
+          type: string
+        work_date:
+          type: string
+          format: date
+        time_type:
+          type: string
+        hours:
+          type: number
+          exclusiveMinimum: 0
+    PartUsage:
+      type: object
+      additionalProperties: false
+      required: [item, qty, source_warehouse, issued]
+      properties:
+        item:
+          type: string
+        qty:
+          type: number
+          exclusiveMinimum: 0
+        source_warehouse:
+          type: string
+        issued:
+          type: boolean
+    ServiceCloseoutSummaryRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - request_id
+        - tenant_site
+        - requested_by
+        - work_order
+        - sources
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        request_id:
+          type: string
+          format: uuid
+        tenant_site:
+          type: string
+          minLength: 1
+        requested_by:
+          type: string
+          minLength: 1
+        work_order:
+          type: object
+          additionalProperties: false
+          required: [doctype, name, subject, status, time_entries, parts]
+          properties:
+            doctype:
+              type: string
+              const: Service Work Order
+            name:
+              type: string
+              minLength: 1
+            subject:
+              type: string
+              minLength: 1
+            status:
+              type: string
+              minLength: 1
+            description:
+              type: string
+            closeout_notes:
+              type: string
+            time_entries:
+              type: array
+              items:
+                $ref: '#/components/schemas/TimeEntry'
+            parts:
+              type: array
+              items:
+                $ref: '#/components/schemas/PartUsage'
+        sources:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SourceReference'
+    ProposalResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - request_id
+        - proposal_type
+        - policy
+        - model
+        - draft_content
+        - sources
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        request_id:
+          type: string
+          format: uuid
+        proposal_type:
+          type: string
+          const: service_closeout_summary
+        policy:
+          type: object
+          additionalProperties: false
+          required: [decision, allowed_action, reason]
+          properties:
+            decision:
+              type: string
+              const: draft_only
+            allowed_action:
+              type: string
+              const: none
+            reason:
+              type: string
+        model:
+          type: object
+          additionalProperties: false
+          required: [provider, name, prompt_version]
+          properties:
+            provider:
+              type: string
+            name:
+              type: string
+            prompt_version:
+              type: string
+        draft_content:
+          type: string
+          minLength: 1
+        sources:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SourceReference'

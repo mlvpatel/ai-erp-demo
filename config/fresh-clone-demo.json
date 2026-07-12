@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "status": "runbook-consistency-check",
+  "runbooks": [
+    "docs/runbooks/local-demo.md",
+    "development/README.md"
+  ],
+  "required_files": [
+    "development/.env.example",
+    "infra/compose/docker-compose.dev.yml",
+    "scripts/dev.sh",
+    "scripts/bootstrap-frappe-dev.sh",
+    "development/apps.json",
+    "config/mvp-acceptance.json"
+  ],
+  "tracked_env_requirements": [
+    "FRAPPE_COMMIT",
+    "ERPNEXT_COMMIT",
+    "FRAPPE_BENCH_IMAGE",
+    "MARIADB_IMAGE",
+    "REDIS_IMAGE",
+    "AI_CONTROL_PLANE_SHARED_SECRET",
+    "AI_ERP_PROVIDER=template"
+  ],
+  "compose_services": [
+    "mariadb",
+    "redis-cache",
+    "redis-queue",
+    "ai-control-plane",
+    "frappe"
+  ],
+  "steps": [
+    {
+      "id": "copy-local-env",
+      "command": "cp development/.env.example development/.env",
+      "docs": [
+        "docs/runbooks/local-demo.md",
+        "development/README.md"
+      ]
+    },
+    {
+      "id": "check-local-env",
+      "dev_command": "check-local-env",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "print-demo-info",
+      "dev_command": "demo-info",
+      "docs": [
+        "docs/runbooks/local-demo.md",
+        "development/README.md"
+      ]
+    },
+    {
+      "id": "static-quality",
+      "dev_command": "quality",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "compose-config",
+      "dev_command": "compose-config",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "start-stack",
+      "dev_command": "up",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "bootstrap-site",
+      "dev_command": "bootstrap",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "bench-start",
+      "dev_command": "bench-start",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "seed-demo",
+      "dev_command": "seed-demo",
+      "docs": [
+        "docs/runbooks/local-demo.md",
+        "development/README.md"
+      ]
+    },
+    {
+      "id": "control-plane-test",
+      "dev_command": "control-plane-test",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "contract-test",
+      "dev_command": "contract-test",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "migrate",
+      "dev_command": "migrate",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "service-test",
+      "dev_command": "service-test",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    },
+    {
+      "id": "demo-check",
+      "dev_command": "demo-check",
+      "docs": [
+        "docs/runbooks/local-demo.md"
+      ]
+    }
+  ],
+  "required_safety_phrases": [
+    "Demo data must stay synthetic.",
+    "AI drafts are review-only",
+    "values are intentionally not printed",
+    "absolute local paths are intentionally not printed",
+    "without printing secrets",
+    "Do not enter real customer names",
+    "does not issue parts from the work order, create a Sales Invoice, approve an AI proposal, or perform any AI-driven ERP mutation",
+    "development/frappe-bench/` is ignored local state"
+  ],
+  "demo_info_output_contract": {
+    "existing_env_file": "development/.env.example",
+    "required_phrases": [
+      "AI ERP Demo local guide",
+      "Local health hints:",
+      "Env file:",
+      "Host mapping:",
+      "Docker:",
+      "Bench checkout:",
+      "values are intentionally not printed",
+      "absolute local paths are intentionally not printed",
+      "For pin warnings without printing secrets: scripts/dev.sh check-local-env"
+    ],
+    "custom_env_required_phrases": [
+      "custom AI_ERP_ENV_FILE path"
+    ],
+    "forbidden_substrings": [
+      "DB_ROOT_PASSWORD=",
+      "ADMIN_PASSWORD=",
+      "AI_CONTROL_PLANE_SHARED_SECRET=",
+      "change-this-local-admin-password",
+      "change-this-local-control-plane-secret"
+    ]
+  }
+}

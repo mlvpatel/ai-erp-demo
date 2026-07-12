@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable tenant/site isolation guardrail. It keeps the one-Frappe-site-per-tenant decision aligned with AI payloads, contracts, event envelopes, and safety docs.",
+  "adr": "docs/adr/0002-tenant-isolation-by-frappe-site.md",
+  "workflow_doc": "docs/workflows/tenant-isolation.md",
+  "threat_model": "docs/security/threat-model.md",
+  "system_boundaries": "docs/architecture/system-boundaries.md",
+  "mvp_blueprint_review": "docs/discovery/mvp-blueprint-review.md",
+  "ai_control_plane_readme": "services/ai_control_plane/README.md",
+  "source_anchors": [
+    {
+      "id": "frappe-payload-uses-site-scope",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_drafts.py",
+      "required_snippets": [
+        "\"tenant_site\": frappe.local.site",
+        "\"requested_by\": frappe.session.user",
+        "work_order.check_permission(\"read\")"
+      ]
+    },
+    {
+      "id": "control-plane-model-requires-tenant-site",
+      "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+      "required_snippets": [
+        "tenant_site: str = Field(min_length=1)",
+        "model_config = ConfigDict(extra=\"forbid\")"
+      ]
+    },
+    {
+      "id": "control-plane-has-no-erp-credentials",
+      "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
+      "required_snippets": [
+        "Site-scoped, draft-only AI proposal boundary.",
+        "never has",
+        "credentials for an ERP database",
+        "never receives permission to post ERP transactions"
+      ]
+    },
+    {
+      "id": "openapi-requires-tenant-site",
+      "path": "contracts/openapi/ai-control-plane-v1.yaml",
+      "required_snippets": [
+        "- tenant_site",
+        "tenant_site:",
+        "minLength: 1"
+      ]
+    },
+    {
+      "id": "business-events-include-tenant-site",
+      "path": "contracts/events/service-operations-v1.yaml",
+      "required_snippets": [
+        "- tenant_site",
+        "tenant_site:",
+        "minLength: 1"
+      ]
+    },
+    {
+      "id": "control-plane-doc-says-audit-not-authorization",
+      "path": "services/ai_control_plane/README.md",
+      "required_snippets": [
+        "distinct secret and network policy for each site",
+        "tenant_site` is an audit scope, not authorization by itself"
+      ]
+    }
+  ],
+  "required_doc_phrases": [
+    "one tenant per site/database",
+    "Keep tenant identity at the site and API edge",
+    "not as an application-level `tenant_id` retrofit",
+    "One site/database per tenant for MVP",
+    "Cross-tenant shared-row tenancy.",
+    "The AI control plane receives `tenant_site` only as audit scope.",
+    "Business events include `tenant_site` so downstream consumers can route and audit events"
+  ],
+  "forbidden_source_terms": [
+    {
+      "term": "tenant_id",
+      "paths": [
+        "apps",
+        "services",
+        "contracts"
+      ]
+    },
+    {
+      "term": "tenantId",
+      "paths": [
+        "apps",
+        "services",
+        "contracts"
+      ]
+    },
+    {
+      "term": "X-Tenant-ID",
+      "paths": [
+        "apps",
+        "services",
+        "contracts"
+      ]
+    }
+  ]
+}

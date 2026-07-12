@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "decision_status": "example-only",
+  "license_policy": "MIT",
+  "copyright_year": "2026",
+  "copyright_holder": "Example Owner",
+  "public_contact_email": "maintainers@example.org",
+  "repository_owner": "example-org",
+  "repository_name": "ai-erp-demo",
+  "default_branch": "main",
+  "public_release_type": "source-only-developer-demo",
+  "contribution_policy": "DCO",
+  "initial_maintainers": [
+    "Example Maintainer Group"
+  ],
+  "notes": [
+    "Copy this file to config/owner-decisions.local.json and replace every example value before applying license/contact metadata."
+  ]
+}

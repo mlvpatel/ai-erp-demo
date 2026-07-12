@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable upstream Frappe/ERPNext upgrade readiness contract for the AI ERP Demo.",
+  "workflow_doc": "docs/workflows/upstream-upgrade-readiness.md",
+  "dependency_workflow_doc": "docs/workflows/dependency-updates.md",
+  "migration_safety_doc": "docs/workflows/migration-safety.md",
+  "quality_gates_doc": "docs/workflows/quality-gates.md",
+  "development_readme": "development/README.md",
+  "env_example": "development/.env.example",
+  "bootstrap_script": "scripts/bootstrap-frappe-dev.sh",
+  "reproducibility_script": "scripts/check-reproducibility.sh",
+  "github_publication_runbook": "docs/runbooks/github-publication.md",
+  "traceability_doc": "docs/product/requirements-traceability.md",
+  "required_env_pins": [
+    "FRAPPE_BRANCH",
+    "FRAPPE_COMMIT",
+    "ERPNEXT_COMMIT",
+    "MARIADB_IMAGE",
+    "REDIS_IMAGE",
+    "FRAPPE_BENCH_IMAGE"
+  ],
+  "required_validation_commands": [
+    "scripts/check-reproducibility.sh",
+    "docker compose --env-file development/.env",
+    "scripts/dev.sh migrate",
+    "scripts/dev.sh seed-demo",
+    "scripts/dev.sh demo-check",
+    "scripts/dev.sh control-plane-test",
+    "scripts/dev.sh contract-test",
+    "scripts/dev.sh service-test",
+    "python3 scripts/check-upstream-upgrade-readiness.py",
+    "scripts/run-quality-gates.sh"
+  ],
+  "bootstrap_required_snippets": [
+    "pin_app_commit frappe \"$FRAPPE_COMMIT\"",
+    "pin_app_commit erpnext \"$ERPNEXT_COMMIT\"",
+    "Cannot pin $app_name to $target_commit because $app_dir has local changes.",
+    "git -C \"$app_dir\" checkout --detach \"$target_commit\"",
+    "ensure_local_app ai_erp_core",
+    "ensure_local_app ai_erp_service"
+  ],
+  "required_doc_phrases": [
+    {
+      "path": "docs/workflows/upstream-upgrade-readiness.md",
+      "phrases": [
+        "upstream upgrades are product-risk changes, not routine dependency chores",
+        "Never patch or vendor upstream Frappe/ERPNext source into this repository.",
+        "scripts/dev.sh service-test",
+        "Rollback plan"
+      ]
+    },
+    {
+      "path": "docs/workflows/dependency-updates.md",
+      "phrases": [
+        "docs/workflows/upstream-upgrade-readiness.md",
+        "Frappe/ERPNext commit or image digest",
+        "Do not auto-merge dependency PRs."
+      ]
+    },
+    {
+      "path": "docs/workflows/migration-safety.md",
+      "phrases": [
+        "For Frappe/ERPNext pin or runtime image updates",
+        "upstream upgrade readiness"
+      ]
+    },
+    {
+      "path": "development/README.md",
+      "phrases": [
+        "docs/workflows/upstream-upgrade-readiness.md",
+        "Update `FRAPPE_COMMIT`, `ERPNEXT_COMMIT`, and image digest variables together"
+      ]
+    },
+    {
+      "path": "docs/workflows/quality-gates.md",
+      "phrases": [
+        "upstream upgrade readiness consistency",
+        "python3 scripts/check-upstream-upgrade-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/runbooks/github-publication.md",
+      "phrases": [
+        "config/upstream-upgrade-readiness.json",
+        "python3 scripts/check-upstream-upgrade-readiness.py"
+      ]
+    },
+    {
+      "path": "docs/product/requirements-traceability.md",
+      "phrases": [
+        "Define upstream ERPNext/Frappe upgrade boundaries"
+      ]
+    }
+  ]
+}

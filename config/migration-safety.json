@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable migration safety guardrail. It keeps Frappe-managed DocTypes, fixtures, empty patch files, demo-check migration order, and no-direct-DDL rules aligned.",
+  "workflow_doc": "docs/workflows/migration-safety.md",
+  "quality_gates_doc": "docs/workflows/quality-gates.md",
+  "dependency_workflow_doc": "docs/workflows/dependency-updates.md",
+  "local_demo_runbook": "docs/runbooks/local-demo.md",
+  "fresh_clone_demo": "config/fresh-clone-demo.json",
+  "dev_helper": "scripts/dev.sh",
+  "bootstrap_script": "scripts/bootstrap-frappe-dev.sh",
+  "apps": [
+    {
+      "name": "ai_erp_core",
+      "hooks": "apps/ai_erp_core/ai_erp_core/hooks.py",
+      "patches": "apps/ai_erp_core/ai_erp_core/patches.txt",
+      "required_hook_snippets": [
+        "fixture_auto_order = True",
+        "fixtures = [",
+        "\"AI Proposal Approver\", \"AI Proposal Requester\""
+      ],
+      "doctypes": [
+        "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.json",
+        "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal_source/ai_proposal_source.json"
+      ]
+    },
+    {
+      "name": "ai_erp_service",
+      "hooks": "apps/ai_erp_service/ai_erp_service/hooks.py",
+      "patches": "apps/ai_erp_service/ai_erp_service/patches.txt",
+      "required_hook_snippets": [
+        "required_apps = [\"erpnext\", \"ai_erp_core\"]",
+        "fixture_auto_order = True",
+        "fixtures = [",
+        "\"Sales Invoice-service_work_order\""
+      ],
+      "doctypes": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_closure_exception/service_closure_exception.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_location/service_location.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_request/service_request.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order_part/service_work_order_part.json",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order_time/service_work_order_time.json"
+      ]
+    }
+  ],
+  "dev_helper_required_snippets": [
+    "migrate)",
+    "bench --site \"$(site_name)\" migrate",
+    "demo-check)",
+    "\"$0\" migrate",
+    "\"$0\" seed-demo",
+    "\"$0\" service-test"
+  ],
+  "demo_check_order": [
+    "\"$0\" migrate",
+    "\"$0\" seed-demo",
+    "\"$0\" service-test"
+  ],
+  "bootstrap_required_snippets": [
+    "ensure_site_app ai_erp_core",
+    "ensure_site_app ai_erp_service",
+    "bench --site \"$SITE_NAME\" list-apps"
+  ],
+  "fresh_clone_required_step_ids": [
+    "migrate",
+    "seed-demo",
+    "service-test",
+    "demo-check"
+  ],
+  "required_doc_phrases": [
+    "bench --site ai-erp.localhost migrate",
+    "site migration",
+    "Use `bench --site ... migrate` before seeding demo data or running service integration tests.",
+    "Do not run `ALTER TABLE`, `CREATE TABLE`, `DROP TABLE`, `TRUNCATE TABLE`, or `RENAME TABLE` from custom app code.",
+    "Keep app `patches.txt` files empty unless a maintainer-approved data migration is necessary."
+  ],
+  "forbidden_schema_sql": [
+    "ALTER TABLE",
+    "CREATE TABLE",
+    "DROP TABLE",
+    "TRUNCATE TABLE",
+    "RENAME TABLE"
+  ],
+  "scan_paths": [
+    "apps/ai_erp_core",
+    "apps/ai_erp_service"
+  ]
+}
