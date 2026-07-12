@@ -18,6 +18,8 @@ Start with:
   product context and folder responsibility map.
 - `architecture/system-boundaries.md` for the ERP, custom app, and AI approval
   boundaries.
+- [`architecture/mvp-containers.md`](architecture/mvp-containers.md) for the
+  compact MVP deployment and container view.
 - `architecture/domain-data-model.md` for the custom DocType and ERPNext reuse
   map.
 - `discovery/open-source-erp-scan-2026-07.md` for the GitHub ERP scan.
