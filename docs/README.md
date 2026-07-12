@@ -4,6 +4,7 @@ Documentation is part of the product. Use the folders below instead of creating
 unstructured notes at the repository root.
 
 - `adr/`: one short decision per material architectural choice.
+- `audits/`: sanitized dated findings and remediation dispositions.
 - `discovery/`: evidence from research, interviews, and technical spikes.
 - `product/`: target users, scope, KPIs, and roadmap.
 - `architecture/`: context, container, component, and data-boundary diagrams.
@@ -13,6 +14,8 @@ unstructured notes at the repository root.
 
 Start with:
 
+- [`audits/2026-07-12-remediation-status.md`](audits/2026-07-12-remediation-status.md)
+  for the initial audit disposition and remaining external gates.
 - `architecture/tech-stack-2026-07.md` for the July 2026 stack decision.
 - `architecture/system-context-and-repository-map.md` for the contributor-facing
   product context and folder responsibility map.
