@@ -47,14 +47,14 @@ permission, or compliance changes.
 
 | Threat | Example | Required control |
 | --- | --- | --- |
-| Unauthorized ERP mutation by AI | A model response causes a submitted invoice, stock entry, payroll change, or role change. | AI returns proposals only; Frappe role checks and deterministic workflow code perform any transaction. |
+| Unauthorized ERP mutation by AI | A model response causes a submitted invoice, stock entry, payroll change, or role change. | The [`ai-control-plane-v1`](../../contracts/openapi/ai-control-plane-v1.yaml) contract returns proposals only; Frappe role checks and deterministic workflow code perform any transaction. |
 | Tenant boundary leak | A user or AI request sees records from another Frappe site. | One site/database per tenant for MVP; do not share local site data across requests. |
 | Role bypass | A technician closes work, issues parts, or drafts an invoice without manager authority. | Enforce Frappe permissions and explicit role checks in server-side methods. |
 | Duplicate transaction | Retrying a button creates multiple Stock Entries, Sales Invoices, or external writes. | Lock the source document, store target IDs, and make writes idempotent. |
 | Prompt/data leakage | Customer contacts, addresses, credentials, attachments, or private prompts are sent to a model unnecessarily. | Use allow-listed fields, source hashes, and no attachment contents in the first AI workflow. |
 | Secret exposure in GitHub | `.env`, keys, database dumps, or production exports are committed or pasted into issues. | Keep `.gitignore`, publication runbook, and issue templates explicit; use synthetic fixtures only. |
 | Sensitive telemetry leak | Logs, metrics, traces, alert payloads, or dashboard screenshots expose customer data, prompt bodies, provider responses, or secrets. | Observability guidance must keep logs, metrics, and traces free of customer data, prompt bodies, and secrets. Production SIEM routing remains deployment-specific. |
-| Unreviewed connector action | Future provider webhook or sync writes unsafe ERP state. | Version contracts, validate signatures where applicable, store sync state, and surface failures as reviewable ERP records. |
+| Unreviewed connector action | Future provider webhook or sync writes unsafe ERP state. | Treat [`service-operations-v1`](../../contracts/events/service-operations-v1.yaml) as notification-only; validate signatures where applicable, store sync state, and surface failures as reviewable ERP records. |
 | Audit tampering | AI proposal or transaction evidence can be changed after approval. | Store immutable proposal records and link deterministic ERP records by ID. |
 
 ## Controls already expected in the MVP
