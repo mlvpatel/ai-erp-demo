@@ -56,9 +56,9 @@ cannot serve the use case.
 │   └── security/                # Non-secret policy and scanning configuration
 ├── tests/
 │   ├── contract/                # API and event compatibility tests
-│   ├── e2e/                     # Browser and ERP workflow tests
+│   ├── e2e/                     # Planned — tracked in BACKLOG.md
 │   ├── fixtures/                # Synthetic, non-customer test data
-│   └── performance/             # Planning-only load profile; no runner yet
+│   └── performance/             # Planning-only — tracked in BACKLOG.md; no runner
 ├── scripts/                     # Safe, documented developer automation
 ├── development/                 # Tracked bootstrap config; local bench is ignored
 ├── config/                      # Checked-in, environment-safe defaults
