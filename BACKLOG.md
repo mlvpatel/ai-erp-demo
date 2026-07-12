@@ -28,6 +28,7 @@ GitHub issues.
 | --- | --- | --- |
 | Docs | Add a screenshot-assisted local demo walkthrough. | `docs/runbooks/local-demo.md` and `docs/runbooks/demo-script.md` stay accurate and no secrets appear in images. |
 | Docs | Improve glossary for service operations and Frappe terms. | New terms link to implemented DocTypes or ERPNext concepts. |
+| Docs | Add a filled example for the industry-pack design template. | The example is clearly marked as illustrative and does not claim a new implemented industry pack. |
 | Tests | Add a negative test for the next approved AI proposal type before implementing it. | Contract tests still pass and unsupported action fields are rejected. |
 | Fixtures | Add more synthetic demo service locations. | Seed remains idempotent and contains no real customer data. |
 | Product | Turn one roadmap item into a GitHub issue with acceptance criteria. | Issue references `ROADMAP.md` and the relevant safety boundary. |
