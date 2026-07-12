@@ -111,6 +111,7 @@ def permission_enabled(permission: dict[str, Any], right: str) -> bool:
 
 def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) -> None:
     hooks_cache: dict[str, str] = {}
+    accounted_doctypes: set[str] = set()
     for index, entry in enumerate(matrix.get("doctype_permissions", []), 1):
         if not isinstance(entry, dict):
             fail(failures, f"doctype_permissions[{index}] must be an object")
@@ -120,6 +121,9 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
         if not isinstance(doctype, str) or not isinstance(path_value, str):
             fail(failures, f"doctype_permissions[{index}] must set doctype and path")
             continue
+        if doctype in accounted_doctypes:
+            fail(failures, f"duplicate doctype_permissions entry: {doctype}")
+        accounted_doctypes.add(doctype)
         doctype_json = load_json(REPO_ROOT / path_value, failures)
         if not isinstance(doctype_json, dict):
             continue
@@ -149,8 +153,16 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
                 if not isinstance(right, str) or not permission_enabled(by_role[role], right):
                     fail(failures, f"{doctype}: role {role} must have {right} permission")
 
+        record_scope = entry.get("record_scope", "hooked")
         hook = entry.get("permission_query_hook")
         has_permission = entry.get("has_permission_hook")
+        if record_scope == "doctype_only":
+            if hook is not None or has_permission is not None:
+                fail(failures, f"{doctype}: doctype_only scope must not declare row-level hooks")
+            continue
+        if record_scope != "hooked":
+            fail(failures, f"{doctype}: record_scope must be hooked or doctype_only")
+            continue
         for hook_value in (hook, has_permission):
             if not isinstance(hook_value, str) or "." not in hook_value:
                 fail(failures, f"{doctype}: hook values must be dotted Python paths")
@@ -160,6 +172,26 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
             hook_text = hooks_cache.setdefault(str(hooks_path), read_text(hooks_path, failures))
             if hook_value not in hook_text or doctype not in hook_text:
                 fail(failures, f"{doctype}: hooks.py must register {hook_value}")
+
+    shipped_role_doctypes: set[str] = set()
+    pattern = "apps/*/*/*/doctype/*/*.json"
+    for doctype_path in REPO_ROOT.glob(pattern):
+        doctype_json = load_json(doctype_path, failures)
+        if not isinstance(doctype_json, dict):
+            continue
+        permissions = doctype_json.get("permissions")
+        if not isinstance(permissions, list):
+            continue
+        if not any(isinstance(row, dict) and isinstance(row.get("role"), str) for row in permissions):
+            continue
+        doctype = doctype_json.get("name")
+        if isinstance(doctype, str) and doctype:
+            shipped_role_doctypes.add(doctype)
+
+    for doctype in sorted(shipped_role_doctypes - accounted_doctypes):
+        fail(failures, f"role-bearing shipped DocType is missing from the matrix: {doctype}")
+    for doctype in sorted(accounted_doctypes - shipped_role_doctypes):
+        fail(failures, f"matrix DocType is not a shipped role-bearing DocType: {doctype}")
 
 
 def validate_sensitive_actions(matrix: dict[str, Any], failures: list[str]) -> None:
