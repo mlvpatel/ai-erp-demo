@@ -128,6 +128,12 @@ This gate must prove:
 - draft-only cited AI proposal behavior,
 - no AI approval side effect on ERP transactions.
 
+GitHub CI does not currently execute this Docker-backed Frappe behavioral gate.
+Accordingly, `implemented` in `config/mvp-acceptance.json` means the cited source
+and evidence anchors are verified by the static gate; it does not mean the
+behavior has been executed in CI. Run `scripts/dev.sh service-test` locally and
+record its result for behavior-sensitive changes and releases.
+
 ## Release gate
 
 Run before a public release tag:
