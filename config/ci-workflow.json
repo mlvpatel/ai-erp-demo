@@ -33,6 +33,17 @@
       ]
     },
     {
+      "id": "lint",
+      "name": "Python lint",
+      "required_snippets": [
+        "uses: actions/checkout@v4",
+        "uses: actions/setup-python@v5",
+        "python-version: '3.14'",
+        "python -m pip install ruff==0.14.10",
+        "ruff check --no-cache apps/ services/"
+      ]
+    },
+    {
       "id": "repository",
       "name": "Repository checks",
       "required_snippets": [

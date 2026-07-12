@@ -5,7 +5,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import now_datetime
 
-
 IGNORE_TEST_RECORD_DEPENDENCIES = ["AI Proposal", "AI Proposal Source", "User"]
 
 

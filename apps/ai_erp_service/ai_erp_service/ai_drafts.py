@@ -3,12 +3,11 @@
 from uuid import uuid4
 
 import frappe
+from ai_erp_core.proposals import content_hash, request_service_closeout_summary
 from frappe import _
 from frappe.utils import flt
 
-from ai_erp_core.proposals import content_hash, request_service_closeout_summary
 from ai_erp_service.service_utils import MANAGER_ROLES, has_any_role
-
 
 ELIGIBLE_STATUSES = {"Closeout Submitted", "Closed"}
 

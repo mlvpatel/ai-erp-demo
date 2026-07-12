@@ -6,7 +6,6 @@ from frappe.utils import add_to_date, flt, now_datetime
 
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
 
-
 DEMO_CUSTOMER = "AI ERP Demo Customer"
 DEMO_LOCATION = "AI ERP Demo Service Site"
 DEMO_REQUEST_SUBJECT = "AI ERP Demo Pump Inspection"

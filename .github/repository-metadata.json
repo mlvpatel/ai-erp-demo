@@ -29,6 +29,7 @@
     "required_status_checks": [
       "Control-plane unit tests",
       "Contract tests",
+      "Python lint",
       "Repository checks"
     ]
   },
