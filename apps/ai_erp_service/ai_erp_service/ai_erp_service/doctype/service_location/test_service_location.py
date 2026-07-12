@@ -4,7 +4,6 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-
 IGNORE_TEST_RECORD_DEPENDENCIES = ["Address", "Customer", "Warehouse"]
 
 

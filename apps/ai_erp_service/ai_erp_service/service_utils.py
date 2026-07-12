@@ -1,7 +1,6 @@
 import frappe
 from frappe import _
 
-
 MANAGER_ROLES = frozenset({"System Manager", "Service Manager"})
 DISPATCHER_ROLES = MANAGER_ROLES | {"Service Dispatcher"}
 

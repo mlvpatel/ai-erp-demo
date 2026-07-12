@@ -28,6 +28,7 @@ This checks:
 - reproducible development pins,
 - dependency update policy consistency,
 - upstream upgrade readiness consistency,
+- Python lint policy consistency,
 - shell syntax,
 - developer helper smoke output,
 - local generated artifact counting,
@@ -60,6 +61,17 @@ This checks:
 - industry-pack lifecycle consistency,
 - public claim/release-blocker consistency,
 - Python syntax for custom apps, the AI control plane, and contract tests.
+
+## Python lint gate
+
+GitHub CI runs this as the required `Python lint` check. The version matches
+both custom-app pre-commit configurations, and cache writes are disabled so the
+repository-structure gate sees no generated root entry.
+
+```sh
+python -m pip install ruff==0.14.10
+ruff check --no-cache apps/ services/
+```
 
 ## Control-plane gate
 

@@ -14,7 +14,6 @@ from ai_erp_service.service_utils import (
 	validate_location_customer,
 )
 
-
 TRANSITIONS = {
 	"Draft": {"Scheduled", "Cancelled"},
 	"Scheduled": {"In Progress", "Cancelled"},

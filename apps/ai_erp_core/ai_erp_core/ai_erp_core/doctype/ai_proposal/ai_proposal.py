@@ -8,7 +8,6 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
-
 IMMUTABLE_FIELDS = {
 	"proposal_type",
 	"policy_outcome",

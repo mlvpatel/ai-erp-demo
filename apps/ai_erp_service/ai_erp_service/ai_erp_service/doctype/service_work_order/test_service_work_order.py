@@ -8,14 +8,13 @@ from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 from frappe.tests import IntegrationTestCase
 from frappe.utils import add_to_date, flt, now_datetime, today
 
+from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
 from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import (
 	issue_parts,
 	make_draft_sales_invoice,
 )
-from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.demo_seed import seed_service_demo
-
 
 # This focused integration suite creates its synthetic dependencies directly.
 # Avoid recursively loading unrelated ERPNext test-record modules.

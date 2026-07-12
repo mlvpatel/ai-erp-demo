@@ -10,7 +10,6 @@ import requests
 from frappe import _
 from frappe.utils import now_datetime
 
-
 CONTROL_PLANE_PATH = "/v1/proposals/service-closeout-summary"
 PROPOSAL_TYPE = "service_closeout_summary"
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
