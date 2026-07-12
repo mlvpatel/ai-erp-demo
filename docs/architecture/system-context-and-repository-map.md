@@ -41,6 +41,8 @@ accounting, payroll, permissions, or compliance changes.
 
 | Path | Responsibility | Do not put here |
 | --- | --- | --- |
+| `.agents/` | Project-local delivery and minimal-change skills that supplement `AGENTS.md`. | Runtime code, secrets, session transcripts, or private memory. |
+| `agents/` | Optional contributor role briefs; `AGENTS.md` remains the repository-wide rule source. | Duplicate global rules, customer context, or credentials. |
 | `apps/ai_erp_core/` | Cross-industry AI Proposal ledger, approval metadata, and shared policy helpers. The MVP intentionally keeps `ai_erp_core/proposals.py` to the single `service_closeout_summary` action approved by [ADR-0004](../adr/0004-stateless-ai-control-plane-and-proposal-ledger.md). | Service-specific fields or provider SDK code. |
 | `apps/ai_erp_service/` | First vertical workflow: service requests, work orders, closeout, parts, invoice readiness. | Generic AI policy, future industry assumptions, or upstream ERPNext edits. |
 | `apps/ai_erp_distribution/` | Reserved future distribution pack after discovery evidence exists. | MVP service-operations logic. |
