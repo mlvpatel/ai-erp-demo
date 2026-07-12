@@ -51,8 +51,7 @@
         "uses: actions/setup-python@v5",
         "python-version: '3.14'",
         "scripts/run-quality-gates.sh",
-        "cp development/.env.example development/.env",
-        "docker compose --env-file development/.env -f infra/compose/docker-compose.dev.yml config --quiet"
+        "scripts/dev.sh compose-config"
       ]
     }
   ],
