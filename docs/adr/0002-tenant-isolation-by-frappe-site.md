@@ -1,6 +1,6 @@
 # ADR-0002: Isolate each tenant by Frappe site and database
 
-- Status: Accepted, pending technical-spike verification
+- Status: Accepted
 - Date: 2026-07-10
 - Owners: AI ERP Demo
 
@@ -9,6 +9,8 @@
 The MVP must prevent data exposure between customers while remaining simple to
 self-host and operate. A shared `tenant_id` model with custom row-level
 security would duplicate tenancy logic through every ERPNext extension.
+Production use still requires the technical spike to verify this accepted
+boundary against the pinned Frappe/ERPNext release.
 
 ## Decision
 
