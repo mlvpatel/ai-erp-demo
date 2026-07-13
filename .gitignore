@@ -19,6 +19,9 @@ __pycache__/
 .ruff_cache/
 .venv/
 node_modules/
+tests/e2e/playwright/.auth/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
 dist/
 coverage/
 

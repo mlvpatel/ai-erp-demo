@@ -56,7 +56,7 @@ cannot serve the use case.
 │   └── security/                # Non-secret policy and scanning configuration
 ├── tests/
 │   ├── contract/                # API and event compatibility tests
-│   ├── e2e/                     # Planned — tracked in BACKLOG.md
+│   ├── e2e/                     # Pinned synthetic Playwright role/route smoke
 │   ├── fixtures/                # Synthetic, non-customer test data
 │   └── performance/             # Synthetic profile + rollback-only smoke runner
 ├── scripts/                     # Safe, documented developer automation

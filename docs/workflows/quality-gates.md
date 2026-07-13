@@ -152,7 +152,9 @@ GitHub CI does not currently execute this Docker-backed Frappe behavioral gate.
 Accordingly, `implemented` in `config/mvp-acceptance.json` means the cited source
 and evidence anchors are verified by the static gate; it does not mean the
 behavior has been executed in CI. Run `scripts/dev.sh service-test` locally and
-record its result for behavior-sensitive changes and releases.
+record its result for behavior-sensitive changes and releases. Run
+`scripts/dev.sh e2e-test` for the pinned synthetic Chromium role/route smoke;
+this browser smoke is not human UAT.
 
 ## Synthetic performance smoke gate
 
@@ -167,8 +169,9 @@ The command uses a local-only, rollback-scoped synthetic database transaction.
 It fails before writes outside a `.localhost` site or deterministic local
 template control plane, and fails on latency or safety-invariant regression,
 but its successful status is deliberately
-`SMOKE_PASS_NOT_FULL_PROFILE`. Queue, report, and concurrent parts-issue
-scenarios plus true Frappe link search remain `SKIP_UNIMPLEMENTED`, so this gate
+`SMOKE_PASS_NOT_FULL_PROFILE`. Native link search, queue clearing, and the
+profitability report are measured; true concurrent parts issue remains
+`SKIP_UNIMPLEMENTED`, so this gate
 is not evidence for a public capacity claim. Database rollback does not cover
 external effects; the local/template preflight prevents external provider use.
 

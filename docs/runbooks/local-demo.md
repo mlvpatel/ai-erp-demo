@@ -67,6 +67,7 @@ scripts/dev.sh control-plane-test
 scripts/dev.sh contract-test
 scripts/dev.sh migrate
 scripts/dev.sh service-test
+scripts/dev.sh e2e-test
 ```
 
 Or run the combined check:

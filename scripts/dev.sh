@@ -30,6 +30,7 @@ Commands:
   seed-demo             Create idempotent synthetic service demo data.
   service-test          Run all AI ERP Service integration tests.
   performance-smoke     Run rollback-only scaled synthetic performance checks.
+  e2e-test              Run local synthetic Chromium role/route smoke tests.
   demo-check            Run the Docker-backed checks that prove the MVP demo.
 USAGE
 }
@@ -245,6 +246,29 @@ case "$command" in
       bench --site "$(site_name)" execute ai_erp_service.performance.run \
       --kwargs '{"scale":0.01,"samples":20,"strict":True,"allow_local":True}'
     ;;
+  e2e-test)
+    require_local_env
+    credential_value="$(grep -E '^E2E_USER_PASSWORD=' "$env_file" | tail -n 1 | cut -d= -f2- || true)"
+    playwright_image="$(grep -E '^PLAYWRIGHT_IMAGE=' "$env_file" | tail -n 1 | cut -d= -f2- || true)"
+    if [ -z "$credential_value" ] || [ -z "$playwright_image" ]; then
+      echo "E2E_USER_PASSWORD and PLAYWRIGHT_IMAGE are required in the local env file." >&2
+      exit 1
+    fi
+    compose exec \
+      -e AI_ERP_E2E_ALLOW=1 \
+      -e E2E_USER_PASSWORD="$credential_value" \
+      --workdir /workspace/development/frappe-bench frappe \
+      bench --site "$(site_name)" execute ai_erp_service.demo_seed.prepare_e2e_demo
+    docker run --rm --init --ipc=host \
+      --network ai-erp-dev_default \
+      --volume "$repo_root:/workspace" \
+      --workdir /workspace/tests/e2e \
+      -e E2E_BASE_URL=http://frappe:8000 \
+      -e E2E_SITE_NAME=ai-erp.localhost \
+      -e E2E_USER_PASSWORD="$credential_value" \
+      "$playwright_image" \
+      sh -lc 'npm ci --ignore-scripts && npx playwright test'
+    ;;
   demo-check)
     require_local_env
     scripts/run-quality-gates.sh
@@ -254,6 +278,7 @@ case "$command" in
     "$0" migrate
     "$0" seed-demo
     "$0" service-test
+    "$0" e2e-test
     ;;
   *)
     echo "Unknown command: $command" >&2

@@ -1,8 +1,11 @@
 """Synthetic local demo data for the service-operations MVP."""
 
+import os
+
 import frappe
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 from frappe.utils import add_to_date, flt, now_datetime
+from frappe.utils.password import update_password
 
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
 
@@ -14,6 +17,7 @@ DEMO_LABOR_ITEM = "AI-ERP-DEMO-LABOR"
 DEMO_UOM = "AI ERP Service Hour"
 DEMO_TECHNICIAN = "service.technician@example.test"
 DEMO_MANAGER = "service.manager@example.test"
+E2E_OTHER_SUBJECT = "AI ERP E2E Unassigned Work Order"
 
 
 def seed_service_demo():
@@ -64,6 +68,50 @@ def seed_service_demo():
 		"initial_stock_entry": stock_entry,
 		"next_step": "Open the Service Work Order and continue from Scheduled to In Progress.",
 	}
+
+
+def prepare_e2e_demo():
+	"""Prepare local-only synthetic users and isolation records for browser tests."""
+	if os.environ.get("AI_ERP_E2E_ALLOW") != "1" or not str(frappe.local.site).endswith(".localhost"):
+		frappe.throw("E2E preparation is restricted to an explicitly enabled .localhost site.")
+	password = os.environ.get("E2E_USER_PASSWORD", "")
+	if len(password) < 12:
+		frappe.throw("E2E_USER_PASSWORD must contain at least 12 characters.")
+
+	result = seed_service_demo()
+	update_password(DEMO_TECHNICIAN, password, logout_all_sessions=True)
+	update_password(DEMO_MANAGER, password, logout_all_sessions=True)
+	other = _ensure_e2e_other_work_order(result)
+	frappe.db.commit()
+	return {
+		"technician_user": DEMO_TECHNICIAN,
+		"manager_user": DEMO_MANAGER,
+		"assigned_work_order": result["service_work_order"],
+		"unassigned_work_order": other,
+		"synthetic_only": True,
+	}
+
+
+def _ensure_e2e_other_work_order(seed):
+	existing = frappe.db.get_value("Service Work Order", {"subject": E2E_OTHER_SUBJECT}, "name")
+	if existing:
+		return existing
+	start = now_datetime()
+	document = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": E2E_OTHER_SUBJECT,
+			"customer": seed["customer"],
+			"service_location": seed["service_location"],
+			"status": "Draft",
+		}
+	).insert()
+	document.assigned_technician = DEMO_MANAGER
+	document.scheduled_start = start
+	document.scheduled_end = add_to_date(start, hours=1)
+	document.status = "Scheduled"
+	document.save()
+	return document.name
 
 
 def _default_warehouse():

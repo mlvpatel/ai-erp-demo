@@ -44,3 +44,12 @@ updates:
       - dependency
       - runtime
     open-pull-requests-limit: 2
+
+  - package-ecosystem: npm
+    directory: /tests/e2e
+    schedule:
+      interval: monthly
+    labels:
+      - dependency
+      - developer tooling
+    open-pull-requests-limit: 2

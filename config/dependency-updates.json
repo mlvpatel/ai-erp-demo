@@ -52,6 +52,16 @@
         "runtime"
       ],
       "open_pull_requests_limit": 2
+    },
+    {
+      "package_ecosystem": "npm",
+      "directory": "/tests/e2e",
+      "interval": "monthly",
+      "labels": [
+        "dependency",
+        "developer tooling"
+      ],
+      "open_pull_requests_limit": 2
     }
   ],
   "manual_only_env_pins": [
@@ -59,7 +69,8 @@
     "ERPNEXT_COMMIT",
     "MARIADB_IMAGE",
     "REDIS_IMAGE",
-    "FRAPPE_BENCH_IMAGE"
+    "FRAPPE_BENCH_IMAGE",
+    "PLAYWRIGHT_IMAGE"
   ],
   "manual_only_doc_phrases": [
     "Do not auto-merge dependency PRs.",

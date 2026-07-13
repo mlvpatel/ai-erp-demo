@@ -14,7 +14,7 @@ from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order
 	issue_parts,
 	make_draft_sales_invoice,
 )
-from ai_erp_service.demo_seed import seed_service_demo
+from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
 from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import execute as profitability_report
 
 # This focused integration suite creates its synthetic dependencies directly.
@@ -362,6 +362,11 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		if result["initial_stock_entry"]:
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "docstatus"), 1)
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "purpose"), "Material Receipt")
+
+	def test_e2e_preparation_requires_explicit_local_opt_in(self):
+		with patch.dict("os.environ", {}, clear=True):
+			with self.assertRaises(frappe.ValidationError):
+				prepare_e2e_demo()
 
 	def test_profitability_report_is_manager_only_and_permission_scoped(self):
 		work_order = self._make_work_order("Profitability report work order")

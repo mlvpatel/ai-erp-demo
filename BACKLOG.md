@@ -44,12 +44,16 @@ transaction boundaries or AI governance.
   `docs/security/ai-workflow-review.md` before design.
 - Add a distribution or light-manufacturing discovery spike.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
-- Add an end-to-end browser smoke test for the service workflow.
+- Expand the implemented browser role/route smoke into a full disposable-site
+  technician/dispatcher/manager/finance workflow after finance role separation
+  is approved.
 - Expand the executable scaled performance smoke check into full-profile load
-  evidence after queue workers, parts concurrency, and the profitability report
-  exist. The current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
+  evidence after true cross-session parts concurrency exists. Link search,
+  queue clearing, and the profitability report are now measured, but the
+  current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
   public capacity claim.
-- Add production deployment hardening after a real hosting target is chosen.
+- Implement and validate the ADR-0007 AWS plan after the account, budget,
+  domain, RPO/RTO, support owner, and legal/data gates are approved.
 
 ## Suggested labels
 
