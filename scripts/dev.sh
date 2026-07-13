@@ -29,6 +29,7 @@ Commands:
   migrate               Run Frappe migrations for the local site.
   seed-demo             Create idempotent synthetic service demo data.
   service-test          Run all AI ERP Service integration tests.
+  performance-smoke     Run rollback-only scaled synthetic performance checks.
   demo-check            Run the Docker-backed checks that prove the MVP demo.
 USAGE
 }
@@ -231,6 +232,18 @@ case "$command" in
   service-test)
     require_local_env
     compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" run-tests --app ai_erp_service --test-category integration --failfast
+    ;;
+  performance-smoke)
+    require_local_env
+    compose exec --workdir /workspace/development/frappe-bench frappe \
+      bench --site "$(site_name)" run-tests --app ai_erp_service \
+      --module ai_erp_service.tests.test_performance --failfast
+    compose exec \
+      -e AI_ERP_PERFORMANCE_ALLOW=1 \
+      -e AI_ERP_PROVIDER=template \
+      --workdir /workspace/development/frappe-bench frappe \
+      bench --site "$(site_name)" execute ai_erp_service.performance.run \
+      --kwargs '{"scale":0.01,"samples":20,"strict":True,"allow_local":True}'
     ;;
   demo-check)
     require_local_env

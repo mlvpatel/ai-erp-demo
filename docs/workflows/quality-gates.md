@@ -154,6 +154,24 @@ and evidence anchors are verified by the static gate; it does not mean the
 behavior has been executed in CI. Run `scripts/dev.sh service-test` locally and
 record its result for behavior-sensitive changes and releases.
 
+## Synthetic performance smoke gate
+
+Run after migration when list/search, invoice drafting, or AI closeout behavior
+changes:
+
+```sh
+AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
+```
+
+The command uses a local-only, rollback-scoped synthetic database transaction.
+It fails before writes outside a `.localhost` site or deterministic local
+template control plane, and fails on latency or safety-invariant regression,
+but its successful status is deliberately
+`SMOKE_PASS_NOT_FULL_PROFILE`. Queue, report, and concurrent parts-issue
+scenarios plus true Frappe link search remain `SKIP_UNIMPLEMENTED`, so this gate
+is not evidence for a public capacity claim. Database rollback does not cover
+external effects; the local/template preflight prevents external provider use.
+
 ## Release gate
 
 Run before a public release tag:
