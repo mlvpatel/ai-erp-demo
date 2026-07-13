@@ -20,8 +20,8 @@ def ai_proposal_query(user=None):
 	return "1=0"
 
 
-def ai_proposal_has_permission(doc, user=None, permission_type=None):
+def ai_proposal_has_permission(doc, user=None, ptype=None):
 	user = user or frappe.session.user
 	if _is_reviewer(user):
 		return True
-	return permission_type == "read" and "AI Proposal Requester" in _roles(user) and doc.requested_by == user
+	return ptype == "read" and "AI Proposal Requester" in _roles(user) and doc.requested_by == user

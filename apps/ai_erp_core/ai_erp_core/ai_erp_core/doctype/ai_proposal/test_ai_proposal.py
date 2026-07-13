@@ -83,4 +83,5 @@ class IntegrationTestAIProposalPermissions(IntegrationTestCase):
 			}
 		)
 		proposal.flags.from_control_plane = True
-		return proposal.insert(ignore_permissions=True)
+		proposal.insert(ignore_permissions=True)
+		return frappe.get_doc("AI Proposal", proposal.name)
