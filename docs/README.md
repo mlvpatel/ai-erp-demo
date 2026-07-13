@@ -27,6 +27,8 @@ Start with:
   boundaries.
 - [`architecture/mvp-containers.md`](architecture/mvp-containers.md) for the
   compact MVP deployment and container view.
+- [`architecture/multi-agent-delivery-system.md`](architecture/multi-agent-delivery-system.md)
+  for risk-gated task routing, validation, feedback, and scaling.
 - `architecture/domain-data-model.md` for the custom DocType and ERPNext reuse
   map.
 - `discovery/open-source-erp-scan-2026-07.md` for the GitHub ERP scan.

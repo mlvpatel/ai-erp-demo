@@ -45,9 +45,10 @@ transaction boundaries or AI governance.
 - Add a distribution or light-manufacturing discovery spike.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
 - Add an end-to-end browser smoke test for the service workflow.
-- Build an executable synthetic performance harness from
-  `tests/performance/service-operations-load-profile.example.json` before
-  making performance claims.
+- Expand the executable scaled performance smoke check into full-profile load
+  evidence after queue workers, parts concurrency, and the profitability report
+  exist. The current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
+  public capacity claim.
 - Add production deployment hardening after a real hosting target is chosen.
 
 ## Suggested labels
