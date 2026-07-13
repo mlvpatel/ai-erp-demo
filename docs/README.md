@@ -4,6 +4,7 @@ Documentation is part of the product. Use the folders below instead of creating
 unstructured notes at the repository root.
 
 - `adr/`: one short decision per material architectural choice.
+- `compliance/`: engineering readiness gates that require human/legal approval.
 - `audits/`: sanitized dated findings and remediation dispositions.
 - `discovery/`: evidence from research, interviews, and technical spikes.
 - `product/`: target users, scope, KPIs, and roadmap.

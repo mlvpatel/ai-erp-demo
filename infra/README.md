@@ -1,7 +1,10 @@
 # Infrastructure
 
-Start with Docker Compose under `compose/`. Kubernetes is intentionally empty
-until production scale and operational ownership justify it.
+Use Docker Compose under `compose/` for development. The plan-only AWS ECS
+production reference is documented in
+[`docs/architecture/aws-production-reference.md`](../docs/architecture/aws-production-reference.md)
+and ADR-0007. It must not be applied until its budget, identity, recovery, data,
+support, and legal gates are approved. Kubernetes remains intentionally empty.
 
 Use `observability/` for safe monitoring and alerting examples only. Do not
 commit real logs, trace exports, dashboard snapshots with customer data, alert
