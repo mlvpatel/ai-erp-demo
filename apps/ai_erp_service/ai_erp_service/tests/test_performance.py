@@ -5,7 +5,13 @@ from unittest.mock import patch
 import frappe
 
 import ai_erp_service.performance as performance
-from ai_erp_service.performance import IMPLEMENTED_SCENARIOS, SKIPPED_SCENARIOS, nearest_rank_p95, scaled_count, validate_profile
+from ai_erp_service.performance import (
+	IMPLEMENTED_SCENARIOS,
+	SKIPPED_SCENARIOS,
+	nearest_rank_p95,
+	scaled_count,
+	validate_profile,
+)
 
 
 class TestPerformanceSmokeHelpers(TestCase):

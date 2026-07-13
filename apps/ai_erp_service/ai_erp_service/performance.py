@@ -12,7 +12,9 @@ import frappe
 from frappe.utils import add_to_date, now_datetime, today
 
 from ai_erp_service.ai_drafts import request_closeout_summary
-from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import make_draft_sales_invoice
+from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import (
+	make_draft_sales_invoice,
+)
 
 
 PROFILE_NAME = "service-operations-load-profile.example.json"
