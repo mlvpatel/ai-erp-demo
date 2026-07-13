@@ -31,6 +31,10 @@ This pack is the first implemented end-to-end demo workflow for AI ERP Demo.
   labor and part bill rates. Parts cost comes from submitted ERPNext Stock Entry
   Detail amounts. The current projection is before labor overhead; employee
   costing is a future ERPNext Timesheet/HR integration.
+- Service Managers and System Managers can use the permission-scoped
+  **Service Profitability** report to review projected revenue, issued-parts
+  cost, pre-labor margin, invoice readiness, closure exceptions, and draft
+  invoice links. Technicians are explicitly denied this aggregate report.
 
 ## Governed AI closeout draft
 

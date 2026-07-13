@@ -15,6 +15,7 @@ from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order
 	make_draft_sales_invoice,
 )
 from ai_erp_service.demo_seed import seed_service_demo
+from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import execute as profitability_report
 
 # This focused integration suite creates its synthetic dependencies directly.
 # Avoid recursively loading unrelated ERPNext test-record modules.
@@ -361,6 +362,29 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		if result["initial_stock_entry"]:
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "docstatus"), 1)
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "purpose"), "Material Receipt")
+
+	def test_profitability_report_is_manager_only_and_permission_scoped(self):
+		work_order = self._make_work_order("Profitability report work order")
+		work_order.hourly_rate = 100
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 2,
+			},
+		)
+		work_order.save()
+
+		_columns, rows = profitability_report({"customer": self.customer})
+		row = next(item for item in rows if item.name == work_order.name)
+		self.assertEqual(flt(row.projected_revenue), 200)
+		self.assertEqual(flt(row.projected_margin_before_labor), 200)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			profitability_report({"customer": self.customer})
 
 	def _make_customer(self):
 		name = "AI ERP Service Test Customer {0}".format(frappe.generate_hash(length=8))

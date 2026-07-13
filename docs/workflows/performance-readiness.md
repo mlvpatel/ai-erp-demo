@@ -79,10 +79,11 @@ AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 
 The command uses a fixed scaled synthetic developer dataset, reports its actual
 record counts, measures nearest-rank p95 with at least 20 samples per role, and
-checks technician/manager list isolation plus draft-invoice and deterministic
-draft-only AI safety invariants. Synthetic database changes are rolled back,
-including on failure. Missing Frappe link-search, parts-issue concurrency,
-worker queue, and profitability-report coverage is
+checks technician/manager list isolation, the manager-only profitability report,
+draft-invoice safety, and deterministic draft-only AI invariants. Synthetic
+database changes are rolled back, including on failure. Native Frappe link
+search proves technician/manager isolation, and a side-effect-free local worker
+batch measures queue-clear time. Missing true parts-issue concurrency is
 reported as `SKIP_UNIMPLEMENTED`, so the only successful status is
 `SMOKE_PASS_NOT_FULL_PROFILE`.
 
