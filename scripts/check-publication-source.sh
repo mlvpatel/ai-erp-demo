@@ -51,7 +51,7 @@ list_forbidden_paths() {
        -name '*-files.tar' -o \
        -name '*-private-files.tar' \
     \) -print \) |
-    grep -v '^\./\.env\.example$' |
+    awk '$0 != "./.env.example"' |
     sort
 }
 
