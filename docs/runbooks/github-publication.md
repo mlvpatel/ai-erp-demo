@@ -158,6 +158,9 @@ docker compose --env-file development/.env -f infra/compose/docker-compose.dev.y
 - Create first public issues from `config/first-public-issues.json` only after
   the root license and release-readiness gates are resolved.
 - Confirm `SECURITY.md` is visible on the repository security tab.
+- Open the private reporting URL in `SECURITY.md` while signed in and confirm it
+  resolves to the `mlvpatel/ai-erp-demo` Security Advisory form, not a
+  placeholder repository or a public issue form.
 - Confirm `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `GOVERNANCE.md`,
   `SUPPORT.md`, and `CHANGELOG.md` are visible from the repository landing page
   or linked documentation.
