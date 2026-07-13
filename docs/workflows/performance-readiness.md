@@ -69,6 +69,31 @@ At minimum, document:
 5. queue/backlog expectation;
 6. rollback or mitigation if the target is missed.
 
+## Executable scaled smoke check
+
+After migrating the local Docker site, run:
+
+```sh
+AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
+```
+
+The command uses a fixed scaled synthetic developer dataset, reports its actual
+record counts, measures nearest-rank p95 with at least 20 samples per role, and
+checks technician/manager list isolation plus draft-invoice and deterministic
+draft-only AI safety invariants. Synthetic database changes are rolled back,
+including on failure. Missing Frappe link-search, parts-issue concurrency,
+worker queue, and profitability-report coverage is
+reported as `SKIP_UNIMPLEMENTED`, so the only successful status is
+`SMOKE_PASS_NOT_FULL_PROFILE`.
+
+The command fails closed before writes unless it runs on a `.localhost` site
+through the local Docker control plane with the deterministic template provider.
+This matters because a database rollback cannot undo an external provider call.
+
+This scaled command detects regressions on a developer machine. It is not a
+capacity result and must not be described as full-profile validation or used
+for a public performance claim.
+
 ## Verification
 
 Run the static check:
@@ -76,7 +101,9 @@ Run the static check:
 ```sh
 python3 scripts/check-performance-readiness.py
 scripts/run-quality-gates.sh
+AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 ```
 
 The static checker proves the public repository keeps the performance contract
-visible and safe. It does not replace a real load test on deployment hardware.
+visible and safe. The scaled smoke command adds executable regression evidence;
+neither replaces a full load test on declared deployment hardware.

@@ -5,6 +5,9 @@
   "quality_gates_doc": "docs/workflows/quality-gates.md",
   "load_profile": "tests/performance/service-operations-load-profile.example.json",
   "performance_readme": "tests/performance/README.md",
+  "performance_runner": "apps/ai_erp_service/ai_erp_service/performance.py",
+  "performance_helper_test": "apps/ai_erp_service/ai_erp_service/tests/test_performance.py",
+  "developer_helper": "scripts/dev.sh",
   "tests_readme": "tests/README.md",
   "observability_readiness_doc": "docs/workflows/observability-readiness.md",
   "operations_readiness_doc": "docs/workflows/operations-readiness.md",
@@ -65,35 +68,64 @@
       "path": "tests/performance/README.md",
       "phrases": [
         "synthetic, non-customer performance planning artifacts",
-        "planning-only: it has no executable performance runner or benchmark command yet",
-        "service-operations-load-profile.example.json",
+        "executable scaled smoke check",
+        "SMOKE_PASS_NOT_FULL_PROFILE",
+        "SKIP_UNIMPLEMENTED",
         "Real benchmark results belong in private deployment evidence"
       ]
     },
     {
       "path": "tests/README.md",
       "phrases": [
-        "performance/`: planning-only record-volume and concurrency profiles",
-        "no executable performance runner exists yet"
+        "rollback-only scaled smoke command",
+        "AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke"
       ]
     },
     {
       "path": "README.md",
       "phrases": [
-        "performance/             # Planning-only — tracked in BACKLOG.md; no runner"
+        "performance/             # Synthetic profile + rollback-only smoke runner"
       ]
     },
     {
       "path": "BACKLOG.md",
       "phrases": [
-        "Build an executable synthetic performance harness"
+        "Expand the executable scaled performance smoke check into full-profile load evidence",
+        "SMOKE_PASS_NOT_FULL_PROFILE"
+      ]
+    },
+    {
+      "path": "apps/ai_erp_service/ai_erp_service/performance.py",
+      "phrases": [
+        "nearest_rank_p95",
+        "SMOKE_PASS_NOT_FULL_PROFILE",
+        "SKIP_UNIMPLEMENTED",
+        "frappe.db.rollback(save_point=SAVEPOINT)"
+      ]
+    },
+    {
+      "path": "apps/ai_erp_service/ai_erp_service/tests/test_performance.py",
+      "phrases": [
+        "test_nearest_rank_p95_uses_the_nearest_rank_definition",
+        "test_profile_must_be_explicitly_synthetic"
+      ]
+    },
+    {
+      "path": "scripts/dev.sh",
+      "phrases": [
+        "performance-smoke",
+        "ai_erp_service.performance.run",
+        "scale\":0.01",
+        "samples\":20",
+        "strict\":true"
       ]
     },
     {
       "path": "docs/workflows/quality-gates.md",
       "phrases": [
         "performance readiness consistency",
-        "python3 scripts/check-performance-readiness.py"
+        "python3 scripts/check-performance-readiness.py",
+        "SMOKE_PASS_NOT_FULL_PROFILE"
       ]
     },
     {

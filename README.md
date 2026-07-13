@@ -58,7 +58,7 @@ cannot serve the use case.
 │   ├── contract/                # API and event compatibility tests
 │   ├── e2e/                     # Planned — tracked in BACKLOG.md
 │   ├── fixtures/                # Synthetic, non-customer test data
-│   └── performance/             # Planning-only — tracked in BACKLOG.md; no runner
+│   └── performance/             # Synthetic profile + rollback-only smoke runner
 ├── scripts/                     # Safe, documented developer automation
 ├── development/                 # Tracked bootstrap config; local bench is ignored
 ├── config/                      # Checked-in, environment-safe defaults
