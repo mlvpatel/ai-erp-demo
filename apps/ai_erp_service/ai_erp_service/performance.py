@@ -16,7 +16,6 @@ from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order
 	make_draft_sales_invoice,
 )
 
-
 PROFILE_NAME = "service-operations-load-profile.example.json"
 SAVEPOINT = "ai_erp_performance_smoke"
 WARMUP_SAMPLES = 3
