@@ -34,7 +34,7 @@ Frappe site and ERPNext permissions
                 v
         AI control plane
                 |
-                +--> future model/provider adapter
+                +--> allow-listed OpenAI provider adapter
                 +--> future retrieval/tool adapter
 ```
 
@@ -52,6 +52,9 @@ permission, or compliance changes.
 | Role bypass | A technician closes work, issues parts, or drafts an invoice without manager authority. | Enforce Frappe permissions and explicit role checks in server-side methods. |
 | Duplicate transaction | Retrying a button creates multiple Stock Entries, Sales Invoices, or external writes. | Lock the source document, store target IDs, and make writes idempotent. |
 | Prompt/data leakage | Customer contacts, addresses, credentials, attachments, or private prompts are sent to a model unnecessarily. | Use allow-listed fields, source hashes, and no attachment contents in the first AI workflow. |
+| Provider residency or retention mismatch | Operational notes are processed outside the approved region or retained under an unapproved policy. | Production OpenAI calls use the allow-listed EU origin only after DPA/DPIA, European data-residency, and retention/abuse-monitoring approval; synthetic data remains the default. |
+| Prompt injection in work-order text | A note tells the model to ignore policy, reveal data, or claim an ERP action. | Treat every source field as untrusted data, use strict one-field structured output with no tools, and construct policy/citations locally. |
+| Provider cost or worker exhaustion | Oversized records or slow calls consume tokens and synchronous workers. | Contract-level size/count limits, pinned model/output budget, bounded timeout, and no automatic retries; production capacity tests set concurrency limits. |
 | Secret exposure in GitHub | `.env`, keys, database dumps, or production exports are committed or pasted into issues. | Keep `.gitignore`, publication runbook, and issue templates explicit; use synthetic fixtures only. |
 | Sensitive telemetry leak | Logs, metrics, traces, alert payloads, or dashboard screenshots expose customer data, prompt bodies, provider responses, or secrets. | Observability guidance must keep logs, metrics, and traces free of customer data, prompt bodies, and secrets. Production SIEM routing remains deployment-specific. |
 | Unreviewed connector action | Future provider webhook or sync writes unsafe ERP state. | Treat [`service-operations-v1`](../../contracts/events/service-operations-v1.yaml) as notification-only; validate signatures where applicable, store sync state, and surface failures as reviewable ERP records. |
@@ -69,6 +72,9 @@ permission, or compliance changes.
   and idempotent.
 - The AI closeout draft sends only allow-listed service-work-order fields and
   has no ERP side effect on approval.
+- The OpenAI adapter additionally removes tenant, requester, record, source,
+  technician, and warehouse identifiers; it sends no tools and uses
+  `store=false` with strict structured output.
 - Audit evidence stays reviewable through AI Proposal source hashes, reviewer
   metadata, and deterministic Stock Entry or Sales Invoice identifiers linked
   back to the Service Work Order.
@@ -84,12 +90,21 @@ permission, or compliance changes.
 6. What audit record proves who requested, approved, and executed the action?
 7. What test proves unauthorized users are blocked?
 
-## Out of scope for the demo
+## Production controls still requiring deployment evidence
 
-These are not ignored; they are deferred until production design:
+These are launch gates, not claims made by the repository:
 
-- Production hardening of TLS, WAF, backups, key rotation, and SIEM routing.
+- Live TLS, WAF, backups, restore evidence, key rotation, and SIEM routing.
   Production SIEM routing remains deployment-specific.
 - Formal SOC 2, HIPAA, GDPR, or tax-compliance certification.
 - Cross-tenant shared-row tenancy.
-- Direct production deployment guidance.
+- Legal approval of the provider DPA/DPIA, retention, subprocessors, and
+  international-transfer position.
+
+See [ADR-0006](../adr/0006-openai-responses-provider-for-draft-summaries.md)
+for the provider boundary. OpenAI documents the Responses API, model snapshots,
+and data controls at:
+
+- <https://developers.openai.com/api/reference/responses/create>
+- <https://developers.openai.com/api/docs/models/gpt-5.4-mini>
+- <https://platform.openai.com/docs/models/default-usage-policies-by-endpoint>

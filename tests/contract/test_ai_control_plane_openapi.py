@@ -57,7 +57,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 			f"  {HEALTH_PATH}:",
 			"security: []",
 			"'503':",
-			"No approved production model adapter is configured.",
+			"The selected approved model provider is unavailable.",
 		)
 
 		health_operation = self.openapi["paths"][HEALTH_PATH]["get"]

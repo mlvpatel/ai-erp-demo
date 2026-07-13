@@ -83,3 +83,14 @@ class TestAppSecurity(unittest.TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json()["policy"]["decision"], "draft_only")
+
+	def test_openai_provider_without_key_fails_closed(self):
+		environment = {
+			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
+			"AI_ERP_PROVIDER": "openai",
+		}
+		with patch.dict(os.environ, environment, clear=True):
+			response = self._post(f"Bearer {SHARED_SECRET}")
+
+		self.assertEqual(response.status_code, 503)
+		self.assertEqual(response.json()["detail"], "approved model provider is unavailable")

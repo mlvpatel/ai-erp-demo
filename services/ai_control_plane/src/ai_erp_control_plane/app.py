@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .models import ProposalResponse, ServiceCloseoutSummaryRequest
+from .openai_provider import OpenAIProviderError, render_openai
 from .render import render_development_template
 
 
@@ -47,15 +48,25 @@ def healthz():
 		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
 		422: {"description": "Invalid or unsupported request payload."},
 		status.HTTP_503_SERVICE_UNAVAILABLE: {
-			"description": "No approved production model adapter is configured."
+			"description": "The selected approved model provider is unavailable."
 		},
 	},
 	dependencies=[Depends(require_service_key)],
 )
 def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
-	if os.environ.get("AI_ERP_PROVIDER", "template") != "template":
+	provider = os.environ.get("AI_ERP_PROVIDER", "template")
+	if provider == "template":
+		return render_development_template(request)
+	if provider == "openai":
+		try:
+			return render_openai(request)
+		except OpenAIProviderError:
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail="approved model provider is unavailable",
+			) from None
+	else:
 		raise HTTPException(
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-			detail="no approved production model adapter is configured",
+			detail="approved model provider is unavailable",
 		)
-	return render_development_template(request)

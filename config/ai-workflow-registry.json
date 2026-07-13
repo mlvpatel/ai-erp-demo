@@ -24,6 +24,10 @@
         "path": "services/ai_control_plane/src/ai_erp_control_plane/render.py",
         "function": "render_development_template"
       },
+      "production_provider_adapter": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/openai_provider.py",
+        "function": "render_openai"
+      },
       "request_model": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
         "class": "ServiceCloseoutSummaryRequest"
@@ -49,6 +53,7 @@
       ],
       "tests": [
         "services/ai_control_plane/tests/test_render.py",
+        "services/ai_control_plane/tests/test_openai_provider.py",
         "tests/contract/test_ai_control_plane_openapi.py",
         "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
       ],

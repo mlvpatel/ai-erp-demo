@@ -38,7 +38,7 @@ paths:
         '422':
           description: Invalid or unsupported request payload.
         '503':
-          description: No approved production model adapter is configured.
+          description: The selected approved model provider is unavailable.
 components:
   securitySchemes:
     ControlPlaneServiceKey:
@@ -54,12 +54,15 @@ components:
         doctype:
           type: string
           minLength: 1
+          maxLength: 128
         name:
           type: string
           minLength: 1
+          maxLength: 256
         field:
           type: string
           minLength: 1
+          maxLength: 128
         content_hash:
           type: string
           pattern: '^[a-f0-9]{64}$'
@@ -70,11 +73,13 @@ components:
       properties:
         technician:
           type: string
+          maxLength: 256
         work_date:
           type: string
           format: date
         time_type:
           type: string
+          maxLength: 128
         hours:
           type: number
           exclusiveMinimum: 0
@@ -85,11 +90,13 @@ components:
       properties:
         item:
           type: string
+          maxLength: 256
         qty:
           type: number
           exclusiveMinimum: 0
         source_warehouse:
           type: string
+          maxLength: 256
         issued:
           type: boolean
     ServiceCloseoutSummaryRequest:
@@ -112,9 +119,11 @@ components:
         tenant_site:
           type: string
           minLength: 1
+          maxLength: 253
         requested_by:
           type: string
           minLength: 1
+          maxLength: 256
         work_order:
           type: object
           additionalProperties: false
@@ -126,27 +135,35 @@ components:
             name:
               type: string
               minLength: 1
+              maxLength: 256
             subject:
               type: string
               minLength: 1
+              maxLength: 256
             status:
               type: string
               minLength: 1
+              maxLength: 128
             description:
               type: string
+              maxLength: 4000
             closeout_notes:
               type: string
+              maxLength: 4000
             time_entries:
               type: array
+              maxItems: 100
               items:
                 $ref: '#/components/schemas/TimeEntry'
             parts:
               type: array
+              maxItems: 200
               items:
                 $ref: '#/components/schemas/PartUsage'
         sources:
           type: array
           minItems: 1
+          maxItems: 50
           items:
             $ref: '#/components/schemas/SourceReference'
     ProposalResponse:
@@ -197,6 +214,7 @@ components:
         draft_content:
           type: string
           minLength: 1
+          maxLength: 8000
         sources:
           type: array
           minItems: 1
