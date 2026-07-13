@@ -10,3 +10,7 @@ gates before acting on it.
 - [`2026-07-12-remediation-status.md`](2026-07-12-remediation-status.md):
   sanitized disposition of the initial full audit and its remediation work
   order.
+- [`2026-07-11-baseline-gap-analysis.md`](2026-07-11-baseline-gap-analysis.md):
+  sanitized historical baseline preserving every original finding identifier.
+- [`2026-07-12-remediation-work-order.md`](2026-07-12-remediation-work-order.md):
+  sanitized historical task specification and acceptance themes.
