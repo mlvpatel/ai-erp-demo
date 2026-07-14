@@ -168,6 +168,37 @@ def validate_reserved_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, A
         for match in matches:
             fail(failures, f"{pack_id}: reserved pack contains generated marker: {rel(match)}")
 
+    docs = pack.get("docs")
+    discovery_docs = [
+        doc
+        for doc in docs
+        if isinstance(doc, str) and doc.startswith("docs/discovery/")
+    ] if isinstance(docs, list) else []
+    if len(discovery_docs) != 1:
+        fail(failures, f"{pack_id}: reserved pack requires exactly one docs/discovery brief")
+        return
+
+    evidence_level = pack.get("discovery_evidence_level")
+    human_validation = pack.get("human_validation")
+    if pack.get("entry_gate") == "not_started":
+        if evidence_level != "hypothesis_only" or human_validation != "pending":
+            fail(
+                failures,
+                f"{pack_id}: not_started must remain hypothesis_only with human validation pending",
+            )
+        brief_text = read_text(REPO_ROOT / discovery_docs[0], failures)
+        phrases = string_list(
+            rule.get("hypothesis_required_phrases"),
+            "reserved.hypothesis_required_phrases",
+            failures,
+        )
+        for phrase in phrases:
+            if not contains_snippet(brief_text, phrase):
+                fail(failures, f"{pack_id}: hypothesis brief missing phrase: {phrase}")
+    elif pack.get("entry_gate") == "discovery_brief_ready":
+        if evidence_level == "hypothesis_only" or human_validation != "approved":
+            fail(failures, f"{pack_id}: discovery_brief_ready requires approved human evidence")
+
 
 def validate_implemented_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
     app_path_value = pack.get("app_path")

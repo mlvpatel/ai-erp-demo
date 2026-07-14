@@ -292,6 +292,11 @@ def normalize_assignment_value(value: str) -> str:
 
 def sensitive_key(key: str, manifest: dict[str, Any]) -> bool:
     normalized_key = key.lower().replace("-", "_").replace(".", "_")
+    allowed_non_secret = manifest.get("allowed_non_secret_assignment_keys", [])
+    if isinstance(allowed_non_secret, list) and normalized_key in {
+        item for item in allowed_non_secret if isinstance(item, str)
+    }:
+        return False
     if key != key.lower() and key != key.upper():
         return False
     configured = manifest.get("sensitive_assignment_keys", [])

@@ -40,6 +40,15 @@
         "patches.txt",
         "fixtures",
         "doctype"
+      ],
+      "hypothesis_required_phrases": [
+        "Status: hypothesis only",
+        "Lifecycle decision: entry gate not started; remain **reserved**",
+        "Design partner validation: pending",
+        "System of record:",
+        "Tenant isolation is one Frappe site/database per tenant.",
+        "Ready to generate or expand a Frappe app: **no**.",
+        "Needs more discovery: **yes**"
       ]
     },
     "implemented": {

@@ -44,10 +44,13 @@
       "app_path": "apps/ai_erp_distribution",
       "docs": [
         "apps/ai_erp_distribution/README.md",
+        "docs/discovery/distribution-industry-pack.md",
         "docs/product/industry-pack-roadmap.md",
         "docs/product/industry-pack-design-template.md"
       ],
       "entry_gate": "not_started",
+      "discovery_evidence_level": "hypothesis_only",
+      "human_validation": "pending",
       "first_proof_workflow": "Sales Order to pick/pack review to stock availability exception to delivery handoff to delivery exception summary.",
       "erpnext_reuse": [
         "Stock",
@@ -66,7 +69,7 @@
         "Direct compliance filing or regulated external submission"
       ],
       "verification": [
-        "Complete docs/product/industry-pack-design-template.md before generated app code"
+        "Validate docs/discovery/distribution-industry-pack.md with python3 scripts/check-industry-pack-lifecycle.py before generated app code"
       ]
     },
     {
@@ -77,10 +80,13 @@
       "app_path": "apps/ai_erp_manufacturing",
       "docs": [
         "apps/ai_erp_manufacturing/README.md",
+        "docs/discovery/light-manufacturing-industry-pack.md",
         "docs/product/industry-pack-roadmap.md",
         "docs/product/industry-pack-design-template.md"
       ],
       "entry_gate": "not_started",
+      "discovery_evidence_level": "hypothesis_only",
+      "human_validation": "pending",
       "first_proof_workflow": "Make-to-order quote to BOM/work-order review to material availability exception to production status summary to invoice-ready handoff.",
       "erpnext_reuse": [
         "Manufacturing",
@@ -98,7 +104,7 @@
         "Direct compliance filing or regulated external submission"
       ],
       "verification": [
-        "Complete docs/product/industry-pack-design-template.md before generated app code"
+        "Validate docs/discovery/light-manufacturing-industry-pack.md with python3 scripts/check-industry-pack-lifecycle.py before generated app code"
       ]
     },
     {

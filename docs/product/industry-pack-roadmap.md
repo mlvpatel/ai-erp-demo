@@ -33,6 +33,11 @@ lifecycle evidence when a pack changes status.
 
 ## Entry gate for a new pack
 
+Distribution and light manufacturing have explicit hypothesis briefs under
+`docs/discovery/`. They remain reserved with entry gate `not_started` until a
+named design partner supplies human validation; the briefs are not approval to
+generate Frappe application code.
+
 A pack is ready for implementation only when it has:
 
 - A named target user and business job.

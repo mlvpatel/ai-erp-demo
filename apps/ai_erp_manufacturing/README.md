@@ -5,6 +5,8 @@ Reserved future industry pack for light manufacturing workflows.
 No Frappe app is generated here yet. ERPNext already has manufacturing modules,
 BOMs, work orders, job cards, and stock flows, so this pack should stay empty
 until discovery proves a gap that configuration cannot cover.
+The current [hypothesis brief](../../docs/discovery/light-manufacturing-industry-pack.md)
+is synthetic and still awaits design-partner validation.
 
 ## Candidate proof workflow
 
@@ -33,4 +35,3 @@ Make-to-order quote -> BOM/work-order review -> material availability exception
 - Autonomous BOM, work-order, or stock-entry posting from AI output.
 - Shop-floor scheduling abstractions before real scheduling discovery.
 - Custom costing logic that bypasses ERPNext valuation/accounting controls.
-

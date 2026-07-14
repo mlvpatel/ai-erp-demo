@@ -5,6 +5,8 @@ workflows.
 
 No Frappe app is generated here yet. Keep this directory lightweight until the
 entry gate in `docs/product/industry-pack-roadmap.md` is satisfied.
+The current [hypothesis brief](../../docs/discovery/distribution-industry-pack.md)
+is synthetic and still awaits design-partner validation.
 
 ## Candidate proof workflow
 
@@ -32,4 +34,3 @@ handoff -> delivery exception summary.
 - Autonomous stock moves from AI output.
 - Carrier integrations before a concrete adapter contract exists.
 - Generic forecasting or replenishment logic without discovery evidence.
-

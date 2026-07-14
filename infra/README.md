@@ -1,10 +1,13 @@
 # Infrastructure
 
-Use Docker Compose under `compose/` for development. The plan-only AWS ECS
-production reference is documented in
+Use Docker Compose under `compose/` for development. The credential-free,
+plan-only AWS foundation lives under `aws/terraform/`; its use and explicit
+limitations are documented in its README. The AWS ECS production reference is
+documented in
 [`docs/architecture/aws-production-reference.md`](../docs/architecture/aws-production-reference.md)
-and ADR-0007. It must not be applied until its budget, identity, recovery, data,
-support, and legal gates are approved. Kubernetes remains intentionally empty.
+and ADR-0007. No repository script or CI job applies it. It must not be applied
+until its budget, identity, recovery, data, support, and legal gates are
+approved. Kubernetes remains intentionally empty.
 
 Use `observability/` for safe monitoring and alerting examples only. Do not
 commit real logs, trace exports, dashboard snapshots with customer data, alert

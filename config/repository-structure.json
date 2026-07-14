@@ -26,6 +26,7 @@
     "docs/security",
     "docs/workflows",
     "infra/compose",
+    "infra/aws/terraform",
     "infra/kubernetes",
     "infra/observability",
     "infra/security",

@@ -59,6 +59,8 @@ This checks:
 - license metadata reconciliation consistency,
 - industry-pack manifest consistency,
 - industry-pack lifecycle consistency,
+- credential-free AWS production-IaC invariants,
+- synthetic service-pilot evidence and pending-gate consistency,
 - public claim/release-blocker consistency,
 - Python syntax for custom apps, the AI control plane, and contract tests.
 

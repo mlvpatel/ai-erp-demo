@@ -59,3 +59,18 @@ jobs:
         run: scripts/run-quality-gates.sh
       - name: Validate development compose configuration
         run: scripts/dev.sh compose-config
+
+  aws-iac:
+    name: AWS IaC validation (no credentials)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.5'
+      - run: python3 scripts/check-aws-iac.py
+      - run: terraform -chdir=infra/aws/terraform fmt -check -recursive
+      - run: terraform -chdir=infra/aws/terraform init -backend=false
+      - run: terraform -chdir=infra/aws/terraform validate

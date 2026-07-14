@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "scope": "service_operations",
+  "status": "SYNTHETIC_REHEARSAL_READY_HUMAN_AND_DEPLOYMENT_GATES_PENDING",
+  "data_mode": "synthetic_only",
+  "uat_doc": "docs/runbooks/service-operations-synthetic-uat.md",
+  "evidence_template": "docs/compliance/service-operations-pilot-evidence-template.md",
+  "gdpr_gate": "docs/compliance/eu-italy-gdpr-readiness.md",
+  "aws_reference": "docs/architecture/aws-production-reference.md",
+  "automated_evidence": [
+    {
+      "id": "service-integration",
+      "status": "available",
+      "command": "scripts/dev.sh service-test",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+    },
+    {
+      "id": "browser-role-smoke",
+      "status": "available",
+      "command": "scripts/dev.sh e2e-test",
+      "path": "tests/e2e/service-operations.spec.ts"
+    },
+    {
+      "id": "performance-smoke",
+      "status": "available_not_capacity_evidence",
+      "command": "scripts/dev.sh performance-smoke",
+      "path": "tests/performance/README.md"
+    }
+  ],
+  "pending_gates": [
+    {"id": "design-partner-validation", "owner_class": "business", "status": "pending"},
+    {"id": "human-uat-signoff", "owner_class": "business", "status": "pending"},
+    {"id": "controller-processor-legal-basis", "owner_class": "legal", "status": "pending"},
+    {"id": "dpa-dpia-transfer-review", "owner_class": "legal", "status": "pending"},
+    {"id": "italian-counsel-or-dpo-review", "owner_class": "legal", "status": "pending"},
+    {"id": "production-role-and-finance-separation", "owner_class": "security", "status": "pending"},
+    {"id": "rpo-rto-retention-approval", "owner_class": "operations", "status": "pending"},
+    {"id": "restore-and-deletion-drill", "owner_class": "operations", "status": "pending"},
+    {"id": "production-capacity-profile", "owner_class": "operations", "status": "pending"},
+    {"id": "support-and-on-call-owner", "owner_class": "operations", "status": "pending"},
+    {"id": "pilot-go-no-go", "owner_class": "accountable_owner", "status": "pending"}
+  ],
+  "forbidden_claims": [
+    "UAT passed",
+    "design partner approved",
+    "GDPR compliant",
+    "production ready"
+  ]
+}

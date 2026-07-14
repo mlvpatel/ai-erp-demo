@@ -50,6 +50,12 @@ echo "==> Integration safety"
 echo "==> Operations readiness"
 "$python_bin" scripts/check-operations-readiness.py
 
+echo "==> AWS production IaC"
+"$python_bin" scripts/check-aws-iac.py
+
+echo "==> Service pilot readiness"
+"$python_bin" scripts/check-pilot-readiness.py
+
 echo "==> Observability readiness"
 "$python_bin" scripts/check-observability-readiness.py
 

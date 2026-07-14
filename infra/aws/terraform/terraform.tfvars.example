@@ -1,0 +1,12 @@
+environment                   = "pilot"
+aws_account_id                = "000000000000"
+availability_zones            = ["eu-central-1a", "eu-central-1b"]
+public_subnet_cidrs            = ["10.40.0.0/24", "10.40.1.0/24"]
+private_subnet_cidrs           = ["10.40.10.0/24", "10.40.11.0/24"]
+domain_name                   = "erp.example.org"
+certificate_arn               = "arn:aws:acm:eu-central-1:000000000000:certificate/00000000-0000-0000-0000-000000000000"
+monthly_budget_usd            = 1000
+backup_retention_days         = 14
+logical_backup_retention_days = 90
+log_retention_days            = 90
+owner                         = "Platform Operations"

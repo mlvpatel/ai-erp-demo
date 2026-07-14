@@ -52,8 +52,10 @@ transaction boundaries or AI governance.
   queue clearing, and the profitability report are now measured, but the
   current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
   public capacity claim.
-- Implement and validate the ADR-0007 AWS plan after the account, budget,
-  domain, RPO/RTO, support owner, and legal/data gates are approved.
+- Privately plan and cost-review the implemented ADR-0007 AWS foundation after
+  the account, budget, domain, RPO/RTO, support owner, and legal/data gates are
+  approved; add production image contracts and ECS workloads in a separate
+  reviewed slice.
 
 ## Suggested labels
 
