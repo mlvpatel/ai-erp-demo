@@ -94,8 +94,8 @@ variable "monthly_budget_usd" {
   description = "Owner-approved numeric monthly AWS cost budget in USD."
 
   validation {
-    condition     = var.monthly_budget_usd >= 100 && var.monthly_budget_usd <= 100000
-    error_message = "monthly_budget_usd must be an explicitly approved value from 100 to 100000."
+    condition     = var.monthly_budget_usd == 600
+    error_message = "The balanced pilot profile has an approved monthly budget of exactly USD 600."
   }
 }
 
@@ -104,8 +104,8 @@ variable "backup_retention_days" {
   description = "Owner-approved RDS and Redis recovery retention in days."
 
   validation {
-    condition     = var.backup_retention_days >= 7 && var.backup_retention_days <= 35
-    error_message = "backup_retention_days must be between 7 and 35."
+    condition     = var.backup_retention_days == 14
+    error_message = "The balanced pilot profile keeps RDS and Valkey recovery points for 14 days."
   }
 }
 
@@ -159,5 +159,35 @@ variable "owner" {
   validation {
     condition     = length(trimspace(var.owner)) >= 3
     error_message = "A named operational owner is required."
+  }
+}
+
+variable "frappe_backend_image" {
+  type        = string
+  description = "Immutable ECR digest for the reviewed Frappe/ERPNext backend image."
+
+  validation {
+    condition     = can(regex("^[0-9]{12}\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$", var.frappe_backend_image))
+    error_message = "frappe_backend_image must be an eu-central-1 ECR image addressed by sha256 digest."
+  }
+}
+
+variable "frappe_frontend_image" {
+  type        = string
+  description = "Immutable ECR digest for the reviewed Frappe nginx/frontend image."
+
+  validation {
+    condition     = can(regex("^[0-9]{12}\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$", var.frappe_frontend_image))
+    error_message = "frappe_frontend_image must be an eu-central-1 ECR image addressed by sha256 digest."
+  }
+}
+
+variable "ai_control_plane_image" {
+  type        = string
+  description = "Immutable ECR digest for the reviewed AI control-plane image."
+
+  validation {
+    condition     = can(regex("^[0-9]{12}\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$", var.ai_control_plane_image))
+    error_message = "ai_control_plane_image must be an eu-central-1 ECR image addressed by sha256 digest."
   }
 }

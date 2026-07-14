@@ -18,3 +18,7 @@ security guidance lives in [`docs/security/`](../docs/security/README.md).
 
 Keep secrets in a secrets manager or deployment environment, never in this
 directory.
+
+Production image build contracts live under `images/`. They require immutable
+upstream base digests, keep upstream Frappe/ERPNext source outside this repo,
+and are separate from the development Compose images.

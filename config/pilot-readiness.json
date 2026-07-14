@@ -3,6 +3,12 @@
   "scope": "service_operations",
   "status": "SYNTHETIC_REHEARSAL_READY_HUMAN_AND_DEPLOYMENT_GATES_PENDING",
   "data_mode": "synthetic_only",
+  "release_state": {
+    "automated_complete": false,
+    "deployment_evidence_complete": false,
+    "human_approval_pending": true,
+    "pilot_approved": false
+  },
   "uat_doc": "docs/runbooks/service-operations-synthetic-uat.md",
   "evidence_template": "docs/compliance/service-operations-pilot-evidence-template.md",
   "gdpr_gate": "docs/compliance/eu-italy-gdpr-readiness.md",

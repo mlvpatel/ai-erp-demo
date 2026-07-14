@@ -30,7 +30,7 @@ hurt a real business when they become slow or unsafe.
 | --- | --- | --- |
 | Service Work Order list and filters | p95 list latency with technician and manager roles over realistic work-order counts. | p95 latency target is named, slow filters are explained, and role restrictions still hold. |
 | Search and link fields | Search latency for customer, service location, item, and work-order references. | Search does not require customer data exports and does not bypass permissions. |
-| Invoice-ready workflow | Manager closeout review, invoice-ready transition, and draft Sales Invoice creation. | The action remains idempotent and draft-only under retry. |
+| Invoice-ready workflow | Manager closeout review and invoice-ready transition, followed by Accounts-role draft Sales Invoice creation. | The action remains idempotent and draft-only under retry. |
 | Parts issue and stock handoff | Manager-triggered Material Issue creation with concurrent retries. | Exactly one submitted Stock Entry is linked per part row. |
 | AI closeout draft | AI payload build, control-plane validation, proposal storage, and review. | AI remains draft-only, cited, and unable to mutate ERP records. |
 | Background jobs and queues | Queue age, failed jobs, and scheduler behavior under seeded record volume. | Queue backlog clears within the deployment target and failures are observable. |
@@ -83,8 +83,8 @@ checks technician/manager list isolation, the manager-only profitability report,
 draft-invoice safety, and deterministic draft-only AI invariants. Synthetic
 database changes are rolled back, including on failure. Native Frappe link
 search proves technician/manager isolation, and a side-effect-free local worker
-batch measures queue-clear time. Missing true parts-issue concurrency is
-reported as `SKIP_UNIMPLEMENTED`, so the only successful status is
+batch measures queue-clear time. True parts-issue concurrency is delegated to
+the five-session browser gate and reported as `EXTERNAL_CROSS_SESSION_GATE`, so the smoke status remains
 `SMOKE_PASS_NOT_FULL_PROFILE`.
 
 The command fails closed before writes unless it runs on a `.localhost` site

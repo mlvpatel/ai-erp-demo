@@ -21,8 +21,8 @@ This pack is the first implemented end-to-end demo workflow for AI ERP Demo.
   each part row. It derives the company from the source warehouse, requires
   all issued parts to belong to one company, and locks the work order first so
   retries do not duplicate the issue.
-- After invoice readiness, a manager with standard ERPNext Sales Invoice create
-  permission can draft one linked ERPNext Sales Invoice. Labor is invoiced from
+- After invoice readiness, a standard ERPNext Accounts User or Accounts Manager
+  with Sales Invoice create permission can draft one linked ERPNext Sales Invoice. Labor is invoiced from
   the configured non-stock Labor Billing Item and Hourly Rate. Parts are
   invoiced from their Bill Rate after stock has already been issued. The action
   is idempotent, creates a draft only, does not submit the invoice, and does not
@@ -60,8 +60,10 @@ change access permissions. The AI control plane is intentionally outside this
 app and cannot call the state-changing functions in this package.
 
 The draft Sales Invoice action is separate from the AI closeout draft. It is a
-human-triggered ERP action guarded by Frappe permissions and Service Manager
-role checks; AI approval still has no invoice side effect.
+human-triggered ERP action restricted to standard Accounts User or Accounts
+Manager roles with ERPNext Sales Invoice create permission. Service Managers
+mark work invoice-ready but cannot draft the invoice unless they hold a
+separately assigned Accounts role. AI approval still has no invoice side effect.
 
 ## Local installation
 

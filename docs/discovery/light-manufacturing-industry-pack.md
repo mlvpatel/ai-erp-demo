@@ -1,12 +1,14 @@
 # Light-manufacturing industry-pack discovery brief
 
-- Status: hypothesis only
-- Lifecycle decision: entry gate not started; remain **reserved**
+- Status: configured demo; product hypothesis not validated
+- Lifecycle decision: configured demo using standard ERPNext only
 - Design partner validation: pending
 - Evidence quality: ERPNext capability mapping is verified; workflow and
   performance targets are assumptions until a named design partner approves
   them
 - Data policy: synthetic fixtures only
+- Configured evidence: local-only synthetic seed plus the standard ERPNext
+  walkthrough in `docs/runbooks/light-manufacturing-configured-demo.md`
 
 ## Industry and user
 
@@ -99,6 +101,7 @@ permitted.
 ## Exit decision
 
 - Ready to remain a reserved documentation-only pack: **yes**.
+- Ready to run as a standard ERPNext configured demo: **yes**.
 - Ready to generate or expand a Frappe app: **no**.
 - Needs more discovery: **yes**, from a named light-manufacturing design partner.
 - Configuration-only outcome remains possible.

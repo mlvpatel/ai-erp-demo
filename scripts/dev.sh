@@ -256,6 +256,7 @@ case "$command" in
     fi
     compose exec \
       -e AI_ERP_E2E_ALLOW=1 \
+      -e AI_ERP_CONFIGURED_DEMO_ALLOW=1 \
       -e E2E_USER_PASSWORD="$credential_value" \
       --workdir /workspace/development/frappe-bench frappe \
       bench --site "$(site_name)" execute ai_erp_service.demo_seed.prepare_e2e_demo

@@ -1,7 +1,7 @@
 # Copyright (c) 2026, AI ERP Demo and Contributors
 # See license.txt
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import frappe
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
@@ -11,11 +11,14 @@ from frappe.utils import add_to_date, flt, now_datetime, today
 from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
 from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import (
+	_with_transaction_retry,
 	issue_parts,
 	make_draft_sales_invoice,
 )
+from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import (
+	execute as profitability_report,
+)
 from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
-from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import execute as profitability_report
 
 # This focused integration suite creates its synthetic dependencies directly.
 # Avoid recursively loading unrelated ERPNext test-record modules.
@@ -41,6 +44,12 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		self.addCleanup(frappe.set_user, "Administrator")
 		self.technician = self._make_technician()
+		self.manager = self._make_role_user(
+			"service.manager.finance-separation@example.test", ("Service Manager",)
+		)
+		self.finance_user = self._make_role_user(
+			"service.finance@example.test", ("Accounts User",)
+		)
 		self.customer = self._make_customer()
 		self.location = self._make_location()
 
@@ -62,6 +71,20 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(request.service_work_order, work_order.name)
 		self.assertEqual(work_order.service_request, request.name)
 		self.assertEqual(work_order.status, "Draft")
+
+	def test_transient_database_deadlock_is_retried(self):
+		operation = Mock(side_effect=[frappe.QueryDeadlockError("retry"), "completed"])
+
+		with (
+			patch("frappe.db.rollback") as rollback,
+			patch(
+				"ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.sleep"
+			),
+		):
+			self.assertEqual(_with_transaction_retry(operation), "completed")
+
+		self.assertEqual(operation.call_count, 2)
+		rollback.assert_called_once_with()
 
 	def test_technician_scope_and_manager_only_close(self):
 		invoices_before = frappe.db.count("Sales Invoice")
@@ -164,7 +187,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(work_order.parts[0].stock_entry, stock_entry_name)
 		self.assertIsNone(issue_parts(work_order.name))
 
-	def test_manager_creates_idempotent_draft_sales_invoice(self):
+	def test_finance_creates_idempotent_draft_sales_invoice(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 		item, warehouse = self._make_stocked_item()
 		service_item = self._make_service_item()
@@ -220,7 +243,17 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			make_draft_sales_invoice(work_order.name)
 
-		frappe.set_user("Administrator")
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			make_draft_sales_invoice(work_order.name)
+
+		frappe.set_user(self.finance_user)
+		self.assertEqual(
+			frappe.get_list(
+				"Service Work Order", filters={"name": work_order.name}, pluck="name"
+			),
+			[work_order.name],
+		)
 		invoice_name = make_draft_sales_invoice(work_order.name)
 		self.assertEqual(make_draft_sales_invoice(work_order.name), invoice_name)
 
@@ -241,6 +274,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(items_by_code[item].qty, 2)
 		self.assertEqual(items_by_code[item].rate, 25)
 
+		frappe.set_user("Administrator")
 		work_order.hourly_rate = 90
 		with self.assertRaises(frappe.ValidationError):
 			work_order.save()
@@ -409,7 +443,19 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		return location.name
 
 	def _make_stocked_item(self):
-		warehouse = frappe.db.get_value("Warehouse", {"is_group": 0}, "name")
+		warehouse = next(
+			(
+				row.name
+				for row in frappe.get_all(
+					"Warehouse",
+					filters={"is_group": 0},
+					fields=["name", "company"],
+					order_by="creation asc",
+				)
+				if self._company_accounts_use_base_currency(row.company)
+			),
+			None,
+		)
 		self.assertTrue(warehouse)
 		company = frappe.db.get_value("Warehouse", warehouse, "company")
 		item = frappe.get_doc(
@@ -431,6 +477,22 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			company=company,
 		)
 		return item.name, warehouse
+
+	def _company_accounts_use_base_currency(self, company):
+		company_currency = frappe.db.get_value("Company", company, "default_currency")
+		receivable_account = frappe.db.get_value(
+			"Company", company, "default_receivable_account"
+		) or frappe.db.get_value(
+			"Account",
+			{"company": company, "account_type": "Receivable", "is_group": 0},
+			"name",
+		)
+		account_currency = (
+			frappe.db.get_value("Account", receivable_account, "account_currency")
+			if receivable_account
+			else None
+		)
+		return bool(company_currency and account_currency == company_currency)
 
 	def _make_service_item(self):
 		uom = self._make_fractional_hour_uom()
@@ -495,6 +557,31 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 					roles_changed = True
 			if roles_changed:
 				user.save()
+		frappe.clear_cache(user=email)
+		return user.name
+
+	def _make_role_user(self, email, roles):
+		if frappe.db.exists("User", email):
+			user = frappe.get_doc("User", email)
+		else:
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": "AI ERP",
+					"last_name": "Role Test",
+					"enabled": 1,
+					"send_welcome_email": 0,
+					"user_type": "System User",
+				}
+			).insert()
+		changed = False
+		for role in roles:
+			if not any(row.role == role for row in user.roles):
+				user.append("roles", {"role": role})
+				changed = True
+		if changed:
+			user.save()
 		frappe.clear_cache(user=email)
 		return user.name
 

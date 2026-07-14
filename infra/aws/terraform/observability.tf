@@ -32,6 +32,23 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   dimensions          = { LoadBalancer = aws_lb.this.arn_suffix }
 }
 
+resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  for_each            = { web = aws_lb_target_group.web.arn_suffix, websocket = aws_lb_target_group.websocket.arn_suffix }
+  alarm_name          = "${local.name}-${each.key}-unhealthy-targets"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions = {
+    LoadBalancer = aws_lb.this.arn_suffix
+    TargetGroup  = each.value
+  }
+}
+
 resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   alarm_name          = "${local.name}-rds-cpu"
   namespace           = "AWS/RDS"
@@ -41,6 +58,19 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   evaluation_periods  = 3
   threshold           = 80
   comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.mariadb.id }
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
+  alarm_name          = "${local.name}-rds-free-storage"
+  namespace           = "AWS/RDS"
+  metric_name         = "FreeStorageSpace"
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 10737418240
+  comparison_operator = "LessThanThreshold"
   treat_missing_data  = "breaching"
   dimensions          = { DBInstanceIdentifier = aws_db_instance.mariadb.id }
 }
@@ -64,4 +94,28 @@ resource "aws_budgets_budget" "monthly" {
   limit_amount = tostring(var.monthly_budget_usd)
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
+}
+
+locals {
+  expected_service_counts = merge(
+    { web = 2, ai = 2 },
+    { for key, value in local.service_profiles : key => value.desired },
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_running_tasks" {
+  for_each            = local.expected_service_counts
+  alarm_name          = "${local.name}-${each.key}-running-tasks"
+  namespace           = "ECS/ContainerInsights"
+  metric_name         = "RunningTaskCount"
+  statistic           = "Minimum"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = each.value
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions = {
+    ClusterName = aws_ecs_cluster.this.name
+    ServiceName = each.key == "web" ? aws_ecs_service.web.name : each.key == "ai" ? aws_ecs_service.ai.name : aws_ecs_service.frappe[each.key].name
+  }
 }

@@ -8,7 +8,16 @@ from uuid import uuid4
 import httpx
 
 from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
-from ai_erp_control_plane.openai_provider import DEFAULT_MODEL, OpenAIProviderError, render_openai
+from ai_erp_control_plane.openai_provider import (
+	DEFAULT_MODEL,
+	MAX_AUTOMATIC_RETRIES,
+	MAX_INPUT_BYTES,
+	MAX_OUTPUT_TOKENS,
+	MAX_PROVIDER_CALLS,
+	MAX_TIMEOUT_SECONDS,
+	OpenAIProviderError,
+	render_openai,
+)
 
 
 def _request():
@@ -89,9 +98,15 @@ class TestOpenAIProvider(unittest.TestCase):
 		model_input = json.loads(outbound["input"])
 		self.assertEqual(captured["request"].url, "https://eu.api.openai.com/v1/responses")
 		self.assertEqual(captured["request"].headers["authorization"], "Bearer example")
+		self.assertEqual(
+			set(outbound),
+			{"model", "store", "max_output_tokens", "reasoning", "instructions", "input", "text"},
+		)
+		self.assertEqual(outbound["model"], DEFAULT_MODEL)
 		self.assertFalse(outbound["store"])
 		self.assertNotIn("tools", outbound)
 		self.assertTrue(outbound["text"]["format"]["strict"])
+		self.assertEqual(outbound["max_output_tokens"], MAX_OUTPUT_TOKENS)
 		self.assertNotIn("tenant_site", model_input)
 		self.assertNotIn("requested_by", model_input)
 		self.assertNotIn("name", model_input)
@@ -102,6 +117,16 @@ class TestOpenAIProvider(unittest.TestCase):
 		self.assertEqual(response.sources, request.sources)
 		self.assertEqual(response.model.provider, "openai")
 		self.assertEqual(response.model.name, DEFAULT_MODEL)
+		serialized_body = captured["request"].content.decode()
+		for private_value in (
+			"private-tenant.example",
+			"private-user@example.test",
+			"PRIVATE-WO-0001",
+			"private-tech@example.test",
+			"PRIVATE-WH",
+			request.sources[0].content_hash,
+		):
+			self.assertNotIn(private_value, serialized_body)
 
 	def test_missing_key_and_unapproved_origin_fail_closed_before_network(self):
 		with patch.dict(os.environ, _environment(OPENAI_API_KEY=""), clear=True):
@@ -110,17 +135,72 @@ class TestOpenAIProvider(unittest.TestCase):
 		with patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://example.invalid/v1"), clear=True):
 			with self.assertRaises(OpenAIProviderError):
 				render_openai(_request())
+		with patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://api.openai.com/v1"), clear=True):
+			with self.assertRaises(OpenAIProviderError):
+				render_openai(_request())
 
-	def test_refusal_malformed_and_provider_error_fail_closed(self):
+	def test_refusal_malformed_strict_schema_and_rate_limit_fail_closed_without_retry(self):
 		responses = [
 			httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}]}),
 			httpx.Response(200, json={"status": "completed", "output_text": "not-json"}),
+			httpx.Response(
+				200,
+				json={
+					"status": "completed",
+					"output_text": json.dumps({"draft_content": "Draft", "requested_action": "submit invoice"}),
+				},
+			),
 			httpx.Response(429, json={"error": {"message": "rate limit"}}),
 		]
 		for provider_response in responses:
 			with self.subTest(status=provider_response.status_code, body=provider_response.text):
-				client = httpx.Client(transport=httpx.MockTransport(lambda _request: provider_response))
+				calls = []
+
+				def handler(request):
+					calls.append(request)
+					return provider_response
+
+				client = httpx.Client(transport=httpx.MockTransport(handler))
 				with patch.dict(os.environ, _environment(), clear=True):
 					with self.assertRaises(OpenAIProviderError):
 						render_openai(_request(), client=client)
 				client.close()
+				self.assertEqual(len(calls), MAX_PROVIDER_CALLS)
+
+	def test_timeout_fails_closed_without_retry_or_provider_detail(self):
+		calls = []
+
+		def handler(request):
+			calls.append(request)
+			raise httpx.ReadTimeout("private provider detail", request=request)
+
+		client = httpx.Client(transport=httpx.MockTransport(handler))
+		with patch.dict(os.environ, _environment(), clear=True):
+			with self.assertRaisesRegex(OpenAIProviderError, "provider request failed") as raised:
+				render_openai(_request(), client=client)
+		client.close()
+		self.assertNotIn("private provider detail", str(raised.exception))
+		self.assertEqual(len(calls), MAX_PROVIDER_CALLS)
+
+	def test_enforces_token_retry_latency_and_spend_envelope(self):
+		self.assertEqual(MAX_AUTOMATIC_RETRIES, 0)
+		self.assertEqual(MAX_PROVIDER_CALLS, 1)
+		self.assertLessEqual(MAX_OUTPUT_TOKENS, 2_000)
+		self.assertLessEqual(MAX_INPUT_BYTES, 32_000)
+		with patch.dict(os.environ, _environment(OPENAI_TIMEOUT_SECONDS=str(MAX_TIMEOUT_SECONDS + 1)), clear=True):
+			with self.assertRaisesRegex(OpenAIProviderError, "outside the approved range"):
+				render_openai(_request())
+
+	def test_rejects_input_above_spend_envelope_before_network(self):
+		request = _request()
+		request.work_order.description = "x" * 4000
+		request.work_order.closeout_notes = "y" * 4000
+		request.work_order.parts[0].item = "z" * 256
+		request.work_order.parts = request.work_order.parts * 200
+		calls = []
+		client = httpx.Client(transport=httpx.MockTransport(lambda request: calls.append(request)))
+		with patch.dict(os.environ, _environment(), clear=True):
+			with self.assertRaisesRegex(OpenAIProviderError, "spend envelope"):
+				render_openai(request, client=client)
+		client.close()
+		self.assertEqual(calls, [])

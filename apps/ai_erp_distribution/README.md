@@ -1,12 +1,20 @@
 # AI ERP Distribution
 
-Reserved future industry pack for wholesale, distribution, and order-fulfillment
-workflows.
+Configured demo for wholesale, distribution, and order-fulfillment workflows
+using standard ERPNext only. Human validation remains pending.
 
 No Frappe app is generated here yet. Keep this directory lightweight until the
 entry gate in `docs/product/industry-pack-roadmap.md` is satisfied.
 The current [hypothesis brief](../../docs/discovery/distribution-industry-pack.md)
 is synthetic and still awaits design-partner validation.
+
+## Configured demo
+
+The synthetic setup and role-separated manual walkthrough are documented in
+[`distribution-configured-demo.md`](../../docs/runbooks/distribution-configured-demo.md).
+The seeder creates only master data and a draft Sales Order. It never submits a
+Sales Order, Pick List, Delivery Note, stock transaction, or financial record.
+This folder remains documentation-only.
 
 ## Candidate proof workflow
 

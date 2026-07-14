@@ -30,18 +30,15 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_eip" "nat" {
-  for_each = aws_subnet.public
-  domain   = "vpc"
-  tags     = { Name = "${local.name}-nat-${each.key}" }
+  domain = "vpc"
+  tags   = { Name = "${local.name}-nat" }
 }
 
 resource "aws_nat_gateway" "this" {
-  for_each = aws_subnet.public
-
-  allocation_id = aws_eip.nat[each.key].id
-  subnet_id     = each.value.id
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[var.availability_zones[0]].id
   depends_on    = [aws_internet_gateway.this]
-  tags          = { Name = "${local.name}-${each.key}" }
+  tags          = { Name = "${local.name}-balanced-pilot" }
 }
 
 resource "aws_route_table" "public" {
@@ -64,7 +61,7 @@ resource "aws_route_table" "private" {
   vpc_id   = aws_vpc.this.id
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.this[each.key].id
+    nat_gateway_id = aws_nat_gateway.this.id
   }
   tags = { Name = "${local.name}-private-${each.key}" }
 }

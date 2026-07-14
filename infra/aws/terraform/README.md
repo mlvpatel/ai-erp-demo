@@ -5,15 +5,19 @@ for `eu-central-1`. It creates no resources unless an authorized operator runs
 `terraform apply`. Repository scripts and CI never run apply or configure AWS
 credentials.
 
-The foundation covers two-AZ networking, an HTTPS ALB and WAF, an encrypted ECS
-cluster, RDS MariaDB Multi-AZ with an AWS-managed master secret, encrypted
-ElastiCache, encrypted EFS, a versioned SSE-KMS backup bucket, empty Secrets
-Manager containers, CloudWatch alarms, and a numeric USD budget.
+The balanced-pilot profile is capped at USD 600/month. It uses one NAT gateway,
+RDS MariaDB Multi-AZ with 14-day backups, one encrypted Valkey node, encrypted
+EFS, versioned SSE-KMS S3 backups, an HTTPS ALB/WAF, and private ECS Fargate
+services. The single NAT and single Valkey node are explicit cost/availability
+tradeoffs; RDS remains Multi-AZ because transaction recovery is not simplified.
 
-It intentionally has no ECS task definitions or services. Production Frappe and
-AI images, commands, CPU/memory sizing, secret schemas, autoscaling limits, and
-database/Redis client TLS settings require a separately reviewed workload
-slice. The development `sleep infinity` image is not a production artifact.
+Workloads use immutable ECR digest inputs. Frappe web, websocket, scheduler,
+short worker, long worker, and the private AI control plane have bounded sizing,
+deployment circuit-breaker rollback, service-count alarms, and CPU target
+tracking where horizontal scaling is safe. Scheduler remains a singleton.
+`configure`, `migrate`, and `backup` are registered task definitions only;
+Terraform never runs them. The development `sleep infinity` image is not a
+production artifact.
 
 ## Credential-free validation
 
@@ -24,6 +28,7 @@ python3 scripts/check-aws-iac.py
 terraform -chdir=infra/aws/terraform fmt -check -recursive
 terraform -chdir=infra/aws/terraform init -backend=false
 terraform -chdir=infra/aws/terraform validate
+bash -n infra/images/frappe/runtime.sh
 ```
 
 `terraform validate` checks syntax and internal consistency; it does not prove
@@ -45,6 +50,12 @@ Applying this stack creates billable NAT gateways, ALB/WAF, RDS, ElastiCache,
 EFS, CloudWatch, KMS, and related resources. No apply is authorized by this
 README or by a green validation result.
 
-Secret resources contain metadata only. Seed their values out-of-band after
+Secret resources contain metadata only. Seed their JSON values out-of-band after
 approval. Never add `aws_secretsmanager_secret_version`, plaintext secret
 variables, or `random_password`; those values would enter Terraform state.
+
+The control-plane secret must contain `shared_secret`; the OpenAI secret must
+contain `api_key`. Task startup fails closed when either is absent. An approved
+operator must run `configure` and `migrate` before services receive traffic.
+The `backup` task writes a logical site backup to encrypted EFS; copying it to
+the backup bucket and proving a clean-site restore remain manual gates.

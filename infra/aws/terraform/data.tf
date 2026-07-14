@@ -43,9 +43,9 @@ resource "aws_elasticache_replication_group" "redis" {
   engine                     = "valkey"
   node_type                  = var.redis_node_type
   port                       = 6379
-  num_cache_clusters         = 2
-  automatic_failover_enabled = true
-  multi_az_enabled           = true
+  num_cache_clusters         = 1
+  automatic_failover_enabled = false
+  multi_az_enabled           = false
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   kms_key_id                 = aws_kms_key.platform.arn

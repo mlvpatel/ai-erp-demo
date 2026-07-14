@@ -84,7 +84,7 @@ Validation sessions:
 Exit criteria:
 
 - A non-admin technician can complete their part of the workflow.
-- A manager can handle exceptions and create exactly one draft invoice.
+- A manager can handle exceptions and mark work invoice-ready; an Accounts user creates exactly one draft invoice.
 - The work order shows deterministic projected revenue, issued parts cost, and
   margin before labor overhead.
 - AI proposals are cited, immutable, and draft-only.

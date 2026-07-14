@@ -45,15 +45,15 @@ scope, while final close and invoice-ready actions remain manager-only.
 Evidence claims: `technician-non-admin-workflow`,
 `time-and-parts-responsibility`, and `invoice-readiness-closeout-gate`.
 
-### Act 3 — Manager transaction controls
+### Act 3 — Manager and finance transaction controls
 
 Show the manager-issued submitted ERPNext Material Issue linked on the Service
-Work Order part rows. Then show the linked draft Sales Invoice on the Service
-Work Order. Make clear that the invoice is draft-only and does not update
-stock.
+Work Order part rows. The manager marks the work invoice-ready, then a separately
+authenticated Accounts user creates the linked draft Sales Invoice. Make clear
+that the invoice is draft-only and does not update stock.
 
 Evidence claims: `time-and-parts-responsibility`,
-`manager-draft-invoice-idempotent`, and `profitability-projection`.
+`finance-draft-invoice-idempotent`, and `profitability-projection`.
 
 ### Act 4 — AI closeout proposal
 
@@ -74,7 +74,7 @@ Mention that future industry packs are planned through the industry-pack
 lifecycle, not claimed as implemented.
 
 Evidence claims: `ai-proposal-traceable-human-approved` and
-`manager-draft-invoice-idempotent`.
+`finance-draft-invoice-idempotent`.
 
 ## Suggested README media
 
@@ -87,7 +87,7 @@ For the first public README, prefer one short GIF or three screenshots:
 Keep captions factual:
 
 - "Service-operations MVP on ERPNext/Frappe."
-- "Manager-gated stock issue and draft invoice."
+- "Manager-gated stock issue and finance-gated draft invoice."
 - "AI drafts are cited, immutable, and review-only."
 
 Do not include screenshots until `scripts/dev.sh demo-check` passes on the same

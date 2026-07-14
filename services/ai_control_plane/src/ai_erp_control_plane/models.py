@@ -71,3 +71,9 @@ class ProposalResponse(StrictModel):
 	model: ModelMetadata
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
+
+
+class OpenAIOutput(StrictModel):
+	"""The only model-authored field accepted from the provider."""
+
+	draft_content: str = Field(min_length=1, max_length=8000)

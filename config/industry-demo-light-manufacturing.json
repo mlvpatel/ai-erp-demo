@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "pack_id": "light_manufacturing",
+  "status": "configured_demo",
+  "synthetic_only": true,
+  "seeder": {
+    "path": "apps/ai_erp_core/ai_erp_core/configured_demo.py",
+    "function": "seed",
+    "argument": "light_manufacturing"
+  },
+  "reset": {
+    "path": "apps/ai_erp_core/ai_erp_core/configured_demo.py",
+    "function": "reset",
+    "argument": "light_manufacturing",
+    "fail_closed_on_submitted_records": true
+  },
+  "walkthrough": "docs/runbooks/light-manufacturing-configured-demo.md",
+  "expected_results": [
+    "Synthetic raw-material, work-in-progress, and finished-goods warehouses and items exist.",
+    "One draft BOM and one draft make-to-order Sales Order exist with no opening stock.",
+    "An authorized user manually approves the BOM and order, then uses standard Production Plan and Work Order actions to expose the shortage.",
+    "The shortage handoff is a human-created draft Material Request."
+  ],
+  "erpnext_records": [
+    "Company",
+    "Customer",
+    "Warehouse",
+    "Item",
+    "BOM",
+    "Sales Order",
+    "Production Plan",
+    "Work Order",
+    "Material Request",
+    "Bin"
+  ],
+  "required_roles": [
+    "Sales User",
+    "Manufacturing User",
+    "Manufacturing Manager",
+    "Stock User",
+    "Stock Manager"
+  ],
+  "invariants": [
+    "Seeder is restricted to an explicitly enabled .localhost site and System Manager.",
+    "Seeder creates master data, a draft BOM, and a draft Sales Order only.",
+    "Seeder does not submit BOMs, Sales Orders, Production Plans, Work Orders, Material Requests, Stock Entries, or financial records.",
+    "No AI route or autonomous posting action exists for this configured demo.",
+    "Human validation remains pending."
+  ],
+  "verification": [
+    "bench --site ai-erp.localhost run-tests --app ai_erp_core --module ai_erp_core.tests.test_configured_demo --failfast",
+    "python3 scripts/check-industry-pack-lifecycle.py"
+  ]
+}

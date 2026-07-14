@@ -17,7 +17,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = REPO_ROOT / "config" / "industry-packs.json"
 
-ALLOWED_STATUSES = {"implemented", "reserved", "planned"}
+ALLOWED_STATUSES = {"implemented", "configured_demo", "reserved", "planned"}
 REQUIRED_FIELDS = {
     "id",
     "order",
@@ -110,7 +110,7 @@ def validate_pack(failures: list[str], pack: Any) -> tuple[str | None, int | Non
             fail(failures, f"{pack_id}: ai_forbidden must mention {term}")
 
     app_path_value = pack.get("app_path")
-    if status in {"implemented", "reserved"}:
+    if status in {"implemented", "configured_demo", "reserved"}:
         if not isinstance(app_path_value, str) or not app_path_value.strip():
             fail(failures, f"{pack_id}: {status} packs must set app_path")
         else:
@@ -119,10 +119,10 @@ def validate_pack(failures: list[str], pack: Any) -> tuple[str | None, int | Non
                 fail(failures, f"{pack_id}: app_path is not a directory: {app_path_value}")
             if not (app_path / "README.md").is_file():
                 fail(failures, f"{pack_id}: app_path must contain README.md: {app_path_value}")
-            if status == "reserved" and (app_path / "pyproject.toml").exists():
+            if status in {"reserved", "configured_demo"} and (app_path / "pyproject.toml").exists():
                 fail(
                     failures,
-                    f"{pack_id}: reserved pack already looks generated: {rel(app_path / 'pyproject.toml')}",
+                    f"{pack_id}: documentation-only pack already looks generated: {rel(app_path / 'pyproject.toml')}",
                 )
     elif status == "planned" and app_path_value is not None:
         fail(failures, f"{pack_id}: planned packs must leave app_path as null")
@@ -131,6 +131,12 @@ def validate_pack(failures: list[str], pack: Any) -> tuple[str | None, int | Non
         verification = pack.get("verification", [])
         if not any(str(item).startswith("scripts/dev.sh ") for item in verification):
             fail(failures, f"{pack_id}: implemented packs need a scripts/dev.sh verification command")
+    elif status == "configured_demo":
+        demo_manifest = pack.get("demo_manifest")
+        if not isinstance(demo_manifest, str) or not demo_manifest.startswith("config/industry-demo-"):
+            fail(failures, f"{pack_id}: configured_demo requires a config/industry-demo-* manifest")
+        elif not (REPO_ROOT / demo_manifest).is_file():
+            fail(failures, f"{pack_id}: configured demo manifest is missing: {demo_manifest}")
 
     return pack_id, order
 
@@ -173,7 +179,7 @@ def main() -> int:
         if isinstance(pack, dict):
             if pack.get("status") == "implemented":
                 implemented_count += 1
-            if pack.get("status") in {"reserved", "planned"}:
+            if pack.get("status") in {"configured_demo", "reserved", "planned"}:
                 expansion_count += 1
 
     listed_orders = [pack.get("order") for pack in packs if isinstance(pack, dict)]

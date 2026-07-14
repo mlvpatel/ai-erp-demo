@@ -49,7 +49,7 @@ permission, or compliance changes.
 | --- | --- | --- |
 | Unauthorized ERP mutation by AI | A model response causes a submitted invoice, stock entry, payroll change, or role change. | The [`ai-control-plane-v1`](../../contracts/openapi/ai-control-plane-v1.yaml) contract returns proposals only; Frappe role checks and deterministic workflow code perform any transaction. |
 | Tenant boundary leak | A user or AI request sees records from another Frappe site. | One site/database per tenant for MVP; do not share local site data across requests. |
-| Role bypass | A technician closes work, issues parts, or drafts an invoice without manager authority. | Enforce Frappe permissions and explicit role checks in server-side methods. |
+| Role bypass | A technician closes work or issues parts, or a non-finance user drafts an invoice. | Enforce Frappe permissions and explicit role checks in server-side methods. |
 | Duplicate transaction | Retrying a button creates multiple Stock Entries, Sales Invoices, or external writes. | Lock the source document, store target IDs, and make writes idempotent. |
 | Prompt/data leakage | Customer contacts, addresses, credentials, attachments, or private prompts are sent to a model unnecessarily. | Use allow-listed fields, source hashes, and no attachment contents in the first AI workflow. |
 | Provider residency or retention mismatch | Operational notes are processed outside the approved region or retained under an unapproved policy. | Production OpenAI calls use the allow-listed EU origin only after DPA/DPIA, European data-residency, and retention/abuse-monitoring approval; synthetic data remains the default. |
@@ -68,8 +68,8 @@ permission, or compliance changes.
 - Upstream Frappe/ERPNext source is not patched or vendored.
 - `ai_erp_core` stores immutable AI Proposal records with source hashes and
   human review status.
-- `ai_erp_service` keeps stock issue and draft invoice creation manager-gated
-  and idempotent.
+- `ai_erp_service` keeps stock issue manager-gated, draft invoice creation
+  Accounts-role-gated, and both actions idempotent.
 - The AI closeout draft sends only allow-listed service-work-order fields and
   has no ERP side effect on approval.
 - The OpenAI adapter additionally removes tenant, requester, record, source,

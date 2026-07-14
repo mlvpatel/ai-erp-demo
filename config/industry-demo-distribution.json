@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "pack_id": "distribution",
+  "status": "configured_demo",
+  "synthetic_only": true,
+  "seeder": {
+    "path": "apps/ai_erp_core/ai_erp_core/configured_demo.py",
+    "function": "seed",
+    "argument": "distribution"
+  },
+  "reset": {
+    "path": "apps/ai_erp_core/ai_erp_core/configured_demo.py",
+    "function": "reset",
+    "argument": "distribution",
+    "fail_closed_on_submitted_records": true
+  },
+  "walkthrough": "docs/runbooks/distribution-configured-demo.md",
+  "expected_results": [
+    "Two synthetic warehouses and two stock items exist in one local Frappe site.",
+    "One draft Sales Order requests more stock than is available.",
+    "An authorized user manually submits the Sales Order and uses standard Pick List and Delivery Note actions.",
+    "The Delivery Note remains draft until a separately authorized stock user decides to submit it."
+  ],
+  "erpnext_records": [
+    "Company",
+    "Customer",
+    "Warehouse",
+    "Item",
+    "Sales Order",
+    "Pick List",
+    "Delivery Note",
+    "Bin"
+  ],
+  "required_roles": [
+    "Sales User",
+    "Sales Manager",
+    "Stock User",
+    "Stock Manager"
+  ],
+  "invariants": [
+    "Seeder is restricted to an explicitly enabled .localhost site and System Manager.",
+    "Seeder creates master data and a draft Sales Order only.",
+    "Seeder does not submit Sales Orders, Pick Lists, Delivery Notes, Stock Entries, or financial records.",
+    "No AI route or autonomous posting action exists for this configured demo.",
+    "Human validation remains pending."
+  ],
+  "verification": [
+    "bench --site ai-erp.localhost run-tests --app ai_erp_core --module ai_erp_core.tests.test_configured_demo --failfast",
+    "python3 scripts/check-industry-pack-lifecycle.py"
+  ]
+}

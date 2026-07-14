@@ -33,7 +33,8 @@ profile can create records. It also runs focused profile, percentile, and
 failure-cleanup tests before executing the timed smoke scenarios.
 
 This is not a full-profile benchmark. True parts-issue concurrency is reported
-as `SKIP_UNIMPLEMENTED`. Native Frappe link search is measured for technician
+as `EXTERNAL_CROSS_SESSION_GATE` because `scripts/dev.sh e2e-test` executes ten
+issue attempts through five authenticated manager sessions. Native Frappe link search is measured for technician
 and manager isolation, a side-effect-free worker batch measures queue-clear
 time, and the manager-only service
 profitability report is measured through permission-aware `frappe.get_list`;

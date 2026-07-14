@@ -4,7 +4,8 @@
 
 - Service Dispatcher schedules work.
 - Service Technician records time, parts, closeout notes, and evidence.
-- Service Manager closes work, issues parts, and drafts invoices.
+- Service Manager closes work, issues parts, and marks work invoice-ready.
+- Accounts User drafts the linked Sales Invoice after invoice readiness.
 - AI Proposal Approver reviews AI drafts without changing ERP state.
 
 ## Happy path
@@ -18,7 +19,7 @@
 5. A manager issues declared parts. The app creates one submitted ERPNext
    Material Issue and links it to each part row.
 6. A manager closes the work order and marks it Invoice Ready.
-7. A manager with ERPNext Sales Invoice create permission drafts the linked
+7. An Accounts User or Accounts Manager with ERPNext Sales Invoice create permission drafts the linked
    Sales Invoice. The action is idempotent, creates only a draft, and does not
    update stock.
 8. A technician or manager may request a Draft AI Closeout Summary. The AI

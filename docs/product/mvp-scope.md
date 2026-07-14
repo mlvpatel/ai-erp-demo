@@ -21,7 +21,7 @@ assumptions do not enter the cross-industry core.
 4. Capture time, parts used, photos, and a structured closeout.
 5. Validate closeout and route exceptions to an owner.
 6. Mark the work order ready for invoice through the ERP workflow.
-7. Draft one linked ERPNext Sales Invoice through a manager-triggered ERP
+7. Draft one linked ERPNext Sales Invoice through a finance-triggered ERP
    action. The invoice remains a draft and does not update stock.
 8. Draft a cited closeout summary through the AI control plane; require a
    human approval record. The initial policy is draft-only and cannot send or
@@ -53,7 +53,7 @@ assumptions do not enter the cross-industry core.
 - Every time/part entry links to a work order and responsible user.
 - A work order cannot become invoice-ready without required closeout data or a
   tracked exception.
-- A manager can draft exactly one linked Sales Invoice after invoice readiness;
+- An Accounts user can draft exactly one linked Sales Invoice after manager-approved invoice readiness;
   the draft invoice does not submit or move stock.
 - A work order displays projected revenue, issued-parts cost, and margin before
   labor overhead from deterministic ERP fields.

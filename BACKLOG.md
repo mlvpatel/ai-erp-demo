@@ -42,20 +42,15 @@ transaction boundaries or AI governance.
 - Add the next AI proposal type, such as overdue-invoice reminder draft.
   Use `.github/ISSUE_TEMPLATE/ai_workflow.md` and
   `docs/security/ai-workflow-review.md` before design.
-- Add a distribution or light-manufacturing discovery spike.
+- Validate the configured distribution and light-manufacturing demos with design partners before promoting either pack to implemented.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
-- Expand the implemented browser role/route smoke into a full disposable-site
-  technician/dispatcher/manager/finance workflow after finance role separation
-  is approved.
-- Expand the executable scaled performance smoke check into full-profile load
-  evidence after true cross-session parts concurrency exists. Link search,
-  queue clearing, and the profitability report are now measured, but the
-  current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
-  public capacity claim.
-- Privately plan and cost-review the implemented ADR-0007 AWS foundation after
-  the account, budget, domain, RPO/RTO, support owner, and legal/data gates are
-  approved; add production image contracts and ECS workloads in a separate
-  reviewed slice.
+- Run the tracked full-profile load contract on approved pilot infrastructure
+  and retain private capacity evidence. Cross-session parts concurrency, link
+  search, queue clearing, and profitability are implemented, but the local
+  `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a public capacity claim.
+- Privately plan, cost-review, and apply the implemented ADR-0007 AWS foundation
+  only after the account, budget, domain, RPO/RTO, support owner, and legal/data
+  gates are approved.
 
 ## Suggested labels
 

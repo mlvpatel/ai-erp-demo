@@ -30,6 +30,18 @@ def main() -> int:
     if value.get("data_mode") != "synthetic_only":
         failures.append("data_mode must remain synthetic_only")
 
+    release_state = value.get("release_state")
+    expected_release_state = {
+        "automated_complete": False,
+        "deployment_evidence_complete": False,
+        "human_approval_pending": True,
+        "pilot_approved": False,
+    }
+    if release_state != expected_release_state:
+        failures.append(
+            "release_state must distinguish incomplete automation/deployment evidence, pending human approval, and an unapproved pilot"
+        )
+
     evidence = value.get("automated_evidence")
     expected_commands = {
         "scripts/dev.sh service-test",

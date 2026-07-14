@@ -62,6 +62,16 @@ No billable resource may be created until the owner approves:
   requires tenant provisioning/decommission automation.
 - A future move to EKS, shared-row tenancy, or another region needs a new ADR.
 
+## Balanced pilot profile
+
+The first plan uses a USD 600 monthly budget, one NAT gateway, RDS MariaDB
+Multi-AZ with 14-day recovery retention, and one encrypted Valkey node. The NAT
+and Valkey choices accept a single-AZ outage risk to stay inside the pilot cost
+envelope; database availability and deletion protection remain non-negotiable.
+ECS workloads use immutable ECR digests, bounded desired/max counts, deployment
+circuit-breaker rollback, and private subnets. Terraform defines but never runs
+the on-demand configure, migrate, or backup tasks.
+
 ## Sources
 
 - AWS Fargate task requirements and supported storage:
@@ -70,4 +80,3 @@ No billable resource may be created until the owner approves:
   <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html>
 - RDS Multi-AZ backup and point-in-time restore:
   <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html>
-

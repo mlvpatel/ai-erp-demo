@@ -1,7 +1,7 @@
 data "aws_iam_policy_document" "kms" {
   statement {
-    sid     = "AccountAdministration"
-    effect  = "Allow"
+    sid       = "AccountAdministration"
+    effect    = "Allow"
     actions   = ["kms:*"]
     resources = ["*"]
     principals {
@@ -107,6 +107,15 @@ resource "aws_vpc_security_group_ingress_rule" "workload_socket" {
   from_port                    = 9000
   to_port                      = 9000
   ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "workload_ai_private" {
+  security_group_id            = aws_security_group.workload.id
+  referenced_security_group_id = aws_security_group.workload.id
+  from_port                    = 8090
+  to_port                      = 8090
+  ip_protocol                  = "tcp"
+  description                  = "Private Frappe-to-AI control-plane traffic only"
 }
 
 resource "aws_vpc_security_group_egress_rule" "workload_https" {
@@ -266,4 +275,31 @@ resource "aws_iam_role_policy" "ecs_secrets" {
 resource "aws_iam_role" "ecs_task" {
   name               = "${local.name}-ecs-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
+data "aws_iam_policy_document" "ecs_operations" {
+  statement {
+    actions = [
+      "s3:AbortMultipartUpload",
+      "s3:ListBucket",
+      "s3:PutObject",
+    ]
+    resources = [
+      aws_s3_bucket.backups.arn,
+      "${aws_s3_bucket.backups.arn}/*",
+    ]
+  }
+  statement {
+    actions = [
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [aws_kms_key.platform.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_operations" {
+  name   = "write-site-backups"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.ecs_operations.json
 }

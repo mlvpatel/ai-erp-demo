@@ -70,7 +70,7 @@
         "synthetic, non-customer performance planning artifacts",
         "executable scaled smoke check",
         "SMOKE_PASS_NOT_FULL_PROFILE",
-        "SKIP_UNIMPLEMENTED",
+        "EXTERNAL_CROSS_SESSION_GATE",
         "Real benchmark results belong in private deployment evidence"
       ]
     },
@@ -90,7 +90,7 @@
     {
       "path": "BACKLOG.md",
       "phrases": [
-        "Expand the executable scaled performance smoke check into full-profile load evidence",
+        "Run the tracked full-profile load contract on approved pilot infrastructure and retain private",
         "SMOKE_PASS_NOT_FULL_PROFILE"
       ]
     },
@@ -99,7 +99,7 @@
       "phrases": [
         "nearest_rank_p95",
         "SMOKE_PASS_NOT_FULL_PROFILE",
-        "SKIP_UNIMPLEMENTED",
+        "EXTERNAL_CROSS_SESSION_GATE",
         "frappe.db.rollback(save_point=SAVEPOINT)"
       ]
     },

@@ -74,3 +74,5 @@ jobs:
       - run: terraform -chdir=infra/aws/terraform fmt -check -recursive
       - run: terraform -chdir=infra/aws/terraform init -backend=false
       - run: terraform -chdir=infra/aws/terraform validate
+      - name: Validate production image runtime contract
+        run: bash -n infra/images/frappe/runtime.sh

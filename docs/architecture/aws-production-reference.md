@@ -91,3 +91,16 @@ RDS connections, Redis memory, EFS throughput, OpenAI rate limits, and the cost
 budget. Multi-region, active-active, shared-row tenancy, and EKS are deliberately
 outside this first reference.
 
+## Balanced pilot limits
+
+- USD 600 monthly AWS budget.
+- One shared NAT gateway and one encrypted Valkey node; both are documented
+  pilot availability tradeoffs and must be revisited after an outage or before
+  a production SLA.
+- RDS MariaDB stays Multi-AZ with 14-day recovery retention.
+- Web and AI start at two tasks and may scale to four. Websocket and workers
+  have small bounded ceilings; scheduler stays at one.
+- Deployments use circuit-breaker rollback. Missing service tasks, unhealthy
+  ALB targets, database storage pressure, and Redis eviction are alarmed.
+- Configure, migration, and logical backup task definitions are on-demand only;
+  Terraform and CI never start them.

@@ -1,6 +1,12 @@
 import frappe
 
-from ai_erp_service.service_utils import DISPATCHER_ROLES, MANAGER_ROLES, has_any_role, user_roles
+from ai_erp_service.service_utils import (
+	DISPATCHER_ROLES,
+	FINANCE_ROLES,
+	MANAGER_ROLES,
+	has_any_role,
+	user_roles,
+)
 
 
 def _is_privileged(user):
@@ -11,6 +17,8 @@ def service_work_order_query(user=None):
 	user = user or frappe.session.user
 	if _is_privileged(user):
 		return None
+	if has_any_role(FINANCE_ROLES, user):
+		return "(`tabService Work Order`.`status` = 'Invoice Ready' OR `tabService Work Order`.`sales_invoice` IS NOT NULL)"
 	if "Service Technician" in user_roles(user):
 		return "`tabService Work Order`.`assigned_technician` = {0}".format(frappe.db.escape(user))
 	return "1=0"
@@ -20,6 +28,10 @@ def service_work_order_has_permission(doc, user=None, permission_type=None):
 	user = user or frappe.session.user
 	if _is_privileged(user):
 		return True
+	if has_any_role(FINANCE_ROLES, user):
+		return permission_type in {None, "read", "select", "print", "email"} and (
+			doc.status == "Invoice Ready" or bool(doc.sales_invoice)
+		)
 	if "Service Technician" in user_roles(user):
 		return doc.assigned_technician == user
 	return False

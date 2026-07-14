@@ -38,8 +38,8 @@ IMPLEMENTED_SCENARIOS = {
 	"service-profitability-report",
 	"queue-and-scheduler-backlog",
 }
-SKIPPED_SCENARIOS = {
-	"parts-issue-idempotency": "Concurrent retry load is outside this single-process smoke harness.",
+EXTERNAL_SCENARIOS = {
+	"parts-issue-idempotency": "Executed by the five-session browser concurrency gate.",
 }
 
 
@@ -94,7 +94,7 @@ def validate_profile(profile):
 		raise ValueError("performance profile scenario IDs must be non-empty strings")
 	if len(scenario_ids) != len(set(scenario_ids)):
 		raise ValueError("performance profile scenario IDs must be unique")
-	if set(scenario_ids) != IMPLEMENTED_SCENARIOS | set(SKIPPED_SCENARIOS):
+	if set(scenario_ids) != IMPLEMENTED_SCENARIOS | set(EXTERNAL_SCENARIOS):
 		raise ValueError("performance profile scenario catalog does not match the smoke harness")
 	for scenario in scenarios:
 		if scenario.get("target") not in targets:
@@ -150,12 +150,12 @@ def run(scale=0.01, samples=20, strict=True, allow_local=False):
 		results.append(_run_ai_scenario(context, profile, samples))
 
 		for scenario in profile["scenarios"]:
-			if scenario["id"] in SKIPPED_SCENARIOS:
+			if scenario["id"] in EXTERNAL_SCENARIOS:
 				results.append(
 					{
 						"scenario": scenario["id"],
-						"status": "SKIP_UNIMPLEMENTED",
-						"reason": SKIPPED_SCENARIOS[scenario["id"]],
+						"status": "EXTERNAL_CROSS_SESSION_GATE",
+						"reason": EXTERNAL_SCENARIOS[scenario["id"]],
 					}
 				)
 
@@ -263,21 +263,23 @@ def _seed_context(profile, scale, preflight):
 	prefix = f"PERF-{run_key.upper()}"
 	frappe.set_user("Administrator")
 	technician = _make_user(f"perf.tech.{run_key}@example.test", ["Service Technician", "AI Proposal Requester"])
-	manager = _make_user(f"perf.manager.{run_key}@example.test", ["Service Manager", "Accounts User"])
-	frappe.get_doc(
-		{
-			"doctype": "User Permission",
-			"user": manager,
-			"allow": "Company",
-			"for_value": preflight["company"],
-			"is_default": 1,
-			"apply_to_all_doctypes": 1,
-		}
-	).insert(ignore_permissions=True)
-	frappe.defaults.set_user_default("Company", preflight["company"], user=manager)
-	frappe.defaults.set_user_default("Selling Price List", preflight["price_list"], user=manager)
-	frappe.defaults.set_user_default("Currency", preflight["currency"], user=manager)
-	frappe.clear_cache(user=manager)
+	manager = _make_user(f"perf.manager.{run_key}@example.test", ["Service Manager"])
+	finance = _make_user(f"perf.finance.{run_key}@example.test", ["Accounts User"])
+	for user in (manager, finance):
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": user,
+				"allow": "Company",
+				"for_value": preflight["company"],
+				"is_default": 1,
+				"apply_to_all_doctypes": 1,
+			}
+		).insert(ignore_permissions=True)
+		frappe.defaults.set_user_default("Company", preflight["company"], user=user)
+		frappe.defaults.set_user_default("Selling Price List", preflight["price_list"], user=user)
+		frappe.defaults.set_user_default("Currency", preflight["currency"], user=user)
+		frappe.clear_cache(user=user)
 	customer = frappe.get_doc(
 		{
 			"doctype": "Customer",
@@ -317,6 +319,7 @@ def _seed_context(profile, scale, preflight):
 		"prefix": prefix,
 		"technician": technician,
 		"manager": manager,
+		"finance": finance,
 		"customer": customer.name,
 		"location": location.name,
 		"service_item": service_item.name,
@@ -414,10 +417,10 @@ def _run_invoice_scenario(context, profile, samples):
 	]
 	measurements = []
 	invoices = []
-	frappe.set_user(context["manager"])
+	frappe.set_user(context["finance"])
 	_require(
 		frappe.defaults.get_user_default("Company") == context["company"],
-		"synthetic manager company default was not applied",
+		"synthetic finance company default was not applied",
 	)
 	for work_order in work_orders:
 		started = perf_counter()

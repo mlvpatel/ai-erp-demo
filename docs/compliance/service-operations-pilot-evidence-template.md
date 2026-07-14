@@ -6,6 +6,13 @@ This public-safe index is neither GDPR compliance nor production approval.
 - Design-partner approval: pending
 - Real data: prohibited
 
+## Release-state declaration
+
+- Automated complete: no; the repository gates must pass on the release commit.
+- Deployment evidence complete: no; no credentialed AWS deployment has been approved.
+- Human approval pending: yes.
+- Pilot approved: no.
+
 ## Repository and synthetic evidence
 
 | Evidence | Commit/config digest | Command | UTC timestamp | Result |

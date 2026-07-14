@@ -1,6 +1,8 @@
 # Copyright (c) 2026, AI ERP Demo and contributors
 # For license information, please see license.txt
 
+from time import sleep
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -8,6 +10,7 @@ from frappe.utils import flt, getdate, today
 
 from ai_erp_service.service_utils import (
 	DISPATCHER_ROLES,
+	FINANCE_ROLES,
 	MANAGER_ROLES,
 	has_any_role,
 	require_any_role,
@@ -28,6 +31,7 @@ TRANSITIONS = {
 TECHNICIAN_STATES = {"In Progress", "Closeout Submitted", "Cannot Close"}
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 FINAL_STATES = {"Closed", "Invoice Ready"}
+MAX_TRANSACTION_RETRIES = 3
 
 
 class ServiceWorkOrder(Document):
@@ -274,9 +278,19 @@ class ServiceWorkOrder(Document):
 	def _require_manager(self):
 		require_any_role(MANAGER_ROLES, "Only a service manager can issue inventory for a work order.")
 
+	def _require_finance(self):
+		require_any_role(
+			FINANCE_ROLES,
+			"Only an Accounts User or Accounts Manager can draft a Sales Invoice.",
+		)
+
 
 @frappe.whitelist()
 def issue_parts(name):
+	return _with_transaction_retry(lambda: _issue_parts(name))
+
+
+def _issue_parts(name):
 	work_order = frappe.get_doc("Service Work Order", name)
 	work_order.check_permission("write")
 	work_order._require_manager()
@@ -319,9 +333,13 @@ def issue_parts(name):
 
 @frappe.whitelist()
 def make_draft_sales_invoice(name):
+	return _with_transaction_retry(lambda: _make_draft_sales_invoice(name))
+
+
+def _make_draft_sales_invoice(name):
 	work_order = frappe.get_doc("Service Work Order", name)
-	work_order.check_permission("write")
-	work_order._require_manager()
+	work_order.check_permission("read")
+	work_order._require_finance()
 	frappe.has_permission("Sales Invoice", ptype="create", throw=True)
 
 	frappe.db.sql("SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE", name)
@@ -332,7 +350,7 @@ def make_draft_sales_invoice(name):
 		if work_order.sales_invoice != existing_invoice:
 			work_order.flags.from_invoice_creation = True
 			work_order.sales_invoice = existing_invoice
-			work_order.save()
+			work_order.save(ignore_permissions=True)
 		return existing_invoice
 
 	_validate_invoice_creation(work_order)
@@ -341,8 +359,20 @@ def make_draft_sales_invoice(name):
 
 	work_order.flags.from_invoice_creation = True
 	work_order.sales_invoice = invoice.name
-	work_order.save()
+	work_order.save(ignore_permissions=True)
 	return invoice.name
+
+
+def _with_transaction_retry(operation):
+	"""Retry only Frappe's transient row-change/deadlock signal."""
+	for attempt in range(MAX_TRANSACTION_RETRIES):
+		try:
+			return operation()
+		except frappe.QueryDeadlockError:
+			frappe.db.rollback()
+			if attempt + 1 == MAX_TRANSACTION_RETRIES:
+				raise
+			sleep(0.05 * (attempt + 1))
 
 
 def _existing_sales_invoice(work_order):

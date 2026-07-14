@@ -12,6 +12,9 @@
       "description": "Parts issue creates at most one submitted ERPNext Material Issue and links it only through the deterministic action.",
       "code_snippets": [
         "def issue_parts",
+        "return _with_transaction_retry(lambda: _issue_parts(name))",
+        "except frappe.QueryDeadlockError:",
+        "frappe.db.rollback()",
         "SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE",
         "if not unissued_parts:",
         "return None",
@@ -22,6 +25,8 @@
       ],
       "test_anchors": [
         "def test_parts_issue_is_idempotent",
+        "def test_transient_database_deadlock_is_retried",
+        "rollback.assert_called_once_with()",
         "self.assertEqual(frappe.db.get_value(\"Stock Entry\", stock_entry_name, \"docstatus\"), 1)",
         "self.assertIsNone(issue_parts(work_order.name))"
       ],
@@ -40,13 +45,13 @@
         "work_order.flags.from_invoice_creation = True"
       ],
       "test_anchors": [
-        "def test_manager_creates_idempotent_draft_sales_invoice",
+        "def test_finance_creates_idempotent_draft_sales_invoice",
         "self.assertEqual(make_draft_sales_invoice(work_order.name), invoice_name)",
         "self.assertEqual(invoice.docstatus, 0)",
         "self.assertEqual(invoice.update_stock, 0)",
         "self.assertEqual(frappe.db.count(\"Stock Entry\"), stock_entries_after_issue)"
       ],
-      "acceptance_claim": "manager-draft-invoice-idempotent"
+      "acceptance_claim": "finance-draft-invoice-idempotent"
     },
     {
       "id": "billing-basis-immutable-after-invoice",
@@ -62,7 +67,7 @@
         "with self.assertRaises(frappe.ValidationError):",
         "work_order.save()"
       ],
-      "acceptance_claim": "manager-draft-invoice-idempotent"
+      "acceptance_claim": "finance-draft-invoice-idempotent"
     },
     {
       "id": "invoice-readiness-gates-closeout-exceptions-and-parts",
@@ -78,7 +83,7 @@
       "test_anchors": [
         "def test_cannot_close_creates_an_owned_exception",
         "Cannot Close",
-        "def test_manager_creates_idempotent_draft_sales_invoice"
+        "def test_finance_creates_idempotent_draft_sales_invoice"
       ],
       "acceptance_claim": "invoice-readiness-closeout-gate"
     },
@@ -120,7 +125,7 @@
   ],
   "required_doc_phrases": [
     "Parts issue is manager-triggered",
-    "Draft invoice creation is manager-triggered, idempotent, draft-only, and never updates stock.",
+    "Draft invoice creation is finance-triggered, idempotent, draft-only, and never updates stock.",
     "Billing fields, time rows, and part rows cannot change after a Sales Invoice is linked.",
     "AI Proposal review records approval or rejection only",
     "Demo seed creates synthetic setup data"

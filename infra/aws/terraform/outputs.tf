@@ -10,6 +10,18 @@ output "ecs_cluster_arn" {
   value = aws_ecs_cluster.this.arn
 }
 
+output "ecs_service_names" {
+  value = merge(
+    { web = aws_ecs_service.web.name, ai = aws_ecs_service.ai.name },
+    { for key, service in aws_ecs_service.frappe : key => service.name },
+  )
+}
+
+output "on_demand_task_definition_arns" {
+  description = "Reviewed task definitions; Terraform does not run them."
+  value       = { for key, task in aws_ecs_task_definition.operation : key => task.arn }
+}
+
 output "workload_security_group_id" {
   value = aws_security_group.workload.id
 }

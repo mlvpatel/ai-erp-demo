@@ -1,12 +1,21 @@
 # AI ERP Manufacturing
 
-Reserved future industry pack for light manufacturing workflows.
+Configured demo for light manufacturing workflows using standard ERPNext only.
+Human validation remains pending.
 
 No Frappe app is generated here yet. ERPNext already has manufacturing modules,
 BOMs, work orders, job cards, and stock flows, so this pack should stay empty
 until discovery proves a gap that configuration cannot cover.
 The current [hypothesis brief](../../docs/discovery/light-manufacturing-industry-pack.md)
 is synthetic and still awaits design-partner validation.
+
+## Configured demo
+
+The synthetic setup and role-separated manual walkthrough are documented in
+[`light-manufacturing-configured-demo.md`](../../docs/runbooks/light-manufacturing-configured-demo.md).
+The seeder creates only master data, a draft BOM, and a draft Sales Order. It
+never submits manufacturing, stock, or financial records. This folder remains
+documentation-only.
 
 ## Candidate proof workflow
 

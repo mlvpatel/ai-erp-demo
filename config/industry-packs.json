@@ -40,17 +40,19 @@
       "id": "distribution",
       "order": 2,
       "title": "Distribution",
-      "status": "reserved",
+      "status": "configured_demo",
       "app_path": "apps/ai_erp_distribution",
       "docs": [
         "apps/ai_erp_distribution/README.md",
         "docs/discovery/distribution-industry-pack.md",
+        "docs/runbooks/distribution-configured-demo.md",
         "docs/product/industry-pack-roadmap.md",
         "docs/product/industry-pack-design-template.md"
       ],
-      "entry_gate": "not_started",
+      "entry_gate": "configured_demo_ready",
       "discovery_evidence_level": "hypothesis_only",
       "human_validation": "pending",
+      "demo_manifest": "config/industry-demo-distribution.json",
       "first_proof_workflow": "Sales Order to pick/pack review to stock availability exception to delivery handoff to delivery exception summary.",
       "erpnext_reuse": [
         "Stock",
@@ -69,24 +71,27 @@
         "Direct compliance filing or regulated external submission"
       ],
       "verification": [
-        "Validate docs/discovery/distribution-industry-pack.md with python3 scripts/check-industry-pack-lifecycle.py before generated app code"
+        "AI_ERP_CONFIGURED_DEMO_ALLOW=1 bench --site ai-erp.localhost execute ai_erp_core.configured_demo.seed --kwargs '{\"pack\":\"distribution\"}'",
+        "python3 scripts/check-industry-pack-lifecycle.py"
       ]
     },
     {
       "id": "light_manufacturing",
       "order": 3,
       "title": "Light manufacturing",
-      "status": "reserved",
+      "status": "configured_demo",
       "app_path": "apps/ai_erp_manufacturing",
       "docs": [
         "apps/ai_erp_manufacturing/README.md",
         "docs/discovery/light-manufacturing-industry-pack.md",
+        "docs/runbooks/light-manufacturing-configured-demo.md",
         "docs/product/industry-pack-roadmap.md",
         "docs/product/industry-pack-design-template.md"
       ],
-      "entry_gate": "not_started",
+      "entry_gate": "configured_demo_ready",
       "discovery_evidence_level": "hypothesis_only",
       "human_validation": "pending",
+      "demo_manifest": "config/industry-demo-light-manufacturing.json",
       "first_proof_workflow": "Make-to-order quote to BOM/work-order review to material availability exception to production status summary to invoice-ready handoff.",
       "erpnext_reuse": [
         "Manufacturing",
@@ -104,7 +109,8 @@
         "Direct compliance filing or regulated external submission"
       ],
       "verification": [
-        "Validate docs/discovery/light-manufacturing-industry-pack.md with python3 scripts/check-industry-pack-lifecycle.py before generated app code"
+        "AI_ERP_CONFIGURED_DEMO_ALLOW=1 bench --site ai-erp.localhost execute ai_erp_core.configured_demo.seed --kwargs '{\"pack\":\"light_manufacturing\"}'",
+        "python3 scripts/check-industry-pack-lifecycle.py"
       ]
     },
     {

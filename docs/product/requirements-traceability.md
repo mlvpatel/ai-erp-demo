@@ -58,7 +58,7 @@ security-contact, and local-publication gates.
 | Technician and manager roles are separated. | `config/mvp-acceptance.json`, `docs/workflows/service-operations.md`, service integration tests. | `scripts/dev.sh service-test`; `python3 scripts/check-mvp-acceptance.py` |
 | Work order closeout and exceptions gate invoice readiness. | `config/mvp-acceptance.json`, `apps/ai_erp_service/`, service workflow tests. | `scripts/dev.sh service-test`; `python3 scripts/check-mvp-acceptance.py` |
 | Parts issue is manager-triggered and idempotent. | Service workflow tests and README. | `scripts/dev.sh service-test` |
-| Draft Sales Invoice is manager-triggered, draft-only, and idempotent. | `config/mvp-acceptance.json`, service workflow tests and README. | `scripts/dev.sh service-test`; `python3 scripts/check-mvp-acceptance.py` |
+| Draft Sales Invoice is finance-triggered, draft-only, and idempotent. | `config/mvp-acceptance.json`, service workflow tests and README. | `scripts/dev.sh service-test`; `python3 scripts/check-mvp-acceptance.py` |
 | AI closeout draft is cited, immutable, review-only, and has no ERP side effect. | `config/mvp-acceptance.json`, `ai_erp_core` proposal model, AI control-plane tests, service workflow tests. | `scripts/dev.sh control-plane-test`; `scripts/dev.sh contract-test`; `scripts/dev.sh service-test`; `python3 scripts/check-mvp-acceptance.py` |
 | Demo seed is synthetic and idempotent. | `ai_erp_service.demo_seed.seed_service_demo`; local demo runbook. | `scripts/dev.sh seed-demo`; `scripts/dev.sh demo-check` |
 | Demo guidance is discoverable from the CLI. | `scripts/dev.sh demo-info`; local demo runbook. | `scripts/dev.sh demo-info` |
