@@ -67,9 +67,21 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.13.5'
+      - name: Install checksum-verified Terraform
+        env:
+          TERRAFORM_VERSION: '1.13.5'
+          TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a
+        run: |
+          set -euo pipefail
+          archive="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${archive}" \
+            --output "/tmp/${archive}"
+          echo "${TERRAFORM_SHA256}  /tmp/${archive}" | sha256sum --check -
+          mkdir -p /tmp/terraform-bin
+          unzip -q "/tmp/${archive}" -d /tmp/terraform-bin
+          echo "/tmp/terraform-bin" >> "$GITHUB_PATH"
+          /tmp/terraform-bin/terraform version
       - run: python3 scripts/check-aws-iac.py
       - run: terraform -chdir=infra/aws/terraform fmt -check -recursive
       - run: terraform -chdir=infra/aws/terraform init -backend=false
