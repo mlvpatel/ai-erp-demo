@@ -10,11 +10,21 @@ assets.
 Build into ECR, scan the images, and pass the resulting ECR digest references
 to Terraform. Tags are never accepted by the balanced-pilot variables.
 
-The `configure`, `migrate`, `backup`, and `restore` modes are on-demand tasks. `configure`
-requires an already provisioned tenant site, writes shared connection endpoints,
-and selects that site; it never creates a site or database. `migrate` also
-requires the existing tenant site. `backup` creates the
-site-scoped logical backup on encrypted EFS; promotion to the SSE-KMS S3 bucket
-remains an operator-controlled recovery step until a tested uploader is added.
-`restore` additionally requires `ALLOW_RESTORE=YES` and an operator-selected
-database backup path. No task is scheduled or run by Terraform.
+The `configure`, `migrate`, `backup`, and `restore` modes are operations tasks.
+On a fresh EFS mount, `configure` creates the app registry and tenant site from
+task-start secret injection, installs ERPNext and both custom apps, writes the
+shared connection endpoints, and selects the site. A retry detects the existing
+site and only verifies missing required apps, so it does not create a second
+database. `migrate` requires the configured tenant site. `backup` creates the
+site-scoped logical backup on encrypted EFS, uploads all four fresh artifacts
+to the versioned SSE-KMS S3 bucket, verifies size and SHA-256 metadata, writes
+the completion manifest last, and emits the backup-success metric. The AWS SDK
+runs from an isolated hash-locked operations virtual environment. Production
+Terraform schedules this task daily only after services are activated.
+`restore` is a deletion-enforced drill, not a general production restore. It
+accepts only a manifest-complete backup in the approved bucket and a generated
+`restore-drill-*.internal` target, verifies every artifact before invoking the
+official Bench restore interface, migrates, checks apps/roles/transaction
+links, and runs `drop-site --no-backup --force` even after validation failure.
+Terraform registers all operation tasks and schedules only backup; configure,
+migrate, and restore remain explicitly invoked.

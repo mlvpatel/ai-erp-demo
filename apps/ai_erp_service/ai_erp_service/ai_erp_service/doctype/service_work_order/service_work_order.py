@@ -304,6 +304,11 @@ def _issue_parts(name):
 
 	unissued_parts = [row for row in work_order.get("parts") or [] if not row.stock_entry]
 	if not unissued_parts:
+		existing_entries = {row.stock_entry for row in work_order.get("parts") or [] if row.stock_entry}
+		if len(existing_entries) == 1:
+			return existing_entries.pop()
+		if existing_entries:
+			frappe.throw(_("Issued parts must reference exactly one Stock Entry for an idempotent retry."))
 		return None
 
 	company = _company_for_parts(unissued_parts)

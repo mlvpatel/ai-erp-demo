@@ -45,9 +45,11 @@ transaction boundaries or AI governance.
 - Validate the configured distribution and light-manufacturing demos with design partners before promoting either pack to implemented.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
 - Run the tracked full-profile load contract on approved pilot infrastructure
-  and retain private capacity evidence. Cross-session parts concurrency, link
-  search, queue clearing, and profitability are implemented, but the local
-  `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a public capacity claim.
+  and retain private capacity evidence with the protected
+  `production-capacity.yml` workflow. The exact-volume runner and authenticated ten-request/
+  five-user concurrency gate are implemented, but remain unexecuted until the
+  billable pilot is authorized. The local `SMOKE_PASS_NOT_FULL_PROFILE` result
+  cannot support a public capacity claim.
 - Privately plan, cost-review, and apply the implemented ADR-0007 AWS foundation
   only after the account, budget, domain, RPO/RTO, support owner, and legal/data
   gates are approved.

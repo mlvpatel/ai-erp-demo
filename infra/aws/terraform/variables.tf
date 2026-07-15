@@ -162,6 +162,22 @@ variable "owner" {
   }
 }
 
+variable "alert_topic_arn" {
+  type        = string
+  description = "Pre-approved eu-central-1 SNS topic for operational and budget alerts. Subscriber identities stay outside Terraform state."
+
+  validation {
+    condition     = can(regex("^arn:aws:sns:eu-central-1:[0-9]{12}:[A-Za-z0-9_-]+$", var.alert_topic_arn))
+    error_message = "alert_topic_arn must identify an approved eu-central-1 SNS topic."
+  }
+}
+
+variable "activate_services" {
+  type        = bool
+  description = "Start long-running ECS services only after the configurator and migration tasks succeed."
+  default     = false
+}
+
 variable "frappe_backend_image" {
   type        = string
   description = "Immutable ECR digest for the reviewed Frappe/ERPNext backend image."

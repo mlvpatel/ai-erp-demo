@@ -1,0 +1,105 @@
+name: Protected backup restore and deletion drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_s3_uri:
+        description: Complete manifest URI from the approved encrypted backup bucket.
+        required: true
+        type: string
+      confirmation:
+        description: Enter RESTORE-DELETE-DRILL to authorize the one-off Fargate task.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore-drill:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      AWS_REGION: eu-central-1
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      TERRAFORM_VERSION: '1.13.5'
+      TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_TERRAFORM_DEPLOY_ROLE_ARN: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      AWS_TERRAFORM_STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+      AWS_TERRAFORM_STATE_KMS_KEY_ARN: ${{ vars.AWS_TERRAFORM_STATE_KMS_KEY_ARN }}
+    steps:
+      - name: Checkout the protected release commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate explicit restore authorization
+        shell: bash
+        env:
+          MANIFEST_URI: ${{ inputs.manifest_s3_uri }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "${CONFIRMATION}" = RESTORE-DELETE-DRILL
+          [[ "${AWS_ACCOUNT_ID}" =~ ^[0-9]{12}$ ]]
+          [[ "${AWS_TERRAFORM_DEPLOY_ROLE_ARN}" =~ ^arn:aws:iam::${AWS_ACCOUNT_ID}:role/ ]]
+          [[ "${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" =~ ^arn:aws:kms:eu-central-1:${AWS_ACCOUNT_ID}:key/ ]]
+          [[ "${MANIFEST_URI}" =~ ^s3://[a-z0-9.-]+/sites/.+/manifest[.]json$ ]]
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ env.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ai-erp-restore-${{ github.run_id }}
+
+      - name: Verify approved AWS account
+        shell: bash
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "${AWS_ACCOUNT_ID}"
+
+      - name: Install checksum-verified Terraform
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${archive}" \
+            --output "/tmp/${archive}"
+          echo "${TERRAFORM_SHA256}  /tmp/${archive}" | sha256sum --check -
+          unzip -q "/tmp/${archive}" -d /tmp/terraform-bin
+          echo "/tmp/terraform-bin" >>"${GITHUB_PATH}"
+
+      - name: Initialize encrypted remote state read
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/aws/terraform init \
+            -backend-config="bucket=${AWS_TERRAFORM_STATE_BUCKET}" \
+            -backend-config="key=production/ai-erp-pilot.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="kms_key_id=${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Restore, validate, and delete the disposable site
+        env:
+          MANIFEST_URI: ${{ inputs.manifest_s3_uri }}
+        run: scripts/run-restore-drill.sh "${MANIFEST_URI}"
+
+      - name: Retain private aggregate drill evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-restore-drill-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/restore-drill-evidence.json
+          if-no-files-found: warn
+          retention-days: 30

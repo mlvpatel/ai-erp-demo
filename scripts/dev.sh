@@ -228,6 +228,10 @@ case "$command" in
     ;;
   seed-demo)
     require_local_env
+    compose exec \
+      -e AI_ERP_LOCAL_SETUP_ALLOW=1 \
+      --workdir /workspace/development/frappe-bench frappe \
+      bench --site "$(site_name)" execute ai_erp_service.demo_seed.initialize_local_demo_site
     compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" execute ai_erp_service.demo_seed.seed_service_demo
     ;;
   service-test)

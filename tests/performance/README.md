@@ -44,3 +44,14 @@ Database rollback cannot undo external effects; the fail-closed local/template
 preflight prevents the smoke path from using an external provider.
 The queue probe is restricted to `.localhost`, performs no ERP read or write,
 and is the only intentional non-database side effect of the smoke command.
+
+The protected `.github/workflows/production-capacity.yml` workflow is the
+executable full-profile path. After production infrastructure and immutable
+images exist, an authorized operator enters `RUN-FULL-CAPACITY`. The workflow
+creates a disposable `capacity-run-*.internal` site, seeds exactly the tracked
+volumes, uses a task-local deterministic AI renderer, measures all seven
+scenarios, and sends ten concurrent parts requests through ten authenticated API
+sessions spanning five Service Manager users. It requires one Stock Entry,
+idempotent retry results, and no partial issue state. The site and database are
+deleted after the run, while only aggregate encrypted evidence is retained for
+30 days. The workflow definition is not evidence that the billable run passed.

@@ -22,6 +22,16 @@ output "on_demand_task_definition_arns" {
   value       = { for key, task in aws_ecs_task_definition.operation : key => task.arn }
 }
 
+output "ai_live_eval_task_definition_arn" {
+  description = "Private one-case synthetic OpenAI evaluation task."
+  value       = aws_ecs_task_definition.ai_live_eval.arn
+}
+
+output "capacity_task_definition_arn" {
+  description = "Disposable exact-volume synthetic capacity task."
+  value       = aws_ecs_task_definition.capacity.arn
+}
+
 output "workload_security_group_id" {
   value = aws_security_group.workload.id
 }

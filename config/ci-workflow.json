@@ -14,8 +14,8 @@
       "name": "Control-plane unit tests",
       "required_snippets": [
         "working-directory: services/ai_control_plane",
-        "uses: actions/checkout@v4",
-        "uses: actions/setup-python@v5",
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
         "python-version: '3.14'",
         "python -m pip install .",
         "python -m unittest discover -s tests -v"
@@ -25,8 +25,8 @@
       "id": "contracts",
       "name": "Contract tests",
       "required_snippets": [
-        "uses: actions/checkout@v4",
-        "uses: actions/setup-python@v5",
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
         "python-version: '3.14'",
         "python -m pip install ./services/ai_control_plane",
         "python -m unittest discover -s tests/contract -v"
@@ -36,8 +36,8 @@
       "id": "lint",
       "name": "Python lint",
       "required_snippets": [
-        "uses: actions/checkout@v4",
-        "uses: actions/setup-python@v5",
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
         "python-version: '3.14'",
         "python -m pip install ruff==0.14.10",
         "ruff check --no-cache apps/ services/"
@@ -47,11 +47,34 @@
       "id": "repository",
       "name": "Repository checks",
       "required_snippets": [
-        "uses: actions/checkout@v4",
-        "uses: actions/setup-python@v5",
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
         "python-version: '3.14'",
         "scripts/run-quality-gates.sh",
         "scripts/dev.sh compose-config"
+      ]
+    },
+    {
+      "id": "aws-iac",
+      "name": "AWS IaC validation (no credentials)",
+      "required_snippets": [
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "TERRAFORM_VERSION: '1.13.5'",
+        "TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a",
+        "python3 scripts/check-aws-iac.py",
+        "terraform -chdir=infra/aws/terraform validate",
+        "terraform -chdir=infra/aws/bootstrap validate",
+        "python -m unittest discover -s tests/infra -v"
+      ]
+    },
+    {
+      "id": "docker-behavior",
+      "name": "ERP Docker behavior and browser tests",
+      "required_snippets": [
+        "runs-on: ubuntu-24.04",
+        "timeout-minutes: 60",
+        "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "scripts/ci-docker-gates.sh"
       ]
     }
   ],

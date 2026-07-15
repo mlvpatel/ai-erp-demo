@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-  # Configure the private, encrypted state bucket and lock table only through
-  # an untracked backend config after the ADR-0007 apply gate is approved.
+  # Configure the private, encrypted state bucket with S3 lockfiles only
+  # through protected workflow inputs after the ADR-0007 gate is approved.
   backend "s3" {}
 }

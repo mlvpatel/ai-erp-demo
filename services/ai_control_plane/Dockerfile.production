@@ -4,10 +4,11 @@ FROM ${PYTHON_BASE_IMAGE} AS builder
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 WORKDIR /build
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md uv.lock requirements.lock ./
 COPY src ./src
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-compile .
+    && /opt/venv/bin/pip install --no-compile --require-hashes -r requirements.lock \
+    && /opt/venv/bin/pip install --no-compile --no-deps .
 
 ARG PYTHON_BASE_IMAGE
 FROM ${PYTHON_BASE_IMAGE}

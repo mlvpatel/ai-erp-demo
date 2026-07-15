@@ -277,10 +277,16 @@ resource "aws_iam_role" "ecs_task" {
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
 }
 
+resource "aws_iam_role" "ecs_operation" {
+  name               = "${local.name}-ecs-operation"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
 data "aws_iam_policy_document" "ecs_operations" {
   statement {
     actions = [
       "s3:AbortMultipartUpload",
+      "s3:GetObject",
       "s3:ListBucket",
       "s3:PutObject",
     ]
@@ -291,15 +297,25 @@ data "aws_iam_policy_document" "ecs_operations" {
   }
   statement {
     actions = [
+      "kms:Decrypt",
       "kms:Encrypt",
       "kms:GenerateDataKey",
     ]
     resources = [aws_kms_key.platform.arn]
   }
+  statement {
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = ["AIERP/Backup", "AIERP/Capacity"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "ecs_operations" {
-  name   = "write-site-backups"
-  role   = aws_iam_role.ecs_task.id
+  name   = "backup-and-restore-drills"
+  role   = aws_iam_role.ecs_operation.id
   policy = data.aws_iam_policy_document.ecs_operations.json
 }

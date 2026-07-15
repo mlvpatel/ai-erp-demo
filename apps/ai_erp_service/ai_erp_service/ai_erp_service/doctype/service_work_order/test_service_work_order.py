@@ -185,7 +185,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 
 		self.assertEqual(frappe.db.get_value("Stock Entry", stock_entry_name, "docstatus"), 1)
 		self.assertEqual(work_order.parts[0].stock_entry, stock_entry_name)
-		self.assertIsNone(issue_parts(work_order.name))
+		self.assertEqual(issue_parts(work_order.name), stock_entry_name)
 
 	def test_finance_creates_idempotent_draft_sales_invoice(self):
 		invoices_before = frappe.db.count("Sales Invoice")

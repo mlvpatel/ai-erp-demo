@@ -95,6 +95,29 @@ This scaled command detects regressions on a developer machine. It is not a
 capacity result and must not be described as full-profile validation or used
 for a public performance claim.
 
+## Protected full-profile execution
+
+After the protected AWS pilot has been deployed, run
+`.github/workflows/production-capacity.yml` from `main` and enter the exact
+`RUN-FULL-CAPACITY` confirmation. Its one-off Fargate task creates a generated
+disposable site and the exact tracked dataset: 250 customers, 500 locations,
+750 items, 1,000 requests, 5,000 work orders, 10,000 time rows, 10,000 part
+rows, 1,000 AI proposals, 2,000 Stock Entries, and 1,000 draft Sales Invoices.
+
+The task uses the deterministic template provider in a task-local sidecar, so
+the AI measurement excludes provider latency and makes no OpenAI call. The
+parts gate sends ten simultaneous requests through ten independently
+authenticated API sessions across five manager identities. It accepts exactly
+one linked Stock Entry, one shared retry result, no duplicate, and no partial
+part state. Aggregate p95 and count evidence is KMS-encrypted, validated again
+by the workflow, and retained privately for 30 days; record names, payloads,
+credentials, hostnames, and customer data are excluded. The disposable site is
+deleted even after failure.
+
+This is a billable, protected deployment gate. A checked-in workflow or a local
+smoke pass does not count as capacity evidence. Only a successful authorized
+workflow run against the promoted image digest satisfies the deployment gate.
+
 ## Verification
 
 Run the static check:
@@ -107,4 +130,4 @@ AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 
 The static checker proves the public repository keeps the performance contract
 visible and safe. The scaled smoke command adds executable regression evidence;
-neither replaces a full load test on declared deployment hardware.
+neither replaces the protected full-profile run on declared deployment hardware.

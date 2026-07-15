@@ -90,7 +90,13 @@ class TestAppSecurity(unittest.TestCase):
 			"AI_ERP_PROVIDER": "openai",
 		}
 		with patch.dict(os.environ, environment, clear=True):
-			response = self._post(f"Bearer {SHARED_SECRET}")
+			with self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured:
+				response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 503)
 		self.assertEqual(response.json()["detail"], "approved model provider is unavailable")
+		joined = " ".join(captured.output)
+		self.assertIn("ai_provider_attempt", joined)
+		self.assertIn("ai_provider_failure", joined)
+		for sensitive in (SHARED_SECRET, "demo.localhost", "SVC-WO-00001", "Tightened the mount"):
+			self.assertNotIn(sensitive, joined)

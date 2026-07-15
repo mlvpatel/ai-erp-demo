@@ -26,8 +26,56 @@ DEMO_CONCURRENT_MANAGERS = tuple(
 )
 DEMO_DISTRIBUTION_USER = "distribution.user@example.test"
 DEMO_MANUFACTURING_USER = "manufacturing.user@example.test"
+LOCAL_SETUP_ALLOW_ENV = "AI_ERP_LOCAL_SETUP_ALLOW"
+DEMO_COMPANY = "AI ERP Synthetic Demo Company"
 E2E_OTHER_SUBJECT = "AI ERP E2E Unassigned Work Order"
 E2E_FULL_WORKFLOW_PREFIX = "AI ERP E2E Full Workflow"
+
+
+def initialize_local_demo_site():
+	"""Complete ERPNext setup using synthetic defaults on an opted-in local site."""
+	if os.environ.get(LOCAL_SETUP_ALLOW_ENV) != "1" or not str(frappe.local.site).endswith(
+		".localhost"
+	):
+		frappe.throw(
+			f"Local setup requires {LOCAL_SETUP_ALLOW_ENV}=1 on a .localhost site.",
+			frappe.PermissionError,
+		)
+
+	company = frappe.db.get_value("Company", {}, "name")
+	if frappe.is_setup_complete():
+		if not company:
+			frappe.throw("ERPNext reports setup complete but has no Company record.")
+		return {"company": company, "created": False, "synthetic_only": True}
+
+	year = now_datetime().year
+	from frappe.desk.page.setup_wizard.setup_wizard import setup_complete
+
+	result = setup_complete(
+		{
+			"language": "English",
+			"email": "demo.admin@example.test",
+			"full_name": "AI ERP Demo Administrator",
+			"country": "Germany",
+			"timezone": "Europe/Berlin",
+			"currency": "EUR",
+			"enable_telemetry": 0,
+			"company_name": DEMO_COMPANY,
+			"company_abbr": "AIERP",
+			"chart_of_accounts": "Standard",
+			"fy_start_date": f"{year}-01-01",
+			"fy_end_date": f"{year}-12-31",
+			"domain": "Services",
+			"setup_demo": 0,
+		}
+	)
+	company = frappe.db.get_value("Company", {"company_name": DEMO_COMPANY}, "name")
+	if result != {"status": "ok"} or not company or not frappe.db.exists(
+		"Warehouse", {"company": company, "is_group": 0}
+	):
+		frappe.throw("Synthetic local ERPNext setup did not create the required accounting baseline.")
+	frappe.db.commit()
+	return {"company": company, "created": True, "synthetic_only": True}
 
 
 def seed_service_demo():

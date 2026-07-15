@@ -150,13 +150,11 @@ This gate must prove:
 - draft-only cited AI proposal behavior,
 - no AI approval side effect on ERP transactions.
 
-GitHub CI does not currently execute this Docker-backed Frappe behavioral gate.
-Accordingly, `implemented` in `config/mvp-acceptance.json` means the cited source
-and evidence anchors are verified by the static gate; it does not mean the
-behavior has been executed in CI. Run `scripts/dev.sh service-test` locally and
-record its result for behavior-sensitive changes and releases. Run
-`scripts/dev.sh e2e-test` for the pinned synthetic Chromium role/route smoke;
-this browser smoke is not human UAT.
+The required `ERP Docker behavior and browser tests` GitHub check executes this
+gate in a clean runner, including both custom-app integration suites, the
+rollback-only performance smoke, and the pinned synthetic Chromium suite. Run
+`scripts/dev.sh service-test` and `scripts/dev.sh e2e-test` locally for faster
+feedback. Automated browser success is still not human UAT.
 
 ## Synthetic performance smoke gate
 

@@ -1,0 +1,97 @@
+name: Protected synthetic full capacity profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Enter RUN-FULL-CAPACITY to authorize the disposable Fargate workload.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-full-capacity
+  cancel-in-progress: false
+
+jobs:
+  full-capacity:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      AWS_REGION: eu-central-1
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      TERRAFORM_VERSION: '1.13.5'
+      TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_TERRAFORM_DEPLOY_ROLE_ARN: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      AWS_TERRAFORM_STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+      AWS_TERRAFORM_STATE_KMS_KEY_ARN: ${{ vars.AWS_TERRAFORM_STATE_KMS_KEY_ARN }}
+    steps:
+      - name: Checkout the protected release commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate explicit capacity authorization
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "${CONFIRMATION}" = RUN-FULL-CAPACITY
+          [[ "${AWS_ACCOUNT_ID}" =~ ^[0-9]{12}$ ]]
+          [[ "${AWS_TERRAFORM_DEPLOY_ROLE_ARN}" =~ ^arn:aws:iam::${AWS_ACCOUNT_ID}:role/ ]]
+          [[ "${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" =~ ^arn:aws:kms:eu-central-1:${AWS_ACCOUNT_ID}:key/ ]]
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ env.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ai-erp-capacity-${{ github.run_id }}
+
+      - name: Verify approved AWS account
+        shell: bash
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "${AWS_ACCOUNT_ID}"
+
+      - name: Install checksum-verified Terraform
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${archive}" \
+            --output "/tmp/${archive}"
+          echo "${TERRAFORM_SHA256}  /tmp/${archive}" | sha256sum --check -
+          unzip -q "/tmp/${archive}" -d /tmp/terraform-bin
+          echo "/tmp/terraform-bin" >>"${GITHUB_PATH}"
+
+      - name: Initialize encrypted remote state read
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/aws/terraform init \
+            -backend-config="bucket=${AWS_TERRAFORM_STATE_BUCKET}" \
+            -backend-config="key=production/ai-erp-pilot.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="kms_key_id=${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Run exact-volume synthetic profile and concurrency gate
+        run: scripts/run-full-capacity.sh
+
+      - name: Retain private aggregate capacity evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-capacity-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/capacity-evidence.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,267 @@
+name: Protected production delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan is non-mutating; apply and rollback are billable protected operations.
+        required: true
+        type: choice
+        options: [plan, apply, rollback]
+      confirmation:
+        description: Enter APPLY-AI-ERP-PILOT or ROLLBACK-AI-ERP-PILOT for a mutating operation.
+        required: false
+        type: string
+      rollback_backend_image:
+        description: Prior reviewed backend image digest (rollback only).
+        required: false
+        type: string
+      rollback_frontend_image:
+        description: Prior reviewed frontend image digest (rollback only).
+        required: false
+        type: string
+      rollback_ai_image:
+        description: Prior reviewed AI image digest (rollback only).
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-terraform-delivery
+  cancel-in-progress: false
+
+jobs:
+  delivery:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      AWS_REGION: eu-central-1
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      TERRAFORM_VERSION: '1.13.5'
+      TERRAFORM_SHA256: 0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_TERRAFORM_DEPLOY_ROLE_ARN: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      AWS_TERRAFORM_STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+      AWS_TERRAFORM_STATE_KMS_KEY_ARN: ${{ vars.AWS_TERRAFORM_STATE_KMS_KEY_ARN }}
+      COSIGN_KMS_KEY_URI: ${{ vars.COSIGN_KMS_KEY_URI }}
+      DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+      CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
+      SUPPORT_OWNER: ${{ vars.SUPPORT_OWNER }}
+      ALERT_TOPIC_ARN: ${{ vars.ALERT_TOPIC_ARN }}
+      RECURRING_COST_ESTIMATE_USD: ${{ vars.AWS_RECURRING_COST_ESTIMATE_USD }}
+      FRAPPE_BACKEND_IMAGE: ${{ vars.FRAPPE_BACKEND_IMAGE }}
+      FRAPPE_FRONTEND_IMAGE: ${{ vars.FRAPPE_FRONTEND_IMAGE }}
+      AI_CONTROL_PLANE_IMAGE: ${{ vars.AI_CONTROL_PLANE_IMAGE }}
+    steps:
+      - name: Checkout the protected release commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate explicit authorization and protected inputs
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          ROLLBACK_BACKEND_IMAGE: ${{ inputs.rollback_backend_image }}
+          ROLLBACK_FRONTEND_IMAGE: ${{ inputs.rollback_frontend_image }}
+          ROLLBACK_AI_IMAGE: ${{ inputs.rollback_ai_image }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          [[ "${AWS_ACCOUNT_ID}" =~ ^[0-9]{12}$ ]]
+          [[ "${AWS_TERRAFORM_DEPLOY_ROLE_ARN}" =~ ^arn:aws:iam::${AWS_ACCOUNT_ID}:role/ ]]
+          [[ "${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" =~ ^arn:aws:kms:eu-central-1:${AWS_ACCOUNT_ID}:key/ ]]
+          [[ "${COSIGN_KMS_KEY_URI}" =~ ^awskms:// ]]
+          [[ "${ALERT_TOPIC_ARN}" =~ ^arn:aws:sns:eu-central-1:${AWS_ACCOUNT_ID}:[A-Za-z0-9_-]+$ ]]
+          [[ "${RECURRING_COST_ESTIMATE_USD}" =~ ^[0-9]+([.][0-9]{1,2})?$ ]]
+          awk -v estimate="${RECURRING_COST_ESTIMATE_USD}" 'BEGIN { exit !(estimate > 0 && estimate <= 600) }'
+          if [ "${OPERATION}" = apply ]; then
+            test "${CONFIRMATION}" = APPLY-AI-ERP-PILOT
+          elif [ "${OPERATION}" = rollback ]; then
+            test "${CONFIRMATION}" = ROLLBACK-AI-ERP-PILOT
+            for image in "${ROLLBACK_BACKEND_IMAGE}" "${ROLLBACK_FRONTEND_IMAGE}" "${ROLLBACK_AI_IMAGE}"; do
+              [[ "${image}" =~ ^${AWS_ACCOUNT_ID}[.]dkr[.]ecr[.]eu-central-1[.]amazonaws[.]com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]
+            done
+          fi
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ env.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ai-erp-terraform-${{ github.run_id }}
+
+      - name: Verify approved AWS account
+        shell: bash
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "${AWS_ACCOUNT_ID}"
+
+      - name: Install verified Cosign release
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install checksum-verified Terraform
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${archive}" \
+            --output "/tmp/${archive}"
+          echo "${TERRAFORM_SHA256}  /tmp/${archive}" | sha256sum --check -
+          unzip -q "/tmp/${archive}" -d /tmp/terraform-bin
+          echo "/tmp/terraform-bin" >>"${GITHUB_PATH}"
+
+      - name: Build non-secret deployment inputs
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          ROLLBACK_BACKEND_IMAGE: ${{ inputs.rollback_backend_image }}
+          ROLLBACK_FRONTEND_IMAGE: ${{ inputs.rollback_frontend_image }}
+          ROLLBACK_AI_IMAGE: ${{ inputs.rollback_ai_image }}
+        run: |
+          set -euo pipefail
+          backend_image="${FRAPPE_BACKEND_IMAGE}"
+          frontend_image="${FRAPPE_FRONTEND_IMAGE}"
+          ai_image="${AI_CONTROL_PLANE_IMAGE}"
+          if [ "${OPERATION}" = rollback ]; then
+            backend_image="${ROLLBACK_BACKEND_IMAGE}"
+            frontend_image="${ROLLBACK_FRONTEND_IMAGE}"
+            ai_image="${ROLLBACK_AI_IMAGE}"
+          fi
+          activate_services=true
+          if [ "${OPERATION}" = apply ]; then
+            activate_services=false
+          fi
+          for image in "${backend_image}" "${frontend_image}" "${ai_image}"; do
+            [[ "${image}" =~ ^${AWS_ACCOUNT_ID}[.]dkr[.]ecr[.]eu-central-1[.]amazonaws[.]com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]
+          done
+          jq -n \
+            --arg account "${AWS_ACCOUNT_ID}" \
+            --arg domain "${DOMAIN_NAME}" \
+            --arg certificate "${CERTIFICATE_ARN}" \
+            --arg owner "${SUPPORT_OWNER}" \
+            --arg alerts "${ALERT_TOPIC_ARN}" \
+            --arg backend "${backend_image}" \
+            --arg frontend "${frontend_image}" \
+            --arg ai "${ai_image}" \
+            --argjson activate "${activate_services}" \
+            '{environment:"pilot",aws_account_id:$account,availability_zones:["eu-central-1a","eu-central-1b"],public_subnet_cidrs:["10.40.0.0/24","10.40.1.0/24"],private_subnet_cidrs:["10.40.10.0/24","10.40.11.0/24"],domain_name:$domain,certificate_arn:$certificate,monthly_budget_usd:600,backup_retention_days:14,logical_backup_retention_days:90,log_retention_days:90,owner:$owner,alert_topic_arn:$alerts,activate_services:$activate,frappe_backend_image:$backend,frappe_frontend_image:$frontend,ai_control_plane_image:$ai}' \
+            >"${RUNNER_TEMP}/pilot.auto.tfvars.json"
+          jq -n --arg commit "${GITHUB_SHA}" --arg operation "${OPERATION}" --arg estimate "${RECURRING_COST_ESTIMATE_USD}" \
+            '{commit:$commit,operation:$operation,reviewed_monthly_cost_estimate_usd:($estimate|tonumber),budget_limit_usd:600}' \
+            >"${RUNNER_TEMP}/release-evidence.json"
+
+      - name: Verify all promoted image signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -r '.frappe_backend_image,.frappe_frontend_image,.ai_control_plane_image' "${RUNNER_TEMP}/pilot.auto.tfvars.json" | while read -r image; do
+            cosign verify --key "${COSIGN_KMS_KEY_URI}" "${image}" >/dev/null
+          done
+
+      - name: Initialize encrypted remote state
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/aws/terraform init \
+            -backend-config="bucket=${AWS_TERRAFORM_STATE_BUCKET}" \
+            -backend-config="key=production/ai-erp-pilot.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="kms_key_id=${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Create and policy-check reviewed plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/aws/terraform plan \
+            -lock-timeout=5m \
+            -var-file="${RUNNER_TEMP}/pilot.auto.tfvars.json" \
+            -out="${RUNNER_TEMP}/pilot.tfplan"
+          terraform -chdir=infra/aws/terraform show -json "${RUNNER_TEMP}/pilot.tfplan" >"${RUNNER_TEMP}/pilot-plan.json"
+          python3 scripts/check-terraform-plan.py "${RUNNER_TEMP}/pilot-plan.json" | tee "${RUNNER_TEMP}/plan-summary.json"
+
+      - name: Apply inactive foundation
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: terraform -chdir=infra/aws/terraform apply -lock-timeout=5m -auto-approve "${RUNNER_TEMP}/pilot.tfplan"
+
+      - name: Verify out-of-band secret keys exist
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          frappe_arn="$(terraform -chdir=infra/aws/terraform output -raw frappe_secret_arn)"
+          control_arn="$(terraform -chdir=infra/aws/terraform output -raw control_plane_secret_arn)"
+          openai_arn="$(terraform -chdir=infra/aws/terraform output -raw openai_secret_arn)"
+          aws secretsmanager get-secret-value --secret-id "${frappe_arn}" --query SecretString --output text | jq -e 'has("admin_password") and has("db_name") and has("db_password")' >/dev/null
+          aws secretsmanager get-secret-value --secret-id "${control_arn}" --query SecretString --output text | jq -e 'has("shared_secret")' >/dev/null
+          aws secretsmanager get-secret-value --secret-id "${openai_arn}" --query SecretString --output text | jq -e 'has("api_key")' >/dev/null
+
+      - name: Configure and migrate the tenant
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/run-ecs-operation.sh configure
+          scripts/run-ecs-operation.sh migrate
+
+      - name: Activate services after successful migration
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq '.activate_services=true' "${RUNNER_TEMP}/pilot.auto.tfvars.json" >"${RUNNER_TEMP}/active.auto.tfvars.json"
+          terraform -chdir=infra/aws/terraform plan \
+            -lock-timeout=5m \
+            -var-file="${RUNNER_TEMP}/active.auto.tfvars.json" \
+            -out="${RUNNER_TEMP}/activation.tfplan"
+          terraform -chdir=infra/aws/terraform show -json "${RUNNER_TEMP}/activation.tfplan" >"${RUNNER_TEMP}/activation-plan.json"
+          python3 scripts/check-terraform-plan.py "${RUNNER_TEMP}/activation-plan.json" | tee "${RUNNER_TEMP}/activation-summary.json"
+          terraform -chdir=infra/aws/terraform apply -lock-timeout=5m -auto-approve "${RUNNER_TEMP}/activation.tfplan"
+
+      - name: Apply reviewed rollback digests
+        if: inputs.operation == 'rollback'
+        shell: bash
+        run: terraform -chdir=infra/aws/terraform apply -lock-timeout=5m -auto-approve "${RUNNER_TEMP}/pilot.tfplan"
+
+      - name: Wait for service stability and production health
+        if: inputs.operation == 'apply' || inputs.operation == 'rollback'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cluster="$(terraform -chdir=infra/aws/terraform output -raw ecs_cluster_arn)"
+          terraform -chdir=infra/aws/terraform output -json ecs_service_names | jq -r '.[]' | while read -r service; do
+            aws ecs wait services-stable --cluster "${cluster}" --services "${service}"
+          done
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 --proto '=https' --tlsv1.2 \
+            "https://${DOMAIN_NAME}/api/method/ping" >/dev/null
+
+      - name: Create and verify the first encrypted logical backup
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: scripts/run-ecs-operation.sh backup
+
+      - name: Run one bounded private synthetic OpenAI evaluation
+        if: inputs.operation == 'apply'
+        shell: bash
+        run: scripts/run-ai-live-eval.sh
+
+      - name: Retain private non-secret release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-delivery-${{ inputs.operation }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/release-evidence.json
+            ${{ runner.temp }}/plan-summary.json
+            ${{ runner.temp }}/activation-summary.json
+          if-no-files-found: warn
+          retention-days: 30

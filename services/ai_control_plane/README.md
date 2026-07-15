@@ -53,8 +53,9 @@ docker compose --env-file development/.env \
 ## Production image contract
 
 `Dockerfile.production` requires `PYTHON_BASE_IMAGE` to be supplied as a
-reviewed immutable digest. It uses a multi-stage virtual environment, copies no
-tests or local state into the runtime image, runs as UID/GID 10001, and disables
+reviewed immutable digest. It installs the hash-locked `requirements.lock`
+generated from the committed `uv.lock`, uses a multi-stage virtual environment,
+copies no tests or local state into the runtime image, runs as UID/GID 10001, and disables
 access logs so request paths cannot become a second audit store. Its built-in
 health check probes only the local `/healthz` endpoint. Build, scan, and push it
 to ECR, then supply only the resulting ECR `@sha256:` reference to the plan-only

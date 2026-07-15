@@ -284,6 +284,129 @@ resource "aws_ecs_task_definition" "ai" {
   }])
 }
 
+resource "aws_ecs_task_definition" "ai_live_eval" {
+  family                   = "${local.name}-ai-live-eval"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+  volume { name = "tmp" }
+  container_definitions = jsonencode([{
+    name      = "ai-live-eval"
+    image     = var.ai_control_plane_image
+    essential = true
+    command   = ["python", "-m", "ai_erp_control_plane.live_eval"]
+    environment = [
+      { name = "AI_ERP_PROVIDER", value = "openai" },
+      { name = "OPENAI_BASE_URL", value = "https://eu.api.openai.com/v1" },
+      { name = "OPENAI_MODEL", value = "gpt-5.4-mini-2026-03-17" },
+      { name = "OPENAI_TIMEOUT_SECONDS", value = "20" },
+      { name = "OPENAI_API_KEY_SOURCE", value = "deployment-secret-store" },
+      { name = "AI_ERP_ENABLE_PRIVATE_LIVE_EVAL", value = "I_ACKNOWLEDGE_SYNTHETIC_ONLY" },
+    ]
+    secrets = [
+      { name = "OPENAI_API_KEY", valueFrom = "${aws_secretsmanager_secret.openai.arn}:api_key::" },
+    ]
+    readonlyRootFilesystem = true
+    mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+    linuxParameters        = { initProcessEnabled = true }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options   = merge(local.log_options, { "awslogs-group" = aws_cloudwatch_log_group.ecs["operations"].name })
+    }
+  }])
+}
+
+resource "aws_ecs_task_definition" "capacity" {
+  family                   = "${local.name}-capacity"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 2048
+  memory                   = 4096
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_operation.arn
+  volume {
+    name = "sites"
+    efs_volume_configuration {
+      file_system_id     = aws_efs_file_system.sites.id
+      transit_encryption = "ENABLED"
+      authorization_config { access_point_id = aws_efs_access_point.sites.id }
+    }
+  }
+  volume { name = "logs" }
+  volume { name = "tmp" }
+  container_definitions = jsonencode([
+    {
+      name      = "capacity"
+      image     = var.frappe_backend_image
+      essential = true
+      command   = ["/opt/ai-erp/bin/runtime", "capacity"]
+      cpu       = 1792
+      memory    = 3584
+      environment = concat(
+        [for setting in local.frappe_environment : setting if setting.name != "AI_CONTROL_PLANE_URL"],
+        [
+          { name = "AI_CONTROL_PLANE_URL", value = "http://127.0.0.1:8090" },
+          { name = "AI_ERP_PROVIDER", value = "template" },
+          { name = "AI_ERP_FULL_CAPACITY_ALLOW", value = "I_ACKNOWLEDGE_DISPOSABLE_SYNTHETIC_CAPACITY" },
+          { name = "CAPACITY_EVIDENCE_PATH", value = "/tmp/ai-erp-capacity-evidence.json" },
+          { name = "CAPACITY_SAMPLES", value = "100" },
+          { name = "BACKUP_BUCKET", value = aws_s3_bucket.backups.id },
+          { name = "BACKUP_KMS_KEY_ARN", value = aws_kms_key.platform.arn },
+          { name = "DEPLOYMENT_ENVIRONMENT", value = var.environment },
+        ],
+      )
+      secrets = [
+        { name = "DB_ROOT_USERNAME", valueFrom = "${aws_db_instance.mariadb.master_user_secret[0].secret_arn}:username::" },
+        { name = "DB_ROOT_PASSWORD", valueFrom = "${aws_db_instance.mariadb.master_user_secret[0].secret_arn}:password::" },
+        { name = "FRAPPE_ADMIN_PASSWORD", valueFrom = "${aws_secretsmanager_secret.frappe.arn}:admin_password::" },
+        { name = "AI_CONTROL_PLANE_SHARED_SECRET", valueFrom = "${aws_secretsmanager_secret.control_plane.arn}:shared_secret::" },
+      ]
+      dependsOn = [{ containerName = "capacity-ai-template", condition = "HEALTHY" }]
+      mountPoints = [
+        { sourceVolume = "sites", containerPath = "/home/frappe/frappe-bench/sites", readOnly = false },
+        { sourceVolume = "logs", containerPath = "/home/frappe/frappe-bench/logs", readOnly = false },
+        { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
+      ]
+      readonlyRootFilesystem = true
+      linuxParameters        = { initProcessEnabled = true }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options   = merge(local.log_options, { "awslogs-group" = aws_cloudwatch_log_group.ecs["operations"].name })
+      }
+    },
+    {
+      name      = "capacity-ai-template"
+      image     = var.ai_control_plane_image
+      essential = true
+      cpu       = 256
+      memory    = 512
+      environment = [
+        { name = "AI_ERP_PROVIDER", value = "template" },
+      ]
+      secrets = [
+        { name = "AI_CONTROL_PLANE_SHARED_SECRET", valueFrom = "${aws_secretsmanager_secret.control_plane.arn}:shared_secret::" },
+      ]
+      readonlyRootFilesystem = true
+      mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+      linuxParameters        = { initProcessEnabled = true }
+      healthCheck = {
+        command     = ["CMD-SHELL", "python -c \"from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/healthz')\""]
+        interval    = 10
+        timeout     = 5
+        retries     = 6
+        startPeriod = 20
+      }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options   = merge(local.log_options, { "awslogs-group" = aws_cloudwatch_log_group.ecs["operations"].name })
+      }
+    },
+  ])
+}
+
 resource "aws_ecs_task_definition" "operation" {
   for_each                 = toset(["configure", "migrate", "backup", "restore"])
   family                   = "${local.name}-${each.key}"
@@ -292,7 +415,7 @@ resource "aws_ecs_task_definition" "operation" {
   cpu                      = 512
   memory                   = 1024
   execution_role_arn       = aws_iam_role.ecs_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
+  task_role_arn            = aws_iam_role.ecs_operation.arn
   volume {
     name = "sites"
     efs_volume_configuration {
@@ -304,11 +427,25 @@ resource "aws_ecs_task_definition" "operation" {
   volume { name = "logs" }
   volume { name = "tmp" }
   container_definitions = jsonencode([{
-    name        = each.key
-    image       = var.frappe_backend_image
-    essential   = true
-    command     = ["/opt/ai-erp/bin/runtime", each.key]
-    environment = concat(local.frappe_environment, [{ name = "BACKUP_BUCKET", value = aws_s3_bucket.backups.id }])
+    name      = each.key
+    image     = var.frappe_backend_image
+    essential = true
+    command   = ["/opt/ai-erp/bin/runtime", each.key]
+    environment = concat(local.frappe_environment, [
+      { name = "BACKUP_BUCKET", value = aws_s3_bucket.backups.id },
+      { name = "BACKUP_KMS_KEY_ARN", value = aws_kms_key.platform.arn },
+      { name = "DEPLOYMENT_ENVIRONMENT", value = var.environment },
+    ])
+    secrets = [for secret in [
+      { name = "DB_ROOT_USERNAME", valueFrom = "${aws_db_instance.mariadb.master_user_secret[0].secret_arn}:username::", operations = ["configure", "restore"] },
+      { name = "DB_ROOT_PASSWORD", valueFrom = "${aws_db_instance.mariadb.master_user_secret[0].secret_arn}:password::", operations = ["configure", "restore"] },
+      { name = "FRAPPE_ADMIN_PASSWORD", valueFrom = "${aws_secretsmanager_secret.frappe.arn}:admin_password::", operations = ["configure", "restore"] },
+      { name = "FRAPPE_DB_NAME", valueFrom = "${aws_secretsmanager_secret.frappe.arn}:db_name::", operations = ["configure"] },
+      { name = "FRAPPE_DB_PASSWORD", valueFrom = "${aws_secretsmanager_secret.frappe.arn}:db_password::", operations = ["configure"] },
+      ] : {
+      name      = secret.name
+      valueFrom = secret.valueFrom
+    } if contains(secret.operations, each.key)]
     mountPoints = [
       { sourceVolume = "sites", containerPath = "/home/frappe/frappe-bench/sites", readOnly = false },
       { sourceVolume = "logs", containerPath = "/home/frappe/frappe-bench/logs", readOnly = false },
@@ -323,11 +460,76 @@ resource "aws_ecs_task_definition" "operation" {
   }])
 }
 
+data "aws_iam_policy_document" "backup_scheduler_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "backup_scheduler" {
+  name               = "${local.name}-backup-scheduler"
+  assume_role_policy = data.aws_iam_policy_document.backup_scheduler_assume.json
+}
+
+data "aws_iam_policy_document" "backup_scheduler" {
+  statement {
+    actions   = ["ecs:RunTask"]
+    resources = [aws_ecs_task_definition.operation["backup"].arn]
+  }
+  statement {
+    actions = ["iam:PassRole"]
+    resources = [
+      aws_iam_role.ecs_execution.arn,
+      aws_iam_role.ecs_operation.arn,
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "backup_scheduler" {
+  name   = "run-site-backup-task"
+  role   = aws_iam_role.backup_scheduler.id
+  policy = data.aws_iam_policy_document.backup_scheduler.json
+}
+
+resource "aws_cloudwatch_event_rule" "daily_backup" {
+  name                = "${local.name}-daily-backup"
+  description         = "Daily encrypted logical Frappe backup"
+  schedule_expression = "cron(15 1 * * ? *)"
+  state               = var.activate_services ? "ENABLED" : "DISABLED"
+}
+
+resource "aws_cloudwatch_event_target" "daily_backup" {
+  rule     = aws_cloudwatch_event_rule.daily_backup.name
+  arn      = aws_ecs_cluster.this.arn
+  role_arn = aws_iam_role.backup_scheduler.arn
+
+  ecs_target {
+    task_definition_arn = aws_ecs_task_definition.operation["backup"].arn
+    task_count          = 1
+    launch_type         = "FARGATE"
+    platform_version    = "LATEST"
+    network_configuration {
+      subnets          = values(aws_subnet.private)[*].id
+      security_groups  = [aws_security_group.workload.id]
+      assign_public_ip = false
+    }
+  }
+}
+
 resource "aws_ecs_service" "web" {
   name                               = "${local.name}-web"
   cluster                            = aws_ecs_cluster.this.id
   task_definition                    = aws_ecs_task_definition.web.arn
-  desired_count                      = 1
+  desired_count                      = var.activate_services ? 1 : 0
   launch_type                        = "FARGATE"
   platform_version                   = "LATEST"
   health_check_grace_period_seconds  = 120
@@ -356,7 +558,7 @@ resource "aws_ecs_service" "frappe" {
   name                               = "${local.name}-${each.key}"
   cluster                            = aws_ecs_cluster.this.id
   task_definition                    = aws_ecs_task_definition.frappe_service[each.key].arn
-  desired_count                      = each.value.desired
+  desired_count                      = var.activate_services ? each.value.desired : 0
   launch_type                        = "FARGATE"
   platform_version                   = "LATEST"
   health_check_grace_period_seconds  = each.key == "websocket" ? 60 : null
@@ -393,7 +595,7 @@ resource "aws_ecs_service" "ai" {
   name                               = "${local.name}-ai"
   cluster                            = aws_ecs_cluster.this.id
   task_definition                    = aws_ecs_task_definition.ai.arn
-  desired_count                      = 1
+  desired_count                      = var.activate_services ? 1 : 0
   launch_type                        = "FARGATE"
   platform_version                   = "LATEST"
   deployment_minimum_healthy_percent = 50
@@ -415,9 +617,9 @@ resource "aws_ecs_service" "ai" {
 
 locals {
   scalable_services = merge(
-    { web = { name = aws_ecs_service.web.name, minimum = 1, maximum = 2 } },
-    { for key, value in aws_ecs_service.frappe : key => { name = value.name, minimum = local.service_profiles[key].minimum, maximum = local.service_profiles[key].maximum } if local.service_profiles[key].maximum > local.service_profiles[key].minimum },
-    { ai = { name = aws_ecs_service.ai.name, minimum = 1, maximum = 2 } },
+    { web = { name = aws_ecs_service.web.name, minimum = var.activate_services ? 1 : 0, maximum = 2 } },
+    { for key, value in aws_ecs_service.frappe : key => { name = value.name, minimum = var.activate_services ? local.service_profiles[key].minimum : 0, maximum = local.service_profiles[key].maximum } if local.service_profiles[key].maximum > local.service_profiles[key].minimum },
+    { ai = { name = aws_ecs_service.ai.name, minimum = var.activate_services ? 1 : 0, maximum = 2 } },
   )
 }
 

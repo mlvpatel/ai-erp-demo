@@ -1,6 +1,7 @@
 """HTTP boundary for the stateless AI control plane."""
 
 import hmac
+import logging
 import os
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -10,6 +11,8 @@ from .models import ProposalResponse, ServiceCloseoutSummaryRequest
 from .openai_provider import OpenAIProviderError, render_openai
 from .render import render_development_template
 
+
+logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
@@ -58,13 +61,17 @@ def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
 	if provider == "template":
 		return render_development_template(request)
 	if provider == "openai":
+		logger.info("ai_provider_attempt")
 		try:
-			return render_openai(request)
+			result = render_openai(request)
 		except OpenAIProviderError:
+			logger.error("ai_provider_failure")
 			raise HTTPException(
 				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 				detail="approved model provider is unavailable",
-			) from None
+				) from None
+		logger.info("ai_provider_success")
+		return result
 	else:
 		raise HTTPException(
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

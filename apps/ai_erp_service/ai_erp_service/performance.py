@@ -488,9 +488,15 @@ def _run_profitability_report_scenario(context, profile, samples):
 
 
 def synthetic_queue_probe():
-	"""Side-effect-free worker probe used only by the local synthetic harness."""
-	if not str(frappe.local.site).endswith(".localhost"):
-		raise PerformanceSmokeError("synthetic queue probe is restricted to the local performance harness")
+	"""Side-effect-free worker probe used only by an approved synthetic harness."""
+	local_smoke = str(frappe.local.site).endswith(".localhost")
+	capacity_acknowledgement = "I_ACKNOWLEDGE_DISPOSABLE_SYNTHETIC_CAPACITY"
+	capacity_run = str(frappe.local.site).startswith("capacity-run-") and (
+		os.environ.get("AI_ERP_FULL_CAPACITY_ALLOW") == capacity_acknowledgement
+		or frappe.conf.get("ai_erp_full_capacity_allow") == capacity_acknowledgement
+	)
+	if not (local_smoke or capacity_run):
+		raise PerformanceSmokeError("synthetic queue probe is restricted to an approved performance harness")
 	return "ok"
 
 
