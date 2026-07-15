@@ -10,7 +10,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "pilot-readiness.json"
-EXPECTED_STATUS = "SYNTHETIC_REHEARSAL_READY_HUMAN_AND_DEPLOYMENT_GATES_PENDING"
+EXPECTED_STATUS = "DEMO_READY_PRODUCTION_PILOT_GATES_PENDING"
+EXPECTED_DEMO_STATE = {
+    "local_private_synthetic_demo_ready": True,
+    "allowed_use": "local_private_synthetic_demo",
+    "requires_aws_apply": False,
+    "requires_live_openai": False,
+    "requires_human_uat_signoff": False,
+    "requires_legal_approval": False,
+    "requires_restore_drill": False,
+    "requires_production_go_no_go": False,
+    "blocks_demo": False,
+}
 
 
 def main() -> int:
@@ -29,6 +40,12 @@ def main() -> int:
         failures.append(f"status must remain {EXPECTED_STATUS}")
     if value.get("data_mode") != "synthetic_only":
         failures.append("data_mode must remain synthetic_only")
+
+    if value.get("demo_state") != EXPECTED_DEMO_STATE:
+        failures.append(
+            "demo_state must say the local private synthetic demo is not blocked "
+            "by production-pilot gates"
+        )
 
     release_state = value.get("release_state")
     expected_release_state = {
@@ -106,6 +123,8 @@ def main() -> int:
         combined_docs += "\n" + (ROOT / path).read_text(encoding="utf-8")
 
     for phrase in (
+        "Local/private synthetic demo: ready after repository gates pass",
+        "Not required for demo: AWS apply, live OpenAI key, legal/DPA/DPIA approval,",
         "Human UAT: not performed",
         "Design-partner approval: pending",
         "Real data: prohibited",
@@ -123,7 +142,7 @@ def main() -> int:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
-    print("Pilot readiness check passed (synthetic rehearsal only; human/deployment gates pending).")
+    print("Pilot readiness check passed (demo ready; production-pilot gates pending).")
     return 0
 
 

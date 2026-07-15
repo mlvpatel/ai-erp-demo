@@ -1,8 +1,19 @@
 {
   "schema_version": 1,
   "scope": "service_operations",
-  "status": "SYNTHETIC_REHEARSAL_READY_HUMAN_AND_DEPLOYMENT_GATES_PENDING",
+  "status": "DEMO_READY_PRODUCTION_PILOT_GATES_PENDING",
   "data_mode": "synthetic_only",
+  "demo_state": {
+    "local_private_synthetic_demo_ready": true,
+    "allowed_use": "local_private_synthetic_demo",
+    "requires_aws_apply": false,
+    "requires_live_openai": false,
+    "requires_human_uat_signoff": false,
+    "requires_legal_approval": false,
+    "requires_restore_drill": false,
+    "requires_production_go_no_go": false,
+    "blocks_demo": false
+  },
   "release_state": {
     "automated_complete": false,
     "deployment_evidence_complete": false,

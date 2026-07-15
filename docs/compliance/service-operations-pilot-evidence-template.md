@@ -6,6 +6,14 @@ This public-safe index is neither GDPR compliance nor production approval.
 - Design-partner approval: pending
 - Real data: prohibited
 
+## Demo-state declaration
+
+- Local/private synthetic demo: ready after repository gates pass.
+- Required for demo: local/private dev stack and synthetic data only.
+- Not required for demo: AWS apply, live OpenAI key, legal/DPA/DPIA approval,
+  human UAT sign-off, restore drill, or pilot go/no-go.
+- Production pilot remains blocked by the release-state gates below.
+
 ## Release-state declaration
 
 - Automated complete: no; the repository gates must pass on the release commit.
