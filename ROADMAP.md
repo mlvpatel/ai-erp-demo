@@ -4,10 +4,10 @@ AI ERP Demo grows by proving one safe workflow at a time. ERPNext/Frappe owns
 the transactional ERP foundation; this repository adds industry packs,
 governed AI proposals, contracts, and contributor-friendly automation.
 
-## Now: field-service production-pilot candidate
+## Now: zero-cost local synthetic demo
 
-Goal: finish code-level remediation and collect protected deployment evidence
-without overstating pilot approval.
+Goal: publish a reproducible private demo that runs on a maintainer's computer
+without AWS, a hosted model, or billable provider credentials.
 
 - Frappe/ERPNext development stack with pinned upstream commits.
 - `ai_erp_core` shared AI proposal ledger.
@@ -20,21 +20,21 @@ without overstating pilot approval.
   separation, overdue escalation, and negative authorization tests.
 - Governed OpenAI adapter with strict schemas, redaction, per-site limits,
   serialization, `/readyz`, safe audit metadata, and pre-activation evaluation.
-- Protected AWS `plan`, `foundation`, `activate`, and `rollback` operations with
-  typed destructive-change policy, least-privilege deployment identity,
-  workload network separation, recovery-stack isolation, and expanded alarms.
 - UI-driven role journeys, configured-demo evidence, and static, contract,
   integration, browser, infrastructure, and image-security gates.
+- Deterministic `template` AI provider for a reliable, draft-only demonstration;
+  it demonstrates governance, not hosted-model quality.
 
 Exit gate:
 
-- Repository checks pass from a clean publication artifact.
-- Immutable images pass scan, signature, provenance, and SBOM verification.
-- Protected infrastructure activation, authenticated smoke, live AI evaluation,
-  exact capacity, backup/restore/deletion/rollback drills produce private evidence.
-- Human UAT, legal review, support ownership, and accountable go/no-go are signed.
+- A clean checkout completes the static and Docker-backed demo gates.
+- Three synthetic-only screenshots show technician execution, manager/finance
+  handoff, and the cited draft-only AI proposal.
+- The private GitHub pull request has current evidence and green checks.
+- No production, UAT, legal-compliance, capacity, recovery, or all-industry claim
+  is made.
 
-## Next: approved field-service pilot
+## Deferred: approved field-service production pilot
 
 Goal: operate a small field-service pilot within the documented USD 600 target
 and accepted single-NAT/single-Valkey availability limits.
@@ -44,6 +44,8 @@ and accepted single-NAT/single-Valkey availability limits.
 - Monitor queue age, database capacity, EFS, AI latency/rate/cost, permission
   failures, backups, restores, and deployment rollbacks.
 - Collect design-partner and human UAT evidence separately from automation.
+- Run immutable-image, exact-capacity, recovery, deletion, and rollback gates
+  only after credentials, budget, domain, and accountable owners are approved.
 
 Exit gate:
 

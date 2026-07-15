@@ -16,6 +16,8 @@ Dates use `YYYY-MM-DD`.
   and quality-gate scripts.
 - Added discovery, design, architecture, security, publication, and local demo
   documentation.
+- Reclassified the current milestone as a zero-cost local synthetic demo and
+  deferred all billable and human production-pilot gates.
 
 ## Release policy
 

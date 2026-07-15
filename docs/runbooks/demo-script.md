@@ -78,11 +78,17 @@ Evidence claims: `ai-proposal-traceable-human-approved` and
 
 ## Suggested README media
 
-For the first public README, prefer one short GIF or three screenshots:
+The zero-cost local demo release includes these three synthetic screenshots:
 
-1. Service Work Order with technician closeout and declared parts.
-2. Linked Stock Entry/Sales Invoice evidence on the work order.
-3. AI Proposal with source hashes and review fields.
+1. `docs/media/demo/service-work-order-execution.jpg`: Service Work Order with
+   technician closeout and declared parts.
+2. `docs/media/demo/manager-finance-handoff.jpg`: linked Stock Entry and draft
+   Sales Invoice evidence under the Accounts role.
+3. `docs/media/demo/ai-proposal-draft-only.jpg`: AI Proposal with cited sources,
+   human review, and the `Draft Only` policy.
+
+Replace these files only after the same clean synthetic walkthrough passes.
+Never edit a screenshot to hide a workflow defect or permission failure.
 
 Keep captions factual:
 

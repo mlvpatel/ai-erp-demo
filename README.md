@@ -1,7 +1,7 @@
 # AI ERP Demo
 
-Private production-pilot candidate for a governed, AI-assisted field-service
-ERP. The product is built as a set of
+Private zero-cost local synthetic demo for a governed, AI-assisted
+field-service ERP. The product is built as a set of
 custom Frappe apps on top of ERPNext; upstream Frappe and ERPNext are pinned as
 development checkout dependencies and are not copied into this repository.
 
@@ -82,7 +82,8 @@ cannot serve the use case.
 See [ROADMAP.md](ROADMAP.md) for the current staged plan and
 [docs/product/public-positioning.md](docs/product/public-positioning.md) for the
 public GitHub positioning.
-See [BACKLOG.md](BACKLOG.md) for launch blockers and safe first issue ideas.
+See [BACKLOG.md](BACKLOG.md) for demo-release work, deferred pilot gates, and
+safe first issue ideas.
 See [docs/product/requirements-traceability.md](docs/product/requirements-traceability.md)
 to audit original requirements against current evidence.
 
@@ -106,8 +107,11 @@ An `implemented` claim means checked-in source and an executable verification
 path exist. It does not mean production deployment, human UAT, legal approval,
 capacity, or recovery evidence exists. Run `scripts/dev.sh service-test` and
 `scripts/dev.sh e2e-test` on a disposable synthetic stack before relying on the
-field-service behavioral claims. The current production-pilot gate status is
-recorded in [config/pilot-readiness.json](config/pilot-readiness.json).
+field-service behavioral claims. The current demo and production-pilot gate
+status is recorded in
+[config/pilot-readiness.json](config/pilot-readiness.json). The local synthetic
+demo does not require AWS, live OpenAI, legal approval, human UAT, a restore
+drill, or a production go/no-go decision; those remain separate pilot gates.
 For a screenshot, GIF, maintainer walkthrough, or first public demo issue, use
 [docs/runbooks/demo-script.md](docs/runbooks/demo-script.md) so the
 service-operations demo path stays aligned with verified MVP claims.
@@ -120,6 +124,27 @@ read [docs/workflows/observability-readiness.md](docs/workflows/observability-re
 Before changing list/search/report behavior, queues, inventory-heavy flows, or
 public performance claims, read
 [docs/workflows/performance-readiness.md](docs/workflows/performance-readiness.md).
+
+## Zero-cost demo evidence
+
+These screenshots were captured from the local synthetic site after the
+Docker-backed role journey passed. They demonstrate the field-service workflow;
+they are not human UAT, production, capacity, recovery, or legal evidence.
+
+**Technician execution:** time, declared parts, submitted stock link, and
+synthetic closeout evidence remain on the permission-scoped work order.
+
+![Synthetic service work-order execution](docs/media/demo/service-work-order-execution.jpg)
+
+**Manager/finance handoff:** the manager marks the work invoice-ready and the
+separately authorized Accounts user owns the linked draft Sales Invoice.
+
+![Synthetic manager and finance handoff](docs/media/demo/manager-finance-handoff.jpg)
+
+**Governed AI draft:** cited sources, human review, and the `Draft Only` policy
+remain visible without performing an ERP transaction.
+
+![Synthetic cited draft-only AI proposal](docs/media/demo/ai-proposal-draft-only.jpg)
 
 ## GitHub publication
 

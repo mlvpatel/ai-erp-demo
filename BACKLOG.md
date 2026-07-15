@@ -1,9 +1,21 @@
 # Contributor backlog
 
-This backlog is safety-weighted. Code-level production-pilot remediation is
-tracked separately from human and billable-environment approval gates.
+This backlog is safety-weighted. The current release target is a zero-cost,
+local, synthetic demo. Human and billable production-pilot gates are deferred
+and do not block that demo.
 
-## Production-pilot evidence blockers
+## Zero-cost demo release
+
+- Re-run the clean-checkout static and Docker-backed demo gates after the
+  release documentation and media are finalized.
+- Keep the screenshot-assisted local demo walkthrough described by
+  `docs/runbooks/demo-script.md` synchronized with the verified synthetic
+  workflow whenever visible behavior changes.
+- Refresh private PR #6 with current evidence and require green checks on its
+  final commit.
+- Mark the pull request ready and merge only after explicit maintainer approval.
+
+## Deferred production-pilot evidence
 
 - Obtain protected AWS/OpenAI credentials, domain/certificate configuration,
   reviewed recurring cost, and explicit billable-operation approval.
@@ -11,8 +23,6 @@ tracked separately from human and billable-environment approval gates.
 - Run protected foundation/activation, authenticated smoke, live OpenAI
   evaluation, exact capacity, backup, isolated restore, deletion, and rollback
   drills; retain private evidence.
-- Verify the publication artifact from a fresh clone or clean export and keep
-  ignored Bench state outside it.
 - Complete design-partner validation, human UAT, legal/DPA/DPIA review, named
   support ownership, and accountable go/no-go.
 

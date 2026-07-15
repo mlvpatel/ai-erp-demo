@@ -6,9 +6,9 @@ the next build step.
 
 Repository-owned code is licensed under AGPL-3.0-only. License and contact
 metadata is reconciled across the custom apps and AI control plane. The private
-repository and draft production-readiness branch exist. Production-pilot and
-any later public release remain separately gated by clean-publication evidence,
-protected deployment evidence, human approval, and legal review.
+repository and zero-cost local synthetic demo branch exist. The demo is
+separate from the deferred production pilot, which still requires protected
+deployment evidence, human approval, and legal review.
 
 ## Status key
 
@@ -40,7 +40,7 @@ protected deployment evidence, human approval, and legal review.
 | Preserve audit evidence for AI-supported ERP actions. | Implemented for MVP | `config/audit-evidence.json`, `docs/workflows/audit-evidence.md`, AI Proposal and AI Proposal Source DocTypes, Service Work Order transaction links, service workflow tests. | `python3 scripts/check-audit-evidence.py`; `scripts/dev.sh service-test` |
 | Keep publishable sources free of secrets and customer data. | Implemented | `config/publication-secret-scan.json`, `scripts/check-publication-secrets.py`, `docs/security/data-classification.md`, `docs/runbooks/github-publication.md`, `.github/` templates. | `python3 scripts/check-publication-secrets.py`; `scripts/run-quality-gates.sh` |
 | Provide a runnable local demo path. | Implemented | `development/README.md`, `infra/compose/docker-compose.dev.yml`, `scripts/dev.sh`, `config/fresh-clone-demo.json`, `docs/runbooks/local-demo.md`, service demo seed. | On a prepared Docker stack, run `scripts/dev.sh demo-check`. Locally, run `python3 scripts/check-fresh-clone-demo.py` to verify runbook/helper consistency. |
-| Prepare a truthful public demo walkthrough. | Implemented | `docs/runbooks/demo-script.md`, `config/demo-script.json`, README demo links, first-public demo issue manifest, MVP acceptance map. | `python3 scripts/check-demo-script.py`; `scripts/run-quality-gates.sh` |
+| Prepare a truthful public demo walkthrough. | Implemented | `docs/runbooks/demo-script.md`, `config/demo-script.json`, README demo links and synthetic screenshots, first-public demo issue manifest, MVP acceptance map. | `python3 scripts/check-demo-script.py`; `scripts/run-quality-gates.sh`; screenshots are replaced only after `scripts/dev.sh demo-check` passes. |
 | Create GitHub CI and automation. | Implemented; current branch result must be revalidated | `.github/workflows/ci.yml`, production image/deploy/restore/capacity workflows, `.github/dependabot.yml`, and checked-in workflow policy. | Run the local gates, then require all protected GitHub checks on the current commit; older successful runs are not evidence for new changes. |
 | Define public release/versioning policy. | Implemented | `docs/workflows/release-process.md`, `config/release-policy.json`, `CHANGELOG.md`, `config/release-readiness.json`. | `python3 scripts/check-release-policy.py`; `scripts/run-quality-gates.sh` |
 | Version public APIs and business events. | Implemented for MVP boundaries | `contracts/catalog.json`, `config/contract-lifecycle.json`, `docs/workflows/contract-lifecycle.md`, `contracts/openapi/ai-control-plane-v1.yaml`, `contracts/events/service-operations-v1.yaml`, contract tests. | `scripts/check-contract-catalog.py`; `scripts/check-contract-lifecycle.py`; `scripts/dev.sh contract-test` |
@@ -78,5 +78,7 @@ The repository must not be marked production-pilot approved until:
 4. Human UAT, design-partner validation, legal review, support ownership, and
    accountable go/no-go are signed.
 
-Until then, this is a private field-service production-pilot candidate with two
-standard ERPNext configured demos, not an approved production service.
+The zero-cost local synthetic demo may be released when its clean-checkout,
+Docker, media-safety, and private GitHub gates pass. The separately deferred
+field-service production pilot remains unapproved, with two standard ERPNext
+configured demos and no broad all-industry claim.
