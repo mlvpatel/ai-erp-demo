@@ -45,6 +45,7 @@ fi
             "BENCH_LOG": str(self.log_path),
             "SITE_NAME": "pilot.example.test",
             "DB_HOST": "database.internal",
+            "DB_SSL_CA": "/etc/ssl/certs/ca-certificates.crt",
             "REDIS_CACHE": "rediss://cache.internal:6379",
             "REDIS_QUEUE": "rediss://queue.internal:6379",
         }
@@ -79,6 +80,8 @@ fi
         )
         log = self.log_path.read_text(encoding="utf-8")
         self.assertIn("new-site pilot.example.test", log)
+        self.assertIn("set-config -g db_ssl_ca /etc/ssl/certs/ca-certificates.crt", log)
+        self.assertIn("set-config -g db_ssl_check_hostname true", log)
         self.assertIn("--install-app erpnext --install-app ai_erp_core --install-app ai_erp_service", log)
         self.assertIn("use pilot.example.test", log)
 

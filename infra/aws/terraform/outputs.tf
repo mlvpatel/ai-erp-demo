@@ -23,7 +23,7 @@ output "on_demand_task_definition_arns" {
 }
 
 output "ai_live_eval_task_definition_arn" {
-  description = "Private one-case synthetic OpenAI evaluation task."
+  description = "Private bounded synthetic OpenAI evaluation task."
   value       = aws_ecs_task_definition.ai_live_eval.arn
 }
 
@@ -34,6 +34,14 @@ output "capacity_task_definition_arn" {
 
 output "workload_security_group_id" {
   value = aws_security_group.workload.id
+}
+
+output "ai_security_group_id" {
+  value = aws_security_group.ai.id
+}
+
+output "endpoint_security_group_id" {
+  value = aws_security_group.endpoints.id
 }
 
 output "alb_dns_name" {
@@ -82,4 +90,20 @@ output "control_plane_secret_arn" {
 
 output "openai_secret_arn" {
   value = aws_secretsmanager_secret.openai.arn
+}
+
+output "ecs_execution_role_name" {
+  value = aws_iam_role.ecs_execution.name
+}
+
+output "ecs_operation_role_arn" {
+  value = aws_iam_role.ecs_operation.arn
+}
+
+output "platform_kms_key_arn" {
+  value = aws_kms_key.platform.arn
+}
+
+output "frappe_backend_image" {
+  value = var.frappe_backend_image
 }

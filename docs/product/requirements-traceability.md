@@ -5,9 +5,10 @@ before claiming the goal is complete, preparing a GitHub release, or deciding
 the next build step.
 
 Repository-owned code is licensed under AGPL-3.0-only. License and contact
-metadata is reconciled across the custom apps and AI control plane. Public
-release remains blocked only by the remaining repository, CI, fresh-clone,
-security-contact, and local-publication gates.
+metadata is reconciled across the custom apps and AI control plane. The private
+repository and draft production-readiness branch exist. Production-pilot and
+any later public release remain separately gated by clean-publication evidence,
+protected deployment evidence, human approval, and legal review.
 
 ## Status key
 
@@ -40,14 +41,14 @@ security-contact, and local-publication gates.
 | Keep publishable sources free of secrets and customer data. | Implemented | `config/publication-secret-scan.json`, `scripts/check-publication-secrets.py`, `docs/security/data-classification.md`, `docs/runbooks/github-publication.md`, `.github/` templates. | `python3 scripts/check-publication-secrets.py`; `scripts/run-quality-gates.sh` |
 | Provide a runnable local demo path. | Implemented | `development/README.md`, `infra/compose/docker-compose.dev.yml`, `scripts/dev.sh`, `config/fresh-clone-demo.json`, `docs/runbooks/local-demo.md`, service demo seed. | On a prepared Docker stack, run `scripts/dev.sh demo-check`. Locally, run `python3 scripts/check-fresh-clone-demo.py` to verify runbook/helper consistency. |
 | Prepare a truthful public demo walkthrough. | Implemented | `docs/runbooks/demo-script.md`, `config/demo-script.json`, README demo links, first-public demo issue manifest, MVP acceptance map. | `python3 scripts/check-demo-script.py`; `scripts/run-quality-gates.sh` |
-| Create GitHub CI and automation. | Implemented | `.github/workflows/ci.yml`, `.github/dependabot.yml`, `config/ci-workflow.json`, `config/dependency-updates.json`, `docs/workflows/dependency-updates.md`. | GitHub CI runs static, control-plane, contract, and Compose config checks. Locally, run `python3 scripts/check-ci-workflow.py`, `python3 scripts/check-dependency-updates.py`, plus `scripts/run-quality-gates.sh`. |
+| Create GitHub CI and automation. | Implemented; current branch result must be revalidated | `.github/workflows/ci.yml`, production image/deploy/restore/capacity workflows, `.github/dependabot.yml`, and checked-in workflow policy. | Run the local gates, then require all protected GitHub checks on the current commit; older successful runs are not evidence for new changes. |
 | Define public release/versioning policy. | Implemented | `docs/workflows/release-process.md`, `config/release-policy.json`, `CHANGELOG.md`, `config/release-readiness.json`. | `python3 scripts/check-release-policy.py`; `scripts/run-quality-gates.sh` |
 | Version public APIs and business events. | Implemented for MVP boundaries | `contracts/catalog.json`, `config/contract-lifecycle.json`, `docs/workflows/contract-lifecycle.md`, `contracts/openapi/ai-control-plane-v1.yaml`, `contracts/events/service-operations-v1.yaml`, contract tests. | `scripts/check-contract-catalog.py`; `scripts/check-contract-lifecycle.py`; `scripts/dev.sh contract-test` |
 | Keep future integrations contract-first and safe. | Implemented for MVP boundaries | `config/integration-safety.json`, `docs/workflows/integration-safety.md`, reserved `apps/ai_erp_connectors/`, business-event contract, contract catalog, event contract tests, connector README. | `python3 scripts/check-integration-safety.py`; `scripts/run-quality-gates.sh` |
 | Define backup, restore, and incident-response boundaries. | Implemented for pre-production readiness | `config/operations-readiness.json`, `docs/workflows/operations-readiness.md`, `docs/runbooks/backup-restore.md`, `docs/runbooks/incident-response.md`, publication source and secret-scan guardrails. | `python3 scripts/check-operations-readiness.py`; `scripts/run-quality-gates.sh` |
 | Define observability and alerting boundaries. | Implemented for pre-production readiness | `config/observability-readiness.json`, `docs/workflows/observability-readiness.md`, `infra/observability/README.md`, `infra/observability/alert-rules.example.yml`, incident and data-classification docs. | `python3 scripts/check-observability-readiness.py`; `scripts/run-quality-gates.sh` |
 | Define performance and scalability boundaries. | Implemented for pre-production readiness | `config/performance-readiness.json`, `docs/workflows/performance-readiness.md`, `tests/performance/README.md`, `tests/performance/service-operations-load-profile.example.json`, quality-gate docs. | `python3 scripts/check-performance-readiness.py`; `scripts/run-quality-gates.sh` |
-| Rehearse the service pilot without overstating acceptance. | Implemented for local/private synthetic demo; production pilot gates pending | `config/pilot-readiness.json`, `docs/runbooks/service-operations-synthetic-uat.md`, `docs/compliance/service-operations-pilot-evidence-template.md`. | `python3 scripts/check-pilot-readiness.py`; AWS, live OpenAI, legal, human UAT, restore, capacity, support-owner, and go/no-go gates are not required for demo but remain pending before production pilot. |
+| Rehearse the service pilot without overstating acceptance. | Code-level remediation implemented; production evidence and human gates pending | `config/pilot-readiness.json`, browser/integration suites, protected AWS workflows, `docs/runbooks/service-operations-synthetic-uat.md`, `docs/compliance/service-operations-pilot-evidence-template.md`. | `python3 scripts/check-pilot-readiness.py`; AWS activation, live OpenAI, exact capacity, recovery/deletion/rollback evidence, legal, human UAT, support-owner, and go/no-go remain pending. |
 | Keep local generated artifacts out of publication. | Prepared | `.gitignore`, `.gitattributes`, `scripts/local-artifacts.sh`, `scripts/check-publication-source.sh`, `docs/runbooks/github-publication.md`. | `scripts/local-artifacts.sh --check`; `scripts/check-publication-source.sh --strict`; strict release mode fails while artifacts remain. |
 | Publish publicly on GitHub. | Blocked | `docs/runbooks/github-publication.md`, `config/release-readiness.json`, `config/publication-secret-scan.json`, `.github/repository-metadata.json`. | `scripts/check-open-source-ready.sh --release` must pass after repository state, CI, fresh-clone, security-contact, and local-publication gates are resolved. |
 
@@ -65,14 +66,17 @@ security-contact, and local-publication gates.
 
 ## Completion blockers
 
-The repository should not be marked complete for public GitHub release until:
+The repository must not be marked production-pilot approved until:
 
-1. Local generated artifacts are cleaned or excluded from the publication
-   artifact.
-2. A root Git repository is initialized and checked for forbidden tracked paths.
-3. GitHub CI passes in the actual target repository.
-4. A fresh clone verifies the local demo runbook.
-5. A concrete private vulnerability-reporting channel is selected.
+1. The current commit passes every local and protected GitHub check. GitHub CI
+   passes in the actual target repository.
+2. Local generated artifacts are cleaned or excluded from the publication
+   artifact. A root Git repository is initialized and checked for forbidden
+   tracked paths. A fresh clone verifies the local demo runbook.
+3. Protected deployment, live AI evaluation, exact capacity, recovery, deletion,
+   and rollback drills produce reviewed evidence.
+4. Human UAT, design-partner validation, legal review, support ownership, and
+   accountable go/no-go are signed.
 
-Until then, the project is a validated local AI ERP demo and GitHub-ready
-scaffold, not a finished public open-source release.
+Until then, this is a private field-service production-pilot candidate with two
+standard ERPNext configured demos, not an approved production service.

@@ -1,6 +1,7 @@
 """HTTP boundary for the stateless AI control plane."""
 
 import hmac
+import json
 import logging
 import os
 
@@ -8,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .models import ProposalResponse, ServiceCloseoutSummaryRequest
-from .openai_provider import OpenAIProviderError, render_openai
+from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
 from .render import render_development_template
 
 
@@ -41,6 +42,35 @@ def healthz():
 	return {"status": "ok"}
 
 
+@app.get(
+	"/readyz",
+	summary="Report approved provider configuration readiness",
+	responses={
+		status.HTTP_503_SERVICE_UNAVAILABLE: {
+			"description": "The configured provider is missing or not approved."
+		}
+	},
+)
+def readyz():
+	provider = os.environ.get("AI_ERP_PROVIDER", "template")
+	if provider == "template":
+		return {"status": "ready"}
+	if provider == "openai":
+		try:
+			OpenAIConfig.from_environment()
+		except OpenAIProviderError:
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail="approved model provider is unavailable",
+			) from None
+		return {"status": "ready"}
+	else:
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="approved model provider is unavailable",
+		)
+
+
 @app.post(
 	"/v1/proposals/service-closeout-summary",
 	summary="Draft a cited service-work-order closeout summary",
@@ -64,13 +94,25 @@ def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
 		logger.info("ai_provider_attempt")
 		try:
 			result = render_openai(request)
-		except OpenAIProviderError:
-			logger.error("ai_provider_failure")
+		except OpenAIProviderError as exc:
+			logger.error("ai_provider_failure", extra={"error_category": exc.category})
 			raise HTTPException(
 				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 				detail="approved model provider is unavailable",
 				) from None
-		logger.info("ai_provider_success")
+		print(
+			json.dumps(
+				{
+					"event": "ai_provider_success",
+					"duration_ms": result.audit.duration_ms,
+					"input_tokens": result.audit.input_tokens,
+					"output_tokens": result.audit.output_tokens,
+					"redaction_count": result.audit.redaction_count,
+				},
+				separators=(",", ":"),
+			),
+			flush=True,
+		)
 		return result
 	else:
 		raise HTTPException(

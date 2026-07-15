@@ -52,7 +52,7 @@ flowchart TB
    prefix. Provision, restore, and decommission operations must verify that
    mapping before mutation.
 
-## Deployment flow
+## Protected deployment flow
 
 ```mermaid
 flowchart LR
@@ -60,11 +60,13 @@ flowchart LR
     Gates --> Build["Reproducible image build"]
     Build --> Scan["SBOM + vulnerability + secret scan"]
     Scan --> Digest["Push immutable ECR digest"]
-    Digest --> Plan["Terraform plan + cost review"]
-    Plan --> Approve{"Owner approval?"}
+    Digest --> Plan["Plan + typed destructive-change policy + cost review"]
+    Plan --> Approve{"Protected foundation approval?"}
     Approve -- "no" --> Stop["No AWS mutation"]
-    Approve -- "yes" --> Migrate["One-off migration task"]
-    Migrate --> Canary["ECS canary deployment"]
+    Approve -- "yes" --> Foundation["Inactive foundation + secret metadata"]
+    Foundation --> Secrets["Secrets populated out of band"]
+    Secrets --> Activate["Verify secrets + configure + migrate + live AI eval"]
+    Activate --> Canary["Activate ECS services by verified digest"]
     Canary --> Verify{"Health, safety, SLO checks pass?"}
     Verify -- "no" --> Rollback["Restore prior task definition digest"]
     Verify -- "yes" --> Promote["Complete rollout and record evidence"]
@@ -78,8 +80,9 @@ flowchart LR
   maximums set by database connection capacity.
 - Database failure follows RDS Multi-AZ recovery; logical corruption uses PITR
   into a new target and owner-controlled cutover.
-- Tenant restore always uses a clean site first and verifies permissions,
-  transaction links, AI audit evidence, and checksum before cutover.
+- Tenant restore drills use a temporary recovery stack and separate Terraform
+  state, then verify roles, tenant isolation, private-file authorization,
+  transaction links, AI audit hashes, and checksums before the stack is deleted.
 - Backup deletion, customer erasure, and incident evidence follow the approved
   retention schedule; no public issue may contain production evidence.
 
@@ -98,8 +101,8 @@ outside this first reference.
   pilot availability tradeoffs and must be revisited after an outage or before
   a production SLA.
 - RDS MariaDB stays Multi-AZ with 14-day recovery retention.
-- Web and AI start at two tasks and may scale to four. Websocket and workers
-  have small bounded ceilings; scheduler stays at one.
+- Web and AI start at one task and may scale to two. Websocket and long worker
+  remain at one, short workers scale to two, and scheduler stays exactly at one.
 - Deployments use circuit-breaker rollback. Missing service tasks, unhealthy
   ALB targets, database storage pressure, and Redis eviction are alarmed.
 - Configure, migration, and logical backup task definitions are on-demand only;

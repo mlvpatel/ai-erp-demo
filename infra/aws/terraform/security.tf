@@ -93,6 +93,18 @@ resource "aws_security_group" "workload" {
   vpc_id      = aws_vpc.this.id
 }
 
+resource "aws_security_group" "ai" {
+  name        = "${local.name}-ai"
+  description = "Private AI control plane with approved HTTPS egress"
+  vpc_id      = aws_vpc.this.id
+}
+
+resource "aws_security_group" "endpoints" {
+  name        = "${local.name}-vpc-endpoints"
+  description = "Private AWS service endpoints"
+  vpc_id      = aws_vpc.this.id
+}
+
 resource "aws_vpc_security_group_ingress_rule" "workload_web" {
   security_group_id            = aws_security_group.workload.id
   referenced_security_group_id = aws_security_group.alb.id
@@ -110,7 +122,7 @@ resource "aws_vpc_security_group_ingress_rule" "workload_socket" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "workload_ai_private" {
-  security_group_id            = aws_security_group.workload.id
+  security_group_id            = aws_security_group.ai.id
   referenced_security_group_id = aws_security_group.workload.id
   from_port                    = 8090
   to_port                      = 8090
@@ -118,13 +130,13 @@ resource "aws_vpc_security_group_ingress_rule" "workload_ai_private" {
   description                  = "Private Frappe-to-AI control-plane traffic only"
 }
 
-resource "aws_vpc_security_group_egress_rule" "workload_https" {
-  security_group_id = aws_security_group.workload.id
+resource "aws_vpc_security_group_egress_rule" "ai_https" {
+  security_group_id = aws_security_group.ai.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 443
   to_port           = 443
   ip_protocol       = "tcp"
-  description       = "Approved HTTPS APIs through NAT; restrict per workload in the service slice"
+  description       = "OpenAI EU endpoint through the single pilot NAT"
 }
 
 resource "aws_vpc_security_group_egress_rule" "workload_dns_udp" {
@@ -141,6 +153,70 @@ resource "aws_vpc_security_group_egress_rule" "workload_dns_tcp" {
   from_port         = 53
   to_port           = 53
   ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "ai_dns_udp" {
+  security_group_id = aws_security_group.ai.id
+  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "ai_dns_tcp" {
+  security_group_id = aws_security_group.ai.id
+  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "workload_ai" {
+  security_group_id            = aws_security_group.workload.id
+  referenced_security_group_id = aws_security_group.ai.id
+  from_port                    = 8090
+  to_port                      = 8090
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "workload_endpoints" {
+  security_group_id            = aws_security_group.workload.id
+  referenced_security_group_id = aws_security_group.endpoints.id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "ai_endpoints" {
+  security_group_id            = aws_security_group.ai.id
+  referenced_security_group_id = aws_security_group.endpoints.id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "workload_s3" {
+  security_group_id = aws_security_group.workload.id
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "endpoints_from_workload" {
+  security_group_id            = aws_security_group.endpoints.id
+  referenced_security_group_id = aws_security_group.workload.id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "endpoints_from_ai" {
+  security_group_id            = aws_security_group.endpoints.id
+  referenced_security_group_id = aws_security_group.ai.id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
 }
 
 resource "aws_vpc_security_group_egress_rule" "workload_database" {

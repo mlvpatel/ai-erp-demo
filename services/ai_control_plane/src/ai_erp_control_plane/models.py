@@ -1,5 +1,6 @@
 """Strict request/response models for the v1 control-plane contract."""
 
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
@@ -18,16 +19,16 @@ class SourceReference(StrictModel):
 
 
 class TimeEntry(StrictModel):
-	technician: str = Field(max_length=256)
-	work_date: str = Field(max_length=10)
-	time_type: str = Field(max_length=128)
-	hours: float = Field(gt=0)
+	technician: str = Field(min_length=1, max_length=256)
+	work_date: date
+	time_type: str = Field(min_length=1, max_length=128)
+	hours: float = Field(gt=0, le=24, allow_inf_nan=False)
 
 
 class PartUsage(StrictModel):
-	item: str = Field(max_length=256)
-	qty: float = Field(gt=0)
-	source_warehouse: str = Field(max_length=256)
+	item: str = Field(min_length=1, max_length=256)
+	qty: float = Field(gt=0, le=100_000, allow_inf_nan=False)
+	source_warehouse: str = Field(min_length=1, max_length=256)
 	issued: bool
 
 
@@ -63,12 +64,21 @@ class ModelMetadata(StrictModel):
 	prompt_version: str = Field(min_length=1)
 
 
+class ProviderAudit(StrictModel):
+	response_id_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+	input_tokens: int = Field(ge=0)
+	output_tokens: int = Field(ge=0)
+	duration_ms: int = Field(ge=0)
+	redaction_count: int = Field(ge=0)
+
+
 class ProposalResponse(StrictModel):
 	schema_version: Literal[1]
 	request_id: UUID
 	proposal_type: Literal["service_closeout_summary"]
 	policy: Policy
 	model: ModelMetadata
+	audit: ProviderAudit | None = None
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
 

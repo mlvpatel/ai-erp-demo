@@ -71,3 +71,24 @@ resource "aws_route_table_association" "private" {
   subnet_id      = each.value.id
   route_table_id = aws_route_table.private[each.key].id
 }
+
+locals {
+  interface_endpoints = toset(["ecr.api", "ecr.dkr", "kms", "logs", "secretsmanager"])
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each            = local.interface_endpoints
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = values(aws_subnet.private)[*].id
+  security_group_ids  = [aws_security_group.endpoints.id]
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = values(aws_route_table.private)[*].id
+}

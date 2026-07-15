@@ -5,10 +5,12 @@ main pilot stack can build images or use remote state: an encrypted,
 access-logged and versioned state bucket, a GitHub OIDC provider restricted to
 the protected `production` environment, immutable ECR repositories, a private
 KMS image-signing key, and a least-privilege image-publisher role.
-It also creates a separate protected Terraform deploy role. That role uses
-`PowerUserAccess` for regional service resources plus narrowly named IAM and
-remote-state permissions; it cannot be assumed outside the repository's
-protected `production` environment.
+It also creates a separate protected Terraform deploy role without AWS managed
+administrator or power-user policies. Its inline policy and permissions
+boundary restrict work to the approved account, `eu-central-1`, Terraform's
+`AI ERP Demo` project tag, named pilot IAM roles, and the encrypted state
+bucket. OIDC trust is additionally restricted to this repository, protected
+`production` environment, and `main` branch.
 
 Run it only from an approved administrator session after the ADR-0007 account,
 budget, repository, and support gates are accepted. Keep its local bootstrap

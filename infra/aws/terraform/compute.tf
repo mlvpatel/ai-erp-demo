@@ -72,6 +72,7 @@ locals {
   frappe_environment = [
     { name = "SITE_NAME", value = var.domain_name },
     { name = "DB_HOST", value = aws_db_instance.mariadb.address },
+    { name = "DB_SSL_CA", value = "/etc/ssl/certs/ca-certificates.crt" },
     { name = "REDIS_CACHE", value = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379" },
     { name = "REDIS_QUEUE", value = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379" },
     { name = "AI_CONTROL_PLANE_URL", value = "http://ai-control-plane.${aws_service_discovery_private_dns_namespace.this.name}:8090" },
@@ -261,7 +262,7 @@ resource "aws_ecs_task_definition" "ai" {
       { name = "AI_ERP_PROVIDER", value = "openai" },
       { name = "OPENAI_BASE_URL", value = "https://eu.api.openai.com/v1" },
       { name = "OPENAI_MODEL", value = "gpt-5.4-mini-2026-03-17" },
-      { name = "OPENAI_TIMEOUT_SECONDS", value = "20" },
+      { name = "OPENAI_TIMEOUT_SECONDS", value = "8" },
     ]
     secrets = [
       { name = "AI_CONTROL_PLANE_SHARED_SECRET", valueFrom = "${aws_secretsmanager_secret.control_plane.arn}:shared_secret::" },
@@ -271,7 +272,7 @@ resource "aws_ecs_task_definition" "ai" {
     mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
     linuxParameters        = { initProcessEnabled = true }
     healthCheck = {
-      command     = ["CMD-SHELL", "python -c \"from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/healthz')\""]
+      command     = ["CMD-SHELL", "python -c \"from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/readyz')\""]
       interval    = 30
       timeout     = 5
       retries     = 3
@@ -302,7 +303,7 @@ resource "aws_ecs_task_definition" "ai_live_eval" {
       { name = "AI_ERP_PROVIDER", value = "openai" },
       { name = "OPENAI_BASE_URL", value = "https://eu.api.openai.com/v1" },
       { name = "OPENAI_MODEL", value = "gpt-5.4-mini-2026-03-17" },
-      { name = "OPENAI_TIMEOUT_SECONDS", value = "20" },
+      { name = "OPENAI_TIMEOUT_SECONDS", value = "8" },
       { name = "OPENAI_API_KEY_SOURCE", value = "deployment-secret-store" },
       { name = "AI_ERP_ENABLE_PRIVATE_LIVE_EVAL", value = "I_ACKNOWLEDGE_SYNTHETIC_ONLY" },
     ]
@@ -607,7 +608,7 @@ resource "aws_ecs_service" "ai" {
   }
   network_configuration {
     subnets          = values(aws_subnet.private)[*].id
-    security_groups  = [aws_security_group.workload.id]
+    security_groups  = [aws_security_group.ai.id]
     assign_public_ip = false
   }
   service_registries {

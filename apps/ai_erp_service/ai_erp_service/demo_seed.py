@@ -28,7 +28,7 @@ DEMO_DISTRIBUTION_USER = "distribution.user@example.test"
 DEMO_MANUFACTURING_USER = "manufacturing.user@example.test"
 LOCAL_SETUP_ALLOW_ENV = "AI_ERP_LOCAL_SETUP_ALLOW"
 DEMO_COMPANY = "AI ERP Synthetic Demo Company"
-E2E_OTHER_SUBJECT = "AI ERP E2E Unassigned Work Order"
+E2E_OTHER_SUBJECT = "AI ERP E2E Assignment"
 E2E_FULL_WORKFLOW_PREFIX = "AI ERP E2E Full Workflow"
 
 
@@ -217,14 +217,12 @@ def prepare_e2e_demo():
 
 
 def _ensure_e2e_other_work_order(seed):
-	existing = frappe.db.get_value("Service Work Order", {"subject": E2E_OTHER_SUBJECT}, "name")
-	if existing:
-		return existing
+	"""Create a fresh unassigned record so assignment validation is repeatable."""
 	start = now_datetime()
 	document = frappe.get_doc(
 		{
 			"doctype": "Service Work Order",
-			"subject": E2E_OTHER_SUBJECT,
+			"subject": f"{E2E_OTHER_SUBJECT} {frappe.generate_hash(length=8)}",
 			"customer": seed["customer"],
 			"service_location": seed["service_location"],
 			"status": "Draft",
@@ -233,7 +231,8 @@ def _ensure_e2e_other_work_order(seed):
 	document.assigned_technician = DEMO_MANAGER
 	document.scheduled_start = start
 	document.scheduled_end = add_to_date(start, hours=1)
-	document.status = "Scheduled"
+	document.assigned_technician = None
+	document.status = "Draft"
 	document.save()
 	return document.name
 
@@ -256,6 +255,15 @@ def _make_e2e_full_workflow_order(seed):
 	document.scheduled_end = add_to_date(start, hours=2)
 	document.service_billing_item = seed["labor_item"]
 	document.hourly_rate = 80
+	document.append(
+		"time_entries",
+		{
+			"technician": DEMO_TECHNICIAN,
+			"work_date": now_datetime().date(),
+			"time_type": "Work",
+			"hours": 1,
+		},
+	)
 	document.append(
 		"parts",
 		{

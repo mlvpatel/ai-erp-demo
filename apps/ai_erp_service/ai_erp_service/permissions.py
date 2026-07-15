@@ -33,8 +33,62 @@ def service_work_order_has_permission(doc, user=None, permission_type=None):
 			doc.status == "Invoice Ready" or bool(doc.sales_invoice)
 		)
 	if "Service Technician" in user_roles(user):
-		return doc.assigned_technician == user
+		return permission_type in {None, "read", "select", "write", "print"} and doc.assigned_technician == user
 	return False
+
+
+def service_request_query(user=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return None
+	if "Service Technician" in user_roles(user):
+		return (
+			"`tabService Request`.`name` IN "
+			"(SELECT `service_request` FROM `tabService Work Order` "
+			"WHERE `assigned_technician` = {0} AND `service_request` IS NOT NULL)"
+		).format(frappe.db.escape(user))
+	return "1=0"
+
+
+def service_request_has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return True
+	if "Service Technician" not in user_roles(user) or permission_type not in {None, "read", "select", "print"}:
+		return False
+	return bool(
+		frappe.db.exists(
+			"Service Work Order",
+			{"service_request": doc.name, "assigned_technician": user},
+		)
+	)
+
+
+def service_location_query(user=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return None
+	if "Service Technician" in user_roles(user):
+		return (
+			"`tabService Location`.`name` IN "
+			"(SELECT `service_location` FROM `tabService Work Order` "
+			"WHERE `assigned_technician` = {0} AND `service_location` IS NOT NULL)"
+		).format(frappe.db.escape(user))
+	return "1=0"
+
+
+def service_location_has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return True
+	if "Service Technician" not in user_roles(user) or permission_type not in {None, "read", "select", "print"}:
+		return False
+	return bool(
+		frappe.db.exists(
+			"Service Work Order",
+			{"service_location": doc.name, "assigned_technician": user},
+		)
+	)
 
 
 def service_closure_exception_query(user=None):

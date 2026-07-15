@@ -14,6 +14,15 @@ paths:
       responses:
         '200':
           description: The control-plane process is healthy.
+  /readyz:
+    get:
+      summary: Report approved provider configuration readiness
+      security: []
+      responses:
+        '200':
+          description: The configured provider is approved and ready for requests.
+        '503':
+          description: The configured provider is missing or not approved.
   /v1/proposals/service-closeout-summary:
     post:
       summary: Draft a cited service-work-order closeout summary
@@ -73,16 +82,19 @@ components:
       properties:
         technician:
           type: string
+          minLength: 1
           maxLength: 256
         work_date:
           type: string
           format: date
         time_type:
           type: string
+          minLength: 1
           maxLength: 128
         hours:
           type: number
           exclusiveMinimum: 0
+          maximum: 24
     PartUsage:
       type: object
       additionalProperties: false
@@ -90,12 +102,15 @@ components:
       properties:
         item:
           type: string
+          minLength: 1
           maxLength: 256
         qty:
           type: number
           exclusiveMinimum: 0
+          maximum: 100000
         source_warehouse:
           type: string
+          minLength: 1
           maxLength: 256
         issued:
           type: boolean
@@ -211,6 +226,10 @@ components:
               type: string
             prompt_version:
               type: string
+        audit:
+          anyOf:
+            - $ref: '#/components/schemas/ProviderAudit'
+            - type: 'null'
         draft_content:
           type: string
           minLength: 1
@@ -220,3 +239,23 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/SourceReference'
+    ProviderAudit:
+      type: object
+      additionalProperties: false
+      required: [response_id_hash, input_tokens, output_tokens, duration_ms, redaction_count]
+      properties:
+        response_id_hash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        input_tokens:
+          type: integer
+          minimum: 0
+        output_tokens:
+          type: integer
+          minimum: 0
+        duration_ms:
+          type: integer
+          minimum: 0
+        redaction_count:
+          type: integer
+          minimum: 0

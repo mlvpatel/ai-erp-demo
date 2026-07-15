@@ -19,6 +19,7 @@ from ai_erp_service.ai_erp_service.report.service_profitability.service_profitab
 	execute as profitability_report,
 )
 from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
+from ai_erp_service.tasks import escalate_overdue_closure_exceptions
 
 # This focused integration suite creates its synthetic dependencies directly.
 # Avoid recursively loading unrelated ERPNext test-record modules.
@@ -102,6 +103,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			)
 		)
 		self.assertEqual(visible, {assigned.name})
+		self.assertFalse(assigned.has_permission("share"))
+		self.assertFalse(assigned.has_permission("email"))
+		self.assertFalse(other.has_permission("read"))
 
 		assigned.reload()
 		assigned.status = "In Progress"
@@ -136,21 +140,147 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 	def test_cannot_close_creates_an_owned_exception(self):
 		work_order = self._make_work_order("Blocked work order")
 		self._schedule(work_order, self.technician)
+		work_order.closure_owner = self.manager
+		work_order.closure_due_date = today()
+		work_order.save()
 
 		frappe.set_user(self.technician)
 		work_order.reload()
 		work_order.status = "In Progress"
 		work_order.save()
 		work_order.cannot_close_reason = "Parts unavailable"
-		work_order.closure_owner = "Administrator"
-		work_order.closure_due_date = today()
 		work_order.status = "Cannot Close"
 		work_order.save()
 
 		exception = frappe.get_doc("Service Closure Exception", work_order.closure_exception)
 		self.assertEqual(exception.work_order, work_order.name)
-		self.assertEqual(exception.exception_owner, "Administrator")
+		self.assertEqual(exception.exception_owner, self.manager)
 		self.assertEqual(exception.status, "Open")
+
+	def test_technician_cannot_mutate_manager_or_finance_fields(self):
+		item, warehouse = self._make_stocked_item()
+		work_order = self._make_work_order("Permission boundary work order")
+		work_order.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		self._schedule(work_order, self.technician)
+		alternate_customer = self._make_customer()
+
+		frappe.set_user(self.technician)
+		for fieldname, value in (
+			("customer", alternate_customer),
+			("scheduled_end", add_to_date(work_order.scheduled_end, hours=1)),
+			("assigned_technician", "Administrator"),
+			("hourly_rate", 999),
+			("projected_revenue", 999),
+		):
+			work_order.reload()
+			original = work_order.get(fieldname)
+			work_order.set(fieldname, value)
+			with self.assertRaises(frappe.PermissionError, msg=f"defense in depth: {fieldname}"):
+				work_order._validate_technician_field_scope()
+			try:
+				work_order.save()
+			except frappe.PermissionError:
+				pass
+			work_order.reload()
+			self.assertEqual(work_order.get(fieldname), original, fieldname)
+
+		work_order.reload()
+		original_rate = work_order.parts[0].bill_rate
+		work_order.parts[0].bill_rate = 999
+		with self.assertRaises(frappe.PermissionError, msg="defense in depth: part bill rate"):
+			work_order._validate_technician_field_scope()
+		try:
+			work_order.save()
+		except frappe.PermissionError:
+			pass
+		work_order.reload()
+		self.assertEqual(work_order.parts[0].bill_rate, original_rate)
+
+	def test_technician_related_reads_are_limited_to_assigned_work(self):
+		assigned_request = frappe.get_doc(
+			{
+				"doctype": "Service Request",
+				"subject": "Assigned request",
+				"customer": self.customer,
+				"service_location": self.location,
+			}
+		).insert()
+		assigned = self._make_work_order("Assigned related records")
+		assigned.service_request = assigned_request.name
+		assigned.save()
+		self._schedule(assigned, self.technician)
+
+		other_customer = self._make_customer()
+		other_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Other Site {0}".format(frappe.generate_hash(length=8)),
+				"customer": other_customer,
+			}
+		).insert()
+		other_request = frappe.get_doc(
+			{
+				"doctype": "Service Request",
+				"subject": "Unassigned request",
+				"customer": other_customer,
+				"service_location": other_location.name,
+			}
+		).insert()
+
+		frappe.set_user(self.technician)
+		self.assertTrue(frappe.get_doc("Service Request", assigned_request.name).has_permission("read"))
+		self.assertTrue(frappe.get_doc("Service Location", self.location).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Request", other_request.name).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Location", other_location.name).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Request", assigned_request.name).has_permission("share"))
+		self.assertFalse(frappe.get_doc("Service Location", self.location).has_permission("email"))
+
+	def test_overdue_cannot_close_is_escalated_once_without_auto_close(self):
+		work_order = self._make_work_order("Overdue blocked work order")
+		self._schedule(work_order, self.technician)
+		work_order.closure_owner = self.manager
+		work_order.closure_due_date = today()
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.cannot_close_reason = "Parts unavailable"
+		work_order.status = "Cannot Close"
+		work_order.save()
+		exception_name = work_order.closure_exception
+
+		frappe.set_user("Administrator")
+		frappe.db.set_value(
+			"Service Closure Exception",
+			exception_name,
+			"due_date",
+			add_to_date(today(), days=-1),
+			update_modified=False,
+		)
+		escalate_overdue_closure_exceptions()
+		first_count = frappe.db.count(
+			"Notification Log",
+			{"document_type": "Service Closure Exception", "document_name": exception_name},
+		)
+		escalate_overdue_closure_exceptions()
+
+		work_order.reload()
+		exception = frappe.get_doc("Service Closure Exception", exception_name)
+		self.assertEqual(work_order.status, "Cannot Close")
+		self.assertTrue(exception.escalated_on)
+		self.assertGreaterEqual(first_count, 1)
+		self.assertEqual(
+			frappe.db.count(
+				"Notification Log",
+				{"document_type": "Service Closure Exception", "document_name": exception_name},
+			),
+			first_count,
+		)
 
 	def test_parts_issue_is_idempotent(self):
 		item, warehouse = self._make_stocked_item()
@@ -217,6 +347,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		work_order.save()
 
 		frappe.set_user("Administrator")
+		work_order.reload()
+		work_order.parts[0].bill_rate = 25
+		work_order.save()
 		issue_parts(work_order.name)
 		work_order.reload()
 		work_order.service_billing_item = service_item

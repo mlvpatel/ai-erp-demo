@@ -18,6 +18,7 @@
   "expected_results": [
     "Two synthetic warehouses and two stock items exist in one local Frappe site.",
     "One draft Sales Order requests more stock than is available.",
+    "The integration test submits only the non-posting Sales Order, creates a Pick List and draft Delivery Note, verifies the shortage and empty ledgers, then rolls back.",
     "An authorized user manually submits the Sales Order and uses standard Pick List and Delivery Note actions.",
     "The Delivery Note remains draft until a separately authorized stock user decides to submit it."
   ],

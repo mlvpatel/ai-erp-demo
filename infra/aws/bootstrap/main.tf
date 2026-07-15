@@ -206,6 +206,16 @@ data "aws_iam_policy_document" "github_oidc_assume" {
       variable = "token.actions.githubusercontent.com:sub"
       values   = [local.oidc_subject]
     }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository"
+      values   = [var.github_repository]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:ref"
+      values   = ["refs/heads/main"]
+    }
   }
 }
 
@@ -247,7 +257,7 @@ data "aws_iam_policy_document" "alerts" {
     resources = [aws_sns_topic.alerts.arn]
     principals {
       type        = "Service"
-      identifiers = ["cloudwatch.amazonaws.com", "budgets.amazonaws.com"]
+      identifiers = ["cloudwatch.amazonaws.com", "budgets.amazonaws.com", "events.amazonaws.com"]
     }
     condition {
       test     = "StringEquals"
@@ -336,17 +346,60 @@ resource "aws_iam_role" "terraform_deploy" {
   name                 = "${local.name}-github-terraform-deploy"
   assume_role_policy   = data.aws_iam_policy_document.github_oidc_assume.json
   max_session_duration = 7200
-}
-
-# The protected deploy role is deliberately separate from the image publisher.
-# PowerUserAccess covers regional service resources but excludes IAM mutation;
-# the inline statements below add only the named pilot roles and remote state.
-resource "aws_iam_role_policy_attachment" "terraform_deploy_power_user" {
-  role       = aws_iam_role.terraform_deploy.name
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+  permissions_boundary = aws_iam_policy.terraform_deploy_boundary.arn
 }
 
 data "aws_iam_policy_document" "terraform_deploy" {
+  statement {
+    sid = "RegionalTaggedPilotServices"
+    actions = [
+      "application-autoscaling:*",
+      "backup:*",
+      "cloudwatch:*",
+      "ec2:*",
+      "ecs:*",
+      "elasticache:*",
+      "elasticfilesystem:*",
+      "elasticloadbalancing:*",
+      "events:*",
+      "kms:*",
+      "logs:*",
+      "rds:*",
+      "s3:*",
+      "scheduler:*",
+      "secretsmanager:*",
+      "sns:*",
+      "wafv2:*",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = ["eu-central-1"]
+    }
+    condition {
+      test     = "StringEqualsIfExists"
+      variable = "aws:ResourceAccount"
+      values   = [var.aws_account_id]
+    }
+    condition {
+      test     = "StringEqualsIfExists"
+      variable = "aws:RequestTag/Project"
+      values   = ["AI ERP Demo"]
+    }
+    condition {
+      test     = "StringEqualsIfExists"
+      variable = "aws:ResourceTag/Project"
+      values   = ["AI ERP Demo"]
+    }
+  }
+
+  statement {
+    sid       = "AccountScopedBudgetManagement"
+    actions   = ["budgets:ViewBudget", "budgets:ModifyBudget"]
+    resources = ["arn:aws:budgets::${var.aws_account_id}:budget/ai-erp-*"]
+  }
+
   statement {
     sid = "RemoteState"
     actions = [
@@ -394,8 +447,15 @@ data "aws_iam_policy_document" "terraform_deploy" {
       "arn:aws:iam::${var.aws_account_id}:role/ai-erp-pilot-ecs-task",
       "arn:aws:iam::${var.aws_account_id}:role/ai-erp-pilot-ecs-operation",
       "arn:aws:iam::${var.aws_account_id}:role/ai-erp-pilot-backup-scheduler",
+      "arn:aws:iam::${var.aws_account_id}:role/ai-erp-recovery-*",
     ]
   }
+}
+
+resource "aws_iam_policy" "terraform_deploy_boundary" {
+  name        = "${local.name}-terraform-deploy-boundary"
+  description = "Account, region, tag, state, and named-role boundary for protected AI ERP delivery"
+  policy      = data.aws_iam_policy_document.terraform_deploy.json
 }
 
 resource "aws_iam_role_policy" "terraform_deploy" {

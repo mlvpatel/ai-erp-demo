@@ -32,10 +32,33 @@ TECHNICIAN_STATES = {"In Progress", "Closeout Submitted", "Cannot Close"}
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 FINAL_STATES = {"Closed", "Invoice Ready"}
 MAX_TRANSACTION_RETRIES = 3
+TECHNICIAN_IMMUTABLE_FIELDS = (
+	"subject",
+	"customer",
+	"service_location",
+	"service_request",
+	"description",
+	"scheduled_start",
+	"scheduled_end",
+	"assigned_technician",
+	"closure_owner",
+	"closure_due_date",
+	"closure_exception",
+	"invoice_ready",
+	"service_billing_item",
+	"hourly_rate",
+	"sales_invoice",
+	"projected_revenue",
+	"issued_parts_cost",
+	"projected_margin_before_labor",
+	"projected_margin_percent",
+	"profitability_basis",
+)
 
 
 class ServiceWorkOrder(Document):
 	def validate(self):
+		self._validate_technician_field_scope()
 		self._validate_location()
 		self._validate_schedule()
 		self._validate_assignment()
@@ -49,6 +72,32 @@ class ServiceWorkOrder(Document):
 		self._validate_cannot_close()
 		self._validate_invoice_ready()
 		self._update_profitability_projection()
+
+	def _validate_technician_field_scope(self):
+		if self.is_new() or not self._is_technician_only():
+			return
+
+		stored = frappe.db.get_value(self.doctype, self.name, TECHNICIAN_IMMUTABLE_FIELDS, as_dict=True)
+		if not stored:
+			frappe.throw(_("The work order could not be loaded for permission validation."), frappe.PermissionError)
+		for fieldname in TECHNICIAN_IMMUTABLE_FIELDS:
+			if self.get(fieldname) != stored.get(fieldname):
+				frappe.throw(
+					_("Technicians cannot change manager-controlled field {0}.").format(fieldname),
+					frappe.PermissionError,
+				)
+
+		stored_rates = {
+			row.name: flt(row.bill_rate)
+			for row in frappe.get_all(
+				"Service Work Order Part",
+				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "parts"},
+				fields=["name", "bill_rate"],
+			)
+		}
+		for row in self.get("parts") or []:
+			if flt(row.bill_rate) != stored_rates.get(row.name, 0):
+				frappe.throw(_("Technicians cannot change Part Bill Rate."), frappe.PermissionError)
 
 	def _validate_location(self):
 		validate_location_customer(self.customer, self.service_location)
@@ -272,8 +321,7 @@ class ServiceWorkOrder(Document):
 		return self.assigned_technician == frappe.session.user
 
 	def _is_technician_only(self):
-		roles = {"Service Technician"}
-		return "Service Technician" in frappe.get_roles() and not has_any_role(DISPATCHER_ROLES | roles)
+		return "Service Technician" in frappe.get_roles() and not has_any_role(DISPATCHER_ROLES)
 
 	def _require_manager(self):
 		require_any_role(MANAGER_ROLES, "Only a service manager can issue inventory for a work order.")

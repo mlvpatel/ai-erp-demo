@@ -341,6 +341,10 @@ def scan_sensitive_assignments(path: Path, text: str, manifest: dict[str, Any], 
         stripped = line.strip()
         if not stripped or stripped.startswith(("#", "//")):
             continue
+        # A quoted scalar in a list can contain a colon (for example an IAM
+        # action) but is not a key/value assignment.
+        if re.fullmatch(r'''["'][^"']+["'],?''', stripped):
+            continue
         match = ASSIGNMENT_PATTERN.match(line)
         if not match:
             continue

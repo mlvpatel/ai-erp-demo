@@ -5,7 +5,7 @@ terraform_root="${TERRAFORM_ROOT:-infra/aws/terraform}"
 cluster="$(terraform -chdir="${terraform_root}" output -raw ecs_cluster_arn)"
 task_definition="$(terraform -chdir="${terraform_root}" output -raw ai_live_eval_task_definition_arn)"
 subnets="$(terraform -chdir="${terraform_root}" output -json private_subnet_ids | jq -r 'join(",")')"
-security_group="$(terraform -chdir="${terraform_root}" output -raw workload_security_group_id)"
+security_group="$(terraform -chdir="${terraform_root}" output -raw ai_security_group_id)"
 
 task_arn="$(aws ecs run-task \
   --cluster "${cluster}" \

@@ -165,6 +165,20 @@ def run_restore_drill(*, s3, cloudwatch, runner=subprocess.run) -> None:
                 except Exception as exc:
                     cleanup_error = exc
 
+    if cleanup_error or primary_error:
+        try:
+            cloudwatch.put_metric_data(
+                Namespace="AIERP/Backup",
+                MetricData=[{
+                    "MetricName": "RestoreDrillFailure",
+                    "Dimensions": [{"Name": "Environment", "Value": environment}],
+                    "Timestamp": datetime.now(timezone.utc),
+                    "Value": 1,
+                    "Unit": "Count",
+                }],
+            )
+        except Exception:
+            pass
     if cleanup_error:
         raise RestoreDrillError("disposable restore cleanup failed") from cleanup_error
     if primary_error:

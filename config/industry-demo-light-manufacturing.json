@@ -18,6 +18,7 @@
   "expected_results": [
     "Synthetic raw-material, work-in-progress, and finished-goods warehouses and items exist.",
     "One draft BOM and one draft make-to-order Sales Order exist with no opening stock.",
+    "The integration test creates the standard Production Plan, draft Work Order, and draft Material Request shortage handoff, verifies empty ledgers, then rolls back.",
     "An authorized user manually approves the BOM and order, then uses standard Production Plan and Work Order actions to expose the shortage.",
     "The shortage handoff is a human-created draft Material Request."
   ],

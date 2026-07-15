@@ -35,14 +35,37 @@ class TerraformPlanPolicyTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["destructive_changes"], 0)
 
-    def test_rejects_destroy_and_secret_state(self):
+    def test_allows_reviewed_ecs_task_definition_replacement(self):
+        result = self.run_checker([{
+            "address": "aws_ecs_task_definition.web",
+            "type": "aws_ecs_task_definition",
+            "change": {"actions": ["delete", "create"], "after": {"family": "ai-erp-web"}},
+        }])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["reviewed_replacements"], 1)
+
+    def test_rejects_protected_database_replacement(self):
+        result = self.run_checker([{
+            "address": "aws_db_instance.mariadb",
+            "type": "aws_db_instance",
+            "change": {"actions": ["create", "delete"], "after": {"identifier": "pilot"}},
+        }])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("protected resource replacement", result.stderr)
+
+    def test_rejects_delete_only_unlisted_replacement_and_secret_state(self):
         result = self.run_checker([{
             "address": "aws_secretsmanager_secret_version.example",
             "type": "aws_secretsmanager_secret_version",
-            "change": {"actions": ["delete", "create"], "after": {"secret_string": "redacted"}},
+            "change": {"actions": ["delete"], "after": {"nested": {"secret_string": "redacted"}}},
+        }, {
+            "address": "aws_security_group.workload",
+            "type": "aws_security_group",
+            "change": {"actions": ["delete", "create"], "after": {"name": "replacement"}},
         }])
         self.assertEqual(result.returncode, 1)
-        self.assertIn("destructive action", result.stderr)
+        self.assertIn("delete-only action", result.stderr)
+        self.assertIn("not allow-listed", result.stderr)
         self.assertIn("secret material", result.stderr)
 
 

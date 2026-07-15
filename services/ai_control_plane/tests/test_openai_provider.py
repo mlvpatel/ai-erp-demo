@@ -67,6 +67,18 @@ def _environment(**overrides):
 	return values
 
 
+def _provider_payload(draft="Pump mount tightened.", **overrides):
+	payload = {
+		"id": "resp_synthetic_001",
+		"model": DEFAULT_MODEL,
+		"status": "completed",
+		"usage": {"input_tokens": 120, "output_tokens": 20},
+		"output_text": json.dumps({"draft_content": draft}),
+	}
+	payload.update(overrides)
+	return payload
+
+
 class TestOpenAIProvider(unittest.TestCase):
 	def test_minimizes_input_and_constructs_policy_and_sources_locally(self):
 		request = _request()
@@ -74,20 +86,7 @@ class TestOpenAIProvider(unittest.TestCase):
 
 		def handler(http_request):
 			captured["request"] = http_request
-			return httpx.Response(
-				200,
-				json={
-					"status": "completed",
-					"output": [
-						{
-							"type": "message",
-							"content": [
-								{"type": "output_text", "text": json.dumps({"draft_content": "Pump mount tightened."})}
-							],
-						}
-					],
-				},
-			)
+			return httpx.Response(200, json=_provider_payload())
 
 		client = httpx.Client(transport=httpx.MockTransport(handler))
 		with patch.dict(os.environ, _environment(), clear=True):
@@ -117,6 +116,10 @@ class TestOpenAIProvider(unittest.TestCase):
 		self.assertEqual(response.sources, request.sources)
 		self.assertEqual(response.model.provider, "openai")
 		self.assertEqual(response.model.name, DEFAULT_MODEL)
+		self.assertEqual(response.audit.input_tokens, 120)
+		self.assertEqual(response.audit.output_tokens, 20)
+		self.assertEqual(response.audit.redaction_count, 0)
+		self.assertEqual(len(response.audit.response_id_hash), 64)
 		serialized_body = captured["request"].content.decode()
 		for private_value in (
 			"private-tenant.example",
@@ -141,14 +144,13 @@ class TestOpenAIProvider(unittest.TestCase):
 
 	def test_refusal_malformed_strict_schema_and_rate_limit_fail_closed_without_retry(self):
 		responses = [
-			httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}]}),
-			httpx.Response(200, json={"status": "completed", "output_text": "not-json"}),
+			httpx.Response(200, json=_provider_payload(output_text="", output=[{"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}])),
+			httpx.Response(200, json=_provider_payload(output_text="not-json")),
 			httpx.Response(
 				200,
-				json={
-					"status": "completed",
-					"output_text": json.dumps({"draft_content": "Draft", "requested_action": "submit invoice"}),
-				},
+				json=_provider_payload(
+					output_text=json.dumps({"draft_content": "Draft", "requested_action": "submit invoice"})
+				),
 			),
 			httpx.Response(429, json={"error": {"message": "rate limit"}}),
 		]
@@ -204,3 +206,34 @@ class TestOpenAIProvider(unittest.TestCase):
 				render_openai(request, client=client)
 		client.close()
 		self.assertEqual(calls, [])
+
+	def test_redacts_high_confidence_pii_and_credentials_and_records_only_count(self):
+		request = _request()
+		request.work_order.description = "Email alice@example.test or call +1 (415) 555-0100."
+		request.work_order.closeout_notes = "credential=synthetic-value-1234"
+		captured = {}
+
+		def handler(http_request):
+			captured["body"] = http_request.content.decode()
+			return httpx.Response(200, json=_provider_payload())
+
+		client = httpx.Client(transport=httpx.MockTransport(handler))
+		with patch.dict(os.environ, _environment(), clear=True):
+			response = render_openai(request, client=client)
+		client.close()
+
+		for sensitive in ("alice@example.test", "+1 (415) 555-0100", "synthetic-value-1234"):
+			self.assertNotIn(sensitive, captured["body"])
+		self.assertGreaterEqual(response.audit.redaction_count, 3)
+
+	def test_rejects_model_mismatch_and_missing_audit_metadata(self):
+		for payload in (
+			_provider_payload(model="unexpected-model"),
+			_provider_payload(id=""),
+			_provider_payload(usage=None),
+		):
+			client = httpx.Client(transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=payload)))
+			with patch.dict(os.environ, _environment(), clear=True):
+				with self.assertRaises(OpenAIProviderError):
+					render_openai(_request(), client=client)
+			client.close()

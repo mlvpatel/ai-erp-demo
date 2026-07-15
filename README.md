@@ -1,6 +1,7 @@
 # AI ERP Demo
 
-Open-source, AI-assisted ERP product scaffold. The product is built as a set of
+Private production-pilot candidate for a governed, AI-assisted field-service
+ERP. The product is built as a set of
 custom Frappe apps on top of ERPNext; upstream Frappe and ERPNext are pinned as
 development checkout dependencies and are not copied into this repository.
 
@@ -33,8 +34,8 @@ cannot serve the use case.
 ├── apps/                        # Custom Frappe apps only
 │   ├── ai_erp_core/             # Horizontal capabilities and shared policies
 │   ├── ai_erp_service/          # First vertical: field service
-│   ├── ai_erp_distribution/     # Future industry pack
-│   ├── ai_erp_manufacturing/    # Future industry pack
+│   ├── ai_erp_distribution/     # Reserved boundary; standard configured demo only
+│   ├── ai_erp_manufacturing/    # Reserved boundary; standard configured demo only
 │   └── ai_erp_connectors/       # External-system adapters
 ├── services/
 │   └── ai_control_plane/        # Model gateway, tools, evals, audit controls
@@ -101,10 +102,12 @@ Frappe Bench assumptions, follow
 For a contributor-friendly command list, run `scripts/dev.sh help`. For the
 first service-operations demo path, follow
 [docs/runbooks/local-demo.md](docs/runbooks/local-demo.md).
-In the current repository, an MVP claim marked `implemented` means its checked-in
-source and evidence anchors pass the static acceptance gate; it does not mean
-the Docker-backed Frappe behavioral tests are executed by GitHub CI. Run
-`scripts/dev.sh service-test` locally before relying on those behavioral claims.
+An `implemented` claim means checked-in source and an executable verification
+path exist. It does not mean production deployment, human UAT, legal approval,
+capacity, or recovery evidence exists. Run `scripts/dev.sh service-test` and
+`scripts/dev.sh e2e-test` on a disposable synthetic stack before relying on the
+field-service behavioral claims. The current production-pilot gate status is
+recorded in [config/pilot-readiness.json](config/pilot-readiness.json).
 For a screenshot, GIF, maintainer walkthrough, or first public demo issue, use
 [docs/runbooks/demo-script.md](docs/runbooks/demo-script.md) so the
 service-operations demo path stays aligned with verified MVP claims.

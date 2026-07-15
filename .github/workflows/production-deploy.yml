@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Plan is non-mutating; apply and rollback are billable protected operations.
+        description: Plan is non-mutating; foundation, activate, and rollback are protected billable operations.
         required: true
         type: choice
-        options: [plan, apply, rollback]
+        options: [plan, foundation, activate, rollback]
       confirmation:
-        description: Enter APPLY-AI-ERP-PILOT or ROLLBACK-AI-ERP-PILOT for a mutating operation.
+        description: Enter the operation-specific FOUNDATION, ACTIVATE, or ROLLBACK confirmation phrase.
         required: false
         type: string
       rollback_backend_image:
@@ -82,8 +82,10 @@ jobs:
           [[ "${ALERT_TOPIC_ARN}" =~ ^arn:aws:sns:eu-central-1:${AWS_ACCOUNT_ID}:[A-Za-z0-9_-]+$ ]]
           [[ "${RECURRING_COST_ESTIMATE_USD}" =~ ^[0-9]+([.][0-9]{1,2})?$ ]]
           awk -v estimate="${RECURRING_COST_ESTIMATE_USD}" 'BEGIN { exit !(estimate > 0 && estimate <= 600) }'
-          if [ "${OPERATION}" = apply ]; then
-            test "${CONFIRMATION}" = APPLY-AI-ERP-PILOT
+          if [ "${OPERATION}" = foundation ]; then
+            test "${CONFIRMATION}" = FOUNDATION-AI-ERP-PILOT
+          elif [ "${OPERATION}" = activate ]; then
+            test "${CONFIRMATION}" = ACTIVATE-AI-ERP-PILOT
           elif [ "${OPERATION}" = rollback ]; then
             test "${CONFIRMATION}" = ROLLBACK-AI-ERP-PILOT
             for image in "${ROLLBACK_BACKEND_IMAGE}" "${ROLLBACK_FRONTEND_IMAGE}" "${ROLLBACK_AI_IMAGE}"; do
@@ -135,7 +137,7 @@ jobs:
             ai_image="${ROLLBACK_AI_IMAGE}"
           fi
           activate_services=true
-          if [ "${OPERATION}" = apply ]; then
+          if [ "${OPERATION}" = foundation ]; then
             activate_services=false
           fi
           for image in "${backend_image}" "${frontend_image}" "${ai_image}"; do
@@ -163,6 +165,13 @@ jobs:
           set -euo pipefail
           jq -r '.frappe_backend_image,.frappe_frontend_image,.ai_control_plane_image' "${RUNNER_TEMP}/pilot.auto.tfvars.json" | while read -r image; do
             cosign verify --key "${COSIGN_KMS_KEY_URI}" "${image}" >/dev/null
+            cosign verify-attestation --key "${COSIGN_KMS_KEY_URI}" --type cyclonedx "${image}" >/dev/null
+            cosign verify-attestation --key "${COSIGN_KMS_KEY_URI}" --type slsaprovenance "${image}" \
+              | jq -er '.[0].payload' \
+              | base64 --decode \
+              | jq -e --arg commit "${GITHUB_SHA}" \
+                '.predicate.buildDefinition.externalParameters.source_commit == $commit and .predicate.buildDefinition.externalParameters.scan_result == "HIGH_CRITICAL_CLEAR" and ((.predicate.buildDefinition.resolvedDependencies | length) == 1) and (.predicate.buildDefinition.resolvedDependencies[0].uri | test("@sha256:[0-9a-f]{64}$"))' \
+                >/dev/null
           done
 
       - name: Initialize encrypted remote state
@@ -189,12 +198,12 @@ jobs:
           python3 scripts/check-terraform-plan.py "${RUNNER_TEMP}/pilot-plan.json" | tee "${RUNNER_TEMP}/plan-summary.json"
 
       - name: Apply inactive foundation
-        if: inputs.operation == 'apply'
+        if: inputs.operation == 'foundation'
         shell: bash
         run: terraform -chdir=infra/aws/terraform apply -lock-timeout=5m -auto-approve "${RUNNER_TEMP}/pilot.tfplan"
 
       - name: Verify out-of-band secret keys exist
-        if: inputs.operation == 'apply'
+        if: inputs.operation == 'activate'
         shell: bash
         run: |
           set -euo pipefail
@@ -206,15 +215,20 @@ jobs:
           aws secretsmanager get-secret-value --secret-id "${openai_arn}" --query SecretString --output text | jq -e 'has("api_key")' >/dev/null
 
       - name: Configure and migrate the tenant
-        if: inputs.operation == 'apply'
+        if: inputs.operation == 'activate'
         shell: bash
         run: |
           set -euo pipefail
           scripts/run-ecs-operation.sh configure
           scripts/run-ecs-operation.sh migrate
 
-      - name: Activate services after successful migration
-        if: inputs.operation == 'apply'
+      - name: Run bounded private synthetic OpenAI evaluation before activation
+        if: inputs.operation == 'activate'
+        shell: bash
+        run: scripts/run-ai-live-eval.sh
+
+      - name: Activate services after migration and AI evaluation
+        if: inputs.operation == 'activate'
         shell: bash
         run: |
           set -euo pipefail
@@ -233,7 +247,7 @@ jobs:
         run: terraform -chdir=infra/aws/terraform apply -lock-timeout=5m -auto-approve "${RUNNER_TEMP}/pilot.tfplan"
 
       - name: Wait for service stability and production health
-        if: inputs.operation == 'apply' || inputs.operation == 'rollback'
+        if: inputs.operation == 'activate' || inputs.operation == 'rollback'
         shell: bash
         run: |
           set -euo pipefail
@@ -243,16 +257,25 @@ jobs:
           done
           curl --fail --silent --show-error --retry 12 --retry-delay 10 --proto '=https' --tlsv1.2 \
             "https://${DOMAIN_NAME}/api/method/ping" >/dev/null
+          frappe_arn="$(terraform -chdir=infra/aws/terraform output -raw frappe_secret_arn)"
+          aws secretsmanager get-secret-value --secret-id "${frappe_arn}" --query SecretString --output text \
+            | jq -jer '.admin_password' \
+            | curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --cookie-jar "${RUNNER_TEMP}/smoke.cookies" \
+            --data-urlencode 'usr=Administrator' \
+            --data-urlencode 'pwd@-' \
+            "https://${DOMAIN_NAME}/api/method/login" >/dev/null
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --cookie "${RUNNER_TEMP}/smoke.cookies" \
+            "https://${DOMAIN_NAME}/api/method/frappe.auth.get_logged_user" \
+            | jq -e '.message == "Administrator"' >/dev/null
+          unset admin_password
+          rm -f "${RUNNER_TEMP}/smoke.cookies"
 
       - name: Create and verify the first encrypted logical backup
-        if: inputs.operation == 'apply'
+        if: inputs.operation == 'activate'
         shell: bash
         run: scripts/run-ecs-operation.sh backup
-
-      - name: Run one bounded private synthetic OpenAI evaluation
-        if: inputs.operation == 'apply'
-        shell: bash
-        run: scripts/run-ai-live-eval.sh
 
       - name: Retain private non-secret release evidence
         if: always()

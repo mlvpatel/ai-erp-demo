@@ -87,7 +87,11 @@ class RestoreDrillTest(unittest.TestCase):
             with self.assertRaisesRegex(restore_drill.RestoreDrillError, "validation failed"):
                 restore_drill.run_restore_drill(s3=self.fixtures(), cloudwatch=cloudwatch, runner=runner)
         self.assertIn("drop-site", runner.call_args_list[-1].args[0])
-        cloudwatch.put_metric_data.assert_not_called()
+        cloudwatch.put_metric_data.assert_called_once()
+        self.assertEqual(
+            cloudwatch.put_metric_data.call_args.kwargs["MetricData"][0]["MetricName"],
+            "RestoreDrillFailure",
+        )
 
     def test_rejects_non_disposable_target_before_s3_access(self):
         environment = self.environment()

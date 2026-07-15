@@ -579,6 +579,11 @@ def _make_closeout_work_order(context, suffix, invoice_ready):
 		context["location"],
 		context["technician"],
 	)
+	frappe.set_user(context["manager"])
+	work_order.reload()
+	work_order.service_billing_item = context["service_item"]
+	work_order.hourly_rate = 1
+	work_order.save()
 	frappe.set_user(context["technician"])
 	work_order.reload()
 	work_order.status = "In Progress"
@@ -594,8 +599,6 @@ def _make_closeout_work_order(context, suffix, invoice_ready):
 	)
 	work_order.closeout_notes = "Synthetic performance closeout; no customer data."
 	work_order.closeout_evidence = "/private/files/synthetic-performance-evidence.txt"
-	work_order.service_billing_item = context["service_item"]
-	work_order.hourly_rate = 1
 	work_order.status = "Closeout Submitted"
 	work_order.save()
 	if invoice_ready:

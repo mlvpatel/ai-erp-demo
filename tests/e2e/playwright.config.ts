@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: "*.spec.ts",
   fullyParallel: false,
   workers: 1,
+  timeout: 120_000,
   retries: process.env.CI ? 1 : 0,
   reporter: [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   outputDir: "test-results",

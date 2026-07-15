@@ -31,10 +31,14 @@ class BackupUploadTest(unittest.TestCase):
             root = Path(directory)
             self.create_set(root)
             s3 = Mock()
-            s3.head_object.side_effect = lambda Bucket, Key: {
-                "ContentLength": next(path.stat().st_size for path in root.iterdir() if path.name == Key.rsplit("/", 1)[-1]),
-                "Metadata": {"sha256": next(backup_to_s3.digest(path) for path in root.iterdir() if path.name == Key.rsplit("/", 1)[-1])},
-            }
+            def head_object(*, Bucket, Key):
+                if Key.endswith("/manifest.json"):
+                    body = s3.put_object.call_args.kwargs["Body"]
+                    return {"ContentLength": len(body), "Metadata": {"backup-status": "complete"}}
+                path = next(path for path in root.iterdir() if path.name == Key.rsplit("/", 1)[-1])
+                return {"ContentLength": path.stat().st_size, "Metadata": {"sha256": backup_to_s3.digest(path)}}
+
+            s3.head_object.side_effect = head_object
             cloudwatch = Mock()
             result = backup_to_s3.upload_backup(
                 backup_dir=root,
@@ -51,6 +55,7 @@ class BackupUploadTest(unittest.TestCase):
             self.assertEqual(s3.upload_file.call_count, 4)
             s3.put_object.assert_called_once()
             cloudwatch.put_metric_data.assert_called_once()
+            self.assertEqual(list(root.iterdir()), [])
 
     def test_incomplete_set_fails_before_upload(self):
         with tempfile.TemporaryDirectory() as directory:

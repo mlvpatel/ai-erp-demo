@@ -3,9 +3,21 @@ resource "aws_db_subnet_group" "this" {
   subnet_ids = values(aws_subnet.private)[*].id
 }
 
+resource "aws_db_parameter_group" "mariadb_tls" {
+  name   = "${local.name}-mariadb-tls"
+  family = "mariadb11.4"
+
+  parameter {
+    name         = "require_secure_transport"
+    value        = "ON"
+    apply_method = "pending-reboot"
+  }
+}
+
 resource "aws_db_instance" "mariadb" {
   identifier                    = "${local.name}-mariadb"
   engine                        = "mariadb"
+  engine_version                = "11.4"
   instance_class                = var.db_instance_class
   allocated_storage             = 40
   max_allocated_storage         = 200
@@ -18,6 +30,7 @@ resource "aws_db_instance" "mariadb" {
   multi_az                      = true
   publicly_accessible           = false
   db_subnet_group_name          = aws_db_subnet_group.this.name
+  parameter_group_name          = aws_db_parameter_group.mariadb_tls.name
   vpc_security_group_ids        = [aws_security_group.database.id]
   backup_retention_period       = var.backup_retention_days
   copy_tags_to_snapshot         = true

@@ -88,15 +88,24 @@ def upload_backup(*, backup_dir: Path, bucket: str, site: str, kms_key_arn: str,
         "artifacts": artifacts,
     }
     manifest_body = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+    manifest_key = f"{prefix}/manifest.json"
     s3.put_object(
         Bucket=bucket,
-        Key=f"{prefix}/manifest.json",
+        Key=manifest_key,
         Body=manifest_body,
         ContentType="application/json",
         ServerSideEncryption="aws:kms",
         SSEKMSKeyId=kms_key_arn,
         Metadata={"backup-status": "complete", "artifact-count": str(len(artifacts))},
     )
+    manifest_head = s3.head_object(Bucket=bucket, Key=manifest_key)
+    if (
+        int(manifest_head.get("ContentLength", -1)) != len(manifest_body)
+        or manifest_head.get("Metadata", {}).get("backup-status") != "complete"
+    ):
+        raise RuntimeError("uploaded backup manifest verification failed")
+    for path, _category in files:
+        path.unlink()
     cloudwatch.put_metric_data(
         Namespace="AIERP/Backup",
         MetricData=[{

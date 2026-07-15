@@ -1,19 +1,20 @@
 # Contributor backlog
 
-This backlog is intentionally small and safety-weighted. These are the first
-issues to create after the remaining publication gates pass.
+This backlog is safety-weighted. Code-level production-pilot remediation is
+tracked separately from human and billable-environment approval gates.
 
-## Launch blockers
+## Production-pilot evidence blockers
 
-- Initialize the Git repository and verify ignored local Frappe Bench state does
-  not enter history.
-- Clean or exclude ignored generated artifacts before publishing any source
-  archive.
-- Run `scripts/check-open-source-ready.sh --release`.
-- Push to a private GitHub repository first and confirm CI passes.
-- Review Dependabot PR behavior against `docs/workflows/dependency-updates.md`.
-- Add a short demo screenshot or GIF to the README after the local demo runbook
-  is verified from a fresh clone.
+- Obtain protected AWS/OpenAI credentials, domain/certificate configuration,
+  reviewed recurring cost, and explicit billable-operation approval.
+- Build, scan, sign, and verify production images by digest.
+- Run protected foundation/activation, authenticated smoke, live OpenAI
+  evaluation, exact capacity, backup, isolated restore, deletion, and rollback
+  drills; retain private evidence.
+- Verify the publication artifact from a fresh clone or clean export and keep
+  ignored Bench state outside it.
+- Complete design-partner validation, human UAT, legal/DPA/DPIA review, named
+  support ownership, and accountable go/no-go.
 
 ## Good first issues after licensing
 
@@ -50,9 +51,8 @@ transaction boundaries or AI governance.
   five-user concurrency gate are implemented, but remain unexecuted until the
   billable pilot is authorized. The local `SMOKE_PASS_NOT_FULL_PROFILE` result
   cannot support a public capacity claim.
-- Privately plan, cost-review, and apply the implemented ADR-0007 AWS foundation
-  only after the account, budget, domain, RPO/RTO, support owner, and legal/data
-  gates are approved.
+- Cost-review and apply the implemented ADR-0007 AWS foundation only after the
+  account, budget, domain, RPO/RTO, support owner, and legal/data gates are approved.
 
 ## Suggested labels
 

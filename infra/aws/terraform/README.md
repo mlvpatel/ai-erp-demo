@@ -10,6 +10,10 @@ RDS MariaDB Multi-AZ with 14-day backups, one encrypted Valkey node, encrypted
 EFS, versioned SSE-KMS S3 backups, an HTTPS ALB/WAF, and private ECS Fargate
 services. The single NAT and single Valkey node are explicit cost/availability
 tradeoffs; RDS remains Multi-AZ because transaction recovery is not simplified.
+Valkey traffic is TLS-only and restricted to the ERP workload security group.
+The pilot does not configure a Valkey auth token; unauthenticated access inside
+that isolated network boundary is an explicit security-approval risk, not a
+high-availability or zero-trust claim.
 
 Workloads use immutable ECR digest inputs. Frappe web, websocket, scheduler,
 short worker, long worker, and the private AI control plane have bounded sizing,
@@ -55,10 +59,11 @@ review its estimated recurring cost and policy output, then delete it.
 After the one-time bootstrap, `.github/workflows/production-deploy.yml` is the
 only repository delivery path. It uses the protected `production` environment,
 GitHub OIDC, encrypted S3 lockfiles, full-SHA-pinned actions, a reviewed monthly
-cost input, and explicit apply or rollback confirmation. The apply path creates
-the foundation with services inactive, verifies out-of-band secret keys, runs
-the configurator and migration tasks, then activates services from a second
-non-destructive plan. Rollback accepts only three prior reviewed image digests.
+cost input, and separate `plan`, `foundation`, `activate`, or `rollback`
+confirmation. Foundation creates services inactive. Activation verifies
+out-of-band secret keys and image evidence, runs configurator, migration, and
+pre-activation live AI evaluation tasks, then enables services and authenticated
+smoke checks. Rollback accepts only three prior reviewed image digests.
 
 Applying this stack creates billable NAT gateways, ALB/WAF, RDS, ElastiCache,
 EFS, CloudWatch, KMS, and related resources. No apply is authorized by this
@@ -80,12 +85,13 @@ The `backup` task writes a logical site backup to encrypted EFS, uploads and
 verifies its four artifacts in the versioned SSE-KMS bucket, and publishes its
 manifest last. EventBridge enables the daily task only after service activation;
 a missing success metric within 24 hours alerts the approved external SNS topic.
-The protected `production-restore-drill.yml` workflow restores a selected
-complete manifest only into a generated disposable internal site, validates
-required apps, roles, and transaction links, deletes that site and database,
-and retains only aggregate private evidence. Its one-off Fargate execution is
-human-authorized separately from deployment; a missing success metric for seven
-days alerts operations. A green code check is not deployment restore evidence.
+The protected `production-restore-drill.yml` workflow creates a temporary
+recovery stack in separate Terraform state, restores a selected complete
+manifest, validates required apps, roles, tenant isolation, AI hashes,
+transaction links, and private-file authorization, then destroys the recovery
+stack and retains only aggregate private evidence. Its one-off Fargate execution
+is human-authorized separately from deployment; a missing success metric for
+seven days alerts operations. A green code check is not deployment restore evidence.
 
 The protected `production-capacity.yml` workflow runs the exact tracked
 synthetic service profile in a disposable site. Its task-local AI sidecar uses

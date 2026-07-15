@@ -13,12 +13,16 @@ AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh e2e-test
 
 The helper prepares local Technician, Dispatcher, Service Manager, Accounts
 User, and AI Proposal Approver identities, runs Chromium in the Compose network,
-and removes the test container. The suite verifies permission-scoped queues,
-draft-only AI review, ten concurrent parts-issue calls across five authenticated
-sessions, manager invoice denial, and finance-only idempotent draft invoicing.
+and removes the test container. Primary role journeys use visible Frappe forms
+and controls at desktop and mobile viewports, including keyboard focus,
+validation feedback, attachment upload, draft-only AI review, manager invoice
+denial, and finance-only idempotent draft invoicing. The stock race gate uses
+ten concurrent calls across five authenticated sessions because concurrency is
+a transport-level invariant rather than a single-browser interaction.
 The synthetic Service Manager receives Stock User but deliberately receives no
 Accounts role. It also verifies the standard-record distribution and light
-manufacturing configured demos expose their deterministic shortage states.
+manufacturing configured demos expose their deterministic shortage states in
+both permission-scoped API data and visible standard ERPNext forms.
 
 Authentication state, traces, videos, screenshots, reports, and `node_modules`
 are ignored and must never be committed. This automated suite is release

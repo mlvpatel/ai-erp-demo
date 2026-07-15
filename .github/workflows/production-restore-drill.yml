@@ -90,10 +90,58 @@ jobs:
             -backend-config="kms_key_id=${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" \
             -backend-config="use_lockfile=true"
 
-      - name: Restore, validate, and delete the disposable site
+      - name: Build non-secret isolated recovery inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg account "${AWS_ACCOUNT_ID}" \
+            --arg recovery "${GITHUB_RUN_ID}" \
+            --arg vpc "$(terraform -chdir=infra/aws/terraform output -raw vpc_id)" \
+            --arg endpoint_sg "$(terraform -chdir=infra/aws/terraform output -raw endpoint_security_group_id)" \
+            --arg image "$(terraform -chdir=infra/aws/terraform output -raw frappe_backend_image)" \
+            --arg operation_role "$(terraform -chdir=infra/aws/terraform output -raw ecs_operation_role_arn)" \
+            --arg cluster "$(terraform -chdir=infra/aws/terraform output -raw ecs_cluster_arn)" \
+            --arg frappe_secret "$(terraform -chdir=infra/aws/terraform output -raw frappe_secret_arn)" \
+            --arg backup_bucket "$(terraform -chdir=infra/aws/terraform output -raw backup_bucket_name)" \
+            --arg kms "$(terraform -chdir=infra/aws/terraform output -raw platform_kms_key_arn)" \
+            --argjson subnets "$(terraform -chdir=infra/aws/terraform output -json private_subnet_ids)" \
+            '{aws_region:"eu-central-1",aws_account_id:$account,recovery_id:$recovery,vpc_id:$vpc,endpoint_security_group_id:$endpoint_sg,private_subnet_ids:$subnets,frappe_backend_image:$image,ecs_operation_role_arn:$operation_role,ecs_cluster_arn:$cluster,frappe_secret_arn:$frappe_secret,backup_bucket_name:$backup_bucket,platform_kms_key_arn:$kms}' \
+            >"${RUNNER_TEMP}/recovery.auto.tfvars.json"
+
+      - name: Create isolated recovery stack in separate state
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/aws/recovery init \
+            -backend-config="bucket=${AWS_TERRAFORM_STATE_BUCKET}" \
+            -backend-config="key=recovery/${GITHUB_RUN_ID}.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="kms_key_id=${AWS_TERRAFORM_STATE_KMS_KEY_ARN}" \
+            -backend-config="use_lockfile=true"
+          terraform -chdir=infra/aws/recovery plan \
+            -var-file="${RUNNER_TEMP}/recovery.auto.tfvars.json" \
+            -out="${RUNNER_TEMP}/recovery.tfplan"
+          terraform -chdir=infra/aws/recovery show -json "${RUNNER_TEMP}/recovery.tfplan" \
+            >"${RUNNER_TEMP}/recovery-plan.json"
+          python3 scripts/check-terraform-plan.py "${RUNNER_TEMP}/recovery-plan.json"
+          terraform -chdir=infra/aws/recovery apply -auto-approve "${RUNNER_TEMP}/recovery.tfplan"
+
+      - name: Restore and validate inside the isolated recovery stack
         env:
           MANIFEST_URI: ${{ inputs.manifest_s3_uri }}
-        run: scripts/run-restore-drill.sh "${MANIFEST_URI}"
+        run: TERRAFORM_ROOT=infra/aws/recovery scripts/run-restore-drill.sh "${MANIFEST_URI}"
+
+      - name: Destroy the isolated recovery stack
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "${RUNNER_TEMP}/recovery.auto.tfvars.json" ] && [ -d infra/aws/recovery/.terraform ]; then
+            terraform -chdir=infra/aws/recovery destroy -auto-approve \
+              -var-file="${RUNNER_TEMP}/recovery.auto.tfvars.json"
+          fi
 
       - name: Retain private aggregate drill evidence
         if: always()

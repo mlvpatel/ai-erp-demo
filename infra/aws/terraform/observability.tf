@@ -83,6 +83,51 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
   ok_actions          = [var.alert_topic_arn]
 }
 
+resource "aws_cloudwatch_metric_alarm" "rds_connections" {
+  alarm_name          = "${local.name}-rds-connections"
+  namespace           = "AWS/RDS"
+  metric_name         = "DatabaseConnections"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 80
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.mariadb.id }
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_freeable_memory" {
+  alarm_name          = "${local.name}-rds-freeable-memory"
+  namespace           = "AWS/RDS"
+  metric_name         = "FreeableMemory"
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 268435456
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.mariadb.id }
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "efs_storage" {
+  alarm_name          = "${local.name}-efs-storage-80gb"
+  namespace           = "AWS/EFS"
+  metric_name         = "StorageBytes"
+  statistic           = "Maximum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 85899345920
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions          = { FileSystemId = aws_efs_file_system.sites.id, StorageClass = "Total" }
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
 resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
   alarm_name          = "${local.name}-redis-evictions"
   namespace           = "AWS/ElastiCache"
@@ -174,6 +219,21 @@ resource "aws_cloudwatch_metric_alarm" "restore_drill_overdue" {
   ok_actions          = [var.alert_topic_arn]
 }
 
+resource "aws_cloudwatch_metric_alarm" "restore_failure" {
+  alarm_name          = "${local.name}-restore-failure"
+  namespace           = "AIERP/Backup"
+  metric_name         = "RestoreDrillFailure"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  dimensions          = { Environment = var.environment }
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
 resource "aws_cloudwatch_log_metric_filter" "ai_provider_attempt" {
   name           = "${local.name}-ai-provider-attempt"
   pattern        = "ai_provider_attempt"
@@ -195,6 +255,51 @@ resource "aws_cloudwatch_log_metric_filter" "ai_provider_failure" {
     namespace     = "AIERP/AI"
     value         = "1"
     default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "ai_provider_latency" {
+  name           = "${local.name}-ai-provider-latency"
+  pattern        = "{ $.event = \"ai_provider_success\" && $.duration_ms = * }"
+  log_group_name = aws_cloudwatch_log_group.ecs["ai"].name
+  metric_transformation {
+    name      = "ProviderLatencyMs"
+    namespace = "AIERP/AI"
+    value     = "$.duration_ms"
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "ai_output_tokens" {
+  name           = "${local.name}-ai-output-tokens"
+  pattern        = "{ $.event = \"ai_provider_success\" && $.output_tokens = * }"
+  log_group_name = aws_cloudwatch_log_group.ecs["ai"].name
+  metric_transformation {
+    name      = "ProviderOutputTokens"
+    namespace = "AIERP/AI"
+    value     = "$.output_tokens"
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "permission_failure" {
+  name           = "${local.name}-permission-failure"
+  pattern        = "erp_permission_denied"
+  log_group_name = aws_cloudwatch_log_group.ecs["web"].name
+  metric_transformation {
+    name          = "PermissionFailures"
+    namespace     = "AIERP/Security"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "queue_age" {
+  name           = "${local.name}-queue-age"
+  pattern        = "{ $.event = \"queue_oldest_age\" && $.age_seconds = * }"
+  log_group_name = aws_cloudwatch_log_group.ecs["scheduler"].name
+  metric_transformation {
+    name      = "OldestJobAgeSeconds"
+    namespace = "AIERP/Queue"
+    value     = "$.age_seconds"
   }
 }
 
@@ -233,4 +338,89 @@ resource "aws_cloudwatch_metric_alarm" "ai_failure_rate" {
       stat        = "Sum"
     }
   }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ai_latency" {
+  alarm_name          = "${local.name}-ai-latency"
+  namespace           = "AIERP/AI"
+  metric_name         = "ProviderLatencyMs"
+  extended_statistic  = "p95"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 7500
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ai_request_rate" {
+  alarm_name          = "${local.name}-ai-request-rate"
+  namespace           = "AIERP/AI"
+  metric_name         = "ProviderAttempts"
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 30
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ai_cost_proxy" {
+  alarm_name          = "${local.name}-ai-token-cost-guard"
+  namespace           = "AIERP/AI"
+  metric_name         = "ProviderOutputTokens"
+  statistic           = "Sum"
+  period              = 86400
+  evaluation_periods  = 1
+  threshold           = 200000
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "permission_failures" {
+  alarm_name          = "${local.name}-permission-failures"
+  namespace           = "AIERP/Security"
+  metric_name         = "PermissionFailures"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 10
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "queue_age" {
+  alarm_name          = "${local.name}-queue-oldest-age"
+  namespace           = "AIERP/Queue"
+  metric_name         = "OldestJobAgeSeconds"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 600
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_actions       = [var.alert_topic_arn]
+  ok_actions          = [var.alert_topic_arn]
+}
+
+resource "aws_cloudwatch_event_rule" "ecs_deployment_failed" {
+  name        = "${local.name}-ecs-deployment-failed"
+  description = "Alert on ECS deployment circuit-breaker rollback"
+  event_pattern = jsonencode({
+    source        = ["aws.ecs"]
+    "detail-type" = ["ECS Deployment State Change"]
+    detail        = { eventName = ["SERVICE_DEPLOYMENT_FAILED"] }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "ecs_deployment_failed" {
+  rule = aws_cloudwatch_event_rule.ecs_deployment_failed.name
+  arn  = var.alert_topic_arn
 }

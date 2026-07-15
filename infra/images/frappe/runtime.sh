@@ -47,11 +47,14 @@ case "${1:-}" in
   configure)
     : "${SITE_NAME:?SITE_NAME is required}"
     : "${DB_HOST:?DB_HOST is required}"
+    : "${DB_SSL_CA:?DB_SSL_CA is required}"
     : "${REDIS_CACHE:?REDIS_CACHE is required}"
     : "${REDIS_QUEUE:?REDIS_QUEUE is required}"
     ensure_apps_registry
     bench set-config -g db_host "${DB_HOST}"
     bench set-config -g db_port 3306
+    bench set-config -g db_ssl_ca "${DB_SSL_CA}"
+    bench set-config -g db_ssl_check_hostname true
     bench set-config -g redis_cache "${REDIS_CACHE}"
     bench set-config -g redis_queue "${REDIS_QUEUE}"
     bench set-config -g socketio_port 9000
@@ -94,6 +97,13 @@ case "${1:-}" in
     exec /opt/ai-erp/ops-venv/bin/python /opt/ai-erp/bin/backup-to-s3
     ;;
   restore)
+    : "${DB_HOST:?DB_HOST is required}"
+    : "${DB_SSL_CA:?DB_SSL_CA is required}"
+    ensure_apps_registry
+    bench set-config -g db_host "${DB_HOST}"
+    bench set-config -g db_port 3306
+    bench set-config -g db_ssl_ca "${DB_SSL_CA}"
+    bench set-config -g db_ssl_check_hostname true
     exec /opt/ai-erp/ops-venv/bin/python /opt/ai-erp/bin/restore-drill
     ;;
   capacity)
