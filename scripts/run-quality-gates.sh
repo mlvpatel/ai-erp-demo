@@ -89,6 +89,9 @@ echo "==> First public issues"
 echo "==> MVP acceptance"
 "$python_bin" scripts/check-mvp-acceptance.py
 
+echo "==> Field-service 9/10 scorecard"
+"$python_bin" scripts/check-field-service-9-scorecard.py
+
 echo "==> Authorization matrix"
 "$python_bin" scripts/check-authorization-matrix.py
 

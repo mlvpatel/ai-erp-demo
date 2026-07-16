@@ -34,6 +34,27 @@ Exit gate:
 - No production, UAT, legal-compliance, capacity, recovery, or all-industry claim
   is made.
 
+## Next: governed field-service 9/10 program
+
+Goal: make the project excellent in one narrow category before expanding:
+governed AI-native field-service ERP for small and midsize maintenance,
+installation, and repair firms with 10 to 100 technicians.
+
+- Use `docs/product/field-service-9-target.md` as the target definition.
+- Use `config/field-service-9-scorecard.json` as the machine-readable scorecard.
+- Validate product assumptions with the design-partner template in
+  `docs/discovery/design-partner-validation-template.md`.
+- Keep distribution and light manufacturing as `configured_demo` until a design
+  partner validates each workflow.
+
+Exit gate:
+
+- Design partners rate the evidence-to-cash workflow at 9/10 or better.
+- The scorecard, traceability, browser journeys, permission tests, AI contract
+  tests, and capacity evidence agree on the same release state.
+- The repository still avoids production-ready, human-UAT-approved, legal,
+  compliance, and full-multi-industry claims until separate evidence exists.
+
 ## Deferred: approved field-service production pilot
 
 Goal: operate a small field-service pilot within the documented USD 600 target

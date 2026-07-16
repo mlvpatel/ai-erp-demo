@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "source_docs": [
+    "docs/product/field-service-9-target.md",
+    "docs/discovery/design-partner-validation-template.md"
+  ],
+  "target_category": "Governed AI-native field-service ERP for maintenance, installation, and repair firms with 10 to 100 technicians.",
+  "claim_boundary": "This is a target scorecard. The repository may not claim a 9/10 product, production readiness, human UAT approval, legal compliance, or full multi-industry ERP coverage until matching evidence exists.",
+  "target_user": "Field-service operations manager responsible for work quality, technician execution, customer handoff, and invoice readiness.",
+  "process_owner": "Service Manager",
+  "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
+  "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
+  "current_demo_average_score": 5.7,
+  "target_average_score": 9.1,
+  "requirements_status": {
+    "verified": [
+      "Technician and manager responsibilities are separated in the local demo.",
+      "Draft invoices are finance-triggered, idempotent, and draft-only.",
+      "AI closeout proposals are cited, immutable, review-only, and non-posting."
+    ],
+    "assumed": [
+      "Small and midsize field-service teams value evidence replay more than generic chatbot breadth.",
+      "A 10 to 100 technician segment can validate the workflow without custom accounting or MRP."
+    ],
+    "deferred": [
+      "Human design-partner validation.",
+      "Production deployment, legal approval, support ownership, live provider evaluation, and exact capacity evidence.",
+      "Distribution and manufacturing promotion beyond configured_demo."
+    ]
+  },
+  "system_records": [
+    {
+      "entity": "Customer, Item, Warehouse, Sales Invoice, Stock Entry, Project, and User",
+      "system_of_record": "ERPNext",
+      "integration_owner": "ERPNext/Frappe administrator"
+    },
+    {
+      "entity": "Service Request, Service Work Order, closeout, exception, execution fields, and industry workflow",
+      "system_of_record": "apps/ai_erp_service",
+      "integration_owner": "Service Manager"
+    },
+    {
+      "entity": "AI Proposal, source citations, review metadata, and provider audit metadata",
+      "system_of_record": "apps/ai_erp_core and services/ai_control_plane",
+      "integration_owner": "AI Approver"
+    }
+  ],
+  "features": [
+    {
+      "id": "verifiable-evidence-to-cash-ledger",
+      "title": "Verifiable evidence-to-cash ledger",
+      "implementation_state": "planned",
+      "current_score": 7.0,
+      "target_score": 10.0,
+      "role_owner": "Service Manager",
+      "input": "Service request, work order assignment, technician time, parts, closeout notes, evidence, stock issue link, AI proposal, and invoice draft link.",
+      "output": "A replayable chain from request to invoice-ready handoff and exactly one draft Sales Invoice.",
+      "decision_logic": "Manager may mark invoice-ready only after closeout, exception, parts, tenant, and permission checks pass; finance may draft only through standard ERPNext Sales Invoice create permission.",
+      "validation_gate": "Automated tests prove idempotent stock issue, idempotent draft invoice, role separation, and audit links.",
+      "feedback_loop": "Failed closeout or missing evidence routes back to technician or manager with an owned exception.",
+      "failure_handling": "Retries return existing linked records; partial or duplicate state blocks release.",
+      "optimization_step": "Add compact manager replay view and exportable evidence packet before production pilot.",
+      "scalability_note": "Permission-scoped lists and reports must pass the full private capacity profile before pilot activation.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "docs/workflows/service-operations.md"
+      ]
+    },
+    {
+      "id": "cannot-close-recovery-coach",
+      "title": "Cannot-close recovery coach",
+      "implementation_state": "partly_implemented",
+      "current_score": 7.5,
+      "target_score": 9.0,
+      "role_owner": "Service Manager",
+      "input": "Work order status, closeout fields, exception reason, downstream owner, due date, and escalation age.",
+      "output": "Owned exception, manager notification, and optional draft recovery proposal.",
+      "decision_logic": "The system escalates overdue Cannot Close records to a manager but never auto-closes work.",
+      "validation_gate": "Scheduled-job and permission tests prove overdue escalation and human ownership.",
+      "feedback_loop": "Manager assigns the next human action or sends the work order back to technician execution.",
+      "failure_handling": "Notification failure leaves the exception open and visible in manager queues.",
+      "optimization_step": "Add cited AI recovery drafts and refusal cases for weak evidence.",
+      "scalability_note": "Exception queues must remain filterable by owner, due date, customer, and technician at capacity.",
+      "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
+        "docs/workflows/service-operations.md"
+      ]
+    },
+    {
+      "id": "margin-leakage-guardian",
+      "title": "Margin leakage guardian",
+      "implementation_state": "planned",
+      "current_score": 5.5,
+      "target_score": 9.0,
+      "role_owner": "Accounts Manager",
+      "input": "Bill rates, issued part costs, time rows, invoice readiness, discounts, repeat visits, and work-order exceptions.",
+      "output": "Permission-scoped profitability view and margin risk explanations before finance handoff.",
+      "decision_logic": "Finance-only profitability fields remain hidden from technicians; alerts explain risk without changing billing records.",
+      "validation_gate": "Negative permission tests prove technicians cannot view or mutate finance fields.",
+      "feedback_loop": "Manager can send a job back for clarification or approve a finance handoff with known risk.",
+      "failure_handling": "Missing cost data creates a visible exception instead of inventing margin.",
+      "optimization_step": "Add leakage categories for missing billable time, part variance, discount risk, and repeated visit patterns.",
+      "scalability_note": "Profitability reports must use indexed filters and avoid unrestricted cross-tenant search.",
+      "evidence_paths": [
+        "config/authorization-matrix.json",
+        "config/transaction-safety.json",
+        "docs/workflows/service-operations.md"
+      ]
+    },
+    {
+      "id": "provenance-based-repair-memory",
+      "title": "Provenance-based repair memory",
+      "implementation_state": "planned",
+      "current_score": 4.0,
+      "target_score": 9.0,
+      "role_owner": "AI Approver",
+      "input": "Role-visible historical work orders, source citations, closeout outcomes, parts, assets, and failure patterns.",
+      "output": "Cited suggestions or abstentions for likely fix, missing evidence, and next diagnostic step.",
+      "decision_logic": "Retrieval is permission-scoped and the AI must abstain when source evidence is weak or invisible to the role.",
+      "validation_gate": "Contract and provider tests prove redaction, schema adherence, citation requirements, refusal, and no hidden-source leakage.",
+      "feedback_loop": "Approver rejection creates evaluation examples and updates retrieval quality notes.",
+      "failure_handling": "Provider, cache, timeout, malformed output, or unsafe content failures return a safe unavailable/refusal category.",
+      "optimization_step": "Add repair-memory eval cases from synthetic service histories.",
+      "scalability_note": "Retrieval must be bounded by tenant, role, source type, time range, and result count.",
+      "evidence_paths": [
+        "config/ai-data-boundary.json",
+        "config/ai-workflow-registry.json",
+        "services/ai_control_plane/tests/test_render.py"
+      ]
+    },
+    {
+      "id": "safe-agent-replay",
+      "title": "Safe agent replay",
+      "implementation_state": "planned",
+      "current_score": 6.0,
+      "target_score": 9.0,
+      "role_owner": "AI Approver",
+      "input": "Typed ERP context, workflow state, allowed tool registry, policy result, proposal, and reviewer decision.",
+      "output": "Replayable draft proposal with policy explanation and no autonomous ERP write.",
+      "decision_logic": "Agents can plan and propose only inside registered workflow contracts; deterministic ERP code performs validation and authorized writes.",
+      "validation_gate": "Replay tests prove no financial, stock, payroll, permission, compliance, or customer-message side effects.",
+      "feedback_loop": "Rejected proposals feed evaluation cases and workflow policy updates.",
+      "failure_handling": "Policy mismatch, missing citation, or model mismatch fails closed and records safe metadata only.",
+      "optimization_step": "Add replay fixture bundles for closeout, scheduling, exception, and finance handoff proposals.",
+      "scalability_note": "Replay storage must keep metadata and hashes, not raw prompts or provider responses.",
+      "evidence_paths": [
+        "config/ai-workflow-registry.json",
+        "docs/workflows/ai-workflow-lifecycle.md",
+        "tests/contract/test_ai_control_plane_openapi.py"
+      ]
+    },
+    {
+      "id": "bounded-scheduling-optimizer",
+      "title": "Bounded scheduling optimizer",
+      "implementation_state": "planned",
+      "current_score": 3.5,
+      "target_score": 9.0,
+      "role_owner": "Dispatcher",
+      "input": "Technician availability, skills, territory, service location, SLA, work priority, duration, and parts readiness.",
+      "output": "Ranked assignment suggestions with reasons and dispatcher approval controls.",
+      "decision_logic": "Optimizer proposes assignments; dispatcher approves, edits, or rejects. No autonomous reassignment occurs.",
+      "validation_gate": "Tests prove cross-technician visibility, role checks, conflict handling, and deterministic tie-breakers.",
+      "feedback_loop": "Dispatcher rejection captures reason categories for future ranking improvement.",
+      "failure_handling": "Missing availability, location, skill, or parts data produces an exception instead of a hidden assignment.",
+      "optimization_step": "Start with deterministic scoring before adding AI explanations.",
+      "scalability_note": "Scheduling search must stay bounded by date window, territory, role, and candidate count.",
+      "evidence_paths": [
+        "docs/product/mvp-scope.md",
+        "docs/workflows/service-operations.md"
+      ]
+    },
+    {
+      "id": "mobile-field-execution",
+      "title": "Mobile field execution",
+      "implementation_state": "planned",
+      "current_score": 5.0,
+      "target_score": 9.0,
+      "role_owner": "Technician",
+      "input": "Assigned work order, execution state, time, requested parts, notes, attachments, and permitted closeout fields.",
+      "output": "Fast technician completion flow with no customer, finance, scheduling, assignment, share, or email privilege leakage.",
+      "decision_logic": "Technicians may update execution fields only for assigned work orders; managers retain customer, billing, and assignment fields.",
+      "validation_gate": "Desktop and mobile browser tests prove visible controls, forbidden fields, attachments, validation messages, and unauthorized access denial.",
+      "feedback_loop": "Validation errors return the technician to the exact missing execution field.",
+      "failure_handling": "Attachment or validation failure leaves the work order open with no partial invoice or stock side effect.",
+      "optimization_step": "Add offline-safe draft capture only after field UAT proves the mobile flow.",
+      "scalability_note": "Technician lists must filter by assigned work and avoid loading finance or unrelated customer data.",
+      "evidence_paths": [
+        "config/authorization-matrix.json",
+        "tests/e2e"
+      ]
+    },
+    {
+      "id": "governed-demo-to-pilot-release",
+      "title": "Governed demo-to-pilot release",
+      "implementation_state": "partly_implemented",
+      "current_score": 7.0,
+      "target_score": 9.0,
+      "role_owner": "Repository Maintainer",
+      "input": "Static gates, Docker gates, browser evidence, release report, deployment manifests, capacity, restore, UAT, legal, and support records.",
+      "output": "Truthful release state: demo ready, automated complete, deployment evidence complete, or pilot approved.",
+      "decision_logic": "External pilot gates remain false until reviewed evidence exists; demo readiness does not imply production readiness.",
+      "validation_gate": "Quality gates and pilot readiness checks separate synthetic automation from human approvals and deployment evidence.",
+      "feedback_loop": "Failed gates update backlog, roadmap, and traceability before another release attempt.",
+      "failure_handling": "Missing AWS, OpenAI, legal, support, UAT, or design-partner evidence blocks pilot approval but not local demo release.",
+      "optimization_step": "Add fresh-clone evidence packaging and PR evidence refresh for every release candidate.",
+      "scalability_note": "Release evidence must remain synthetic or approved redacted data and must not include local Bench state.",
+      "evidence_paths": [
+        "config/pilot-readiness.json",
+        "docs/product/requirements-traceability.md",
+        "docs/audits/free-demo-release-status-2026-07-15.md"
+      ]
+    }
+  ]
+}
