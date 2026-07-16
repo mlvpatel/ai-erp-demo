@@ -231,14 +231,20 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		)
 		work_order.closeout_notes = "Inspection completed during service."
 		work_order.closeout_evidence = "/private/files/test-inspection-closeout.txt"
+		work_order.save()
 		work_order.status = "Closeout Submitted"
 		with self.assertRaises(frappe.ValidationError):
 			work_order.save()
 
+		work_order.reload()
+		work_order.status = "Closeout Submitted"
 		work_order.inspection_result = "Failed"
 		with self.assertRaises(frappe.ValidationError):
 			work_order.save()
 
+		work_order.reload()
+		work_order.status = "Closeout Submitted"
+		work_order.inspection_result = "Failed"
 		work_order.inspection_notes = "Pressure test failed; manager follow-up required."
 		work_order.save()
 		self.assertEqual(work_order.status, "Closeout Submitted")
