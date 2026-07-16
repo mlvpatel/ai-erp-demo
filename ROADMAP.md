@@ -30,7 +30,6 @@ Exit gate:
 - A clean checkout completes the static and Docker-backed demo gates.
 - Three synthetic-only screenshots show technician execution, manager/finance
   handoff, and the cited draft-only AI proposal.
-- The private GitHub pull request has current evidence and green checks.
 - No production, UAT, legal-compliance, capacity, recovery, or all-industry claim
   is made.
 
