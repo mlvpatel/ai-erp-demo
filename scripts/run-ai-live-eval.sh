@@ -27,4 +27,4 @@ if [ "${exit_code}" != "0" ]; then
   echo "private synthetic OpenAI evaluation failed; inspect redacted operations telemetry" >&2
   exit 1
 fi
-echo "private synthetic OpenAI evaluation passed (one bounded case)."
+echo "private synthetic OpenAI evaluation passed (five bounded synthetic cases)."

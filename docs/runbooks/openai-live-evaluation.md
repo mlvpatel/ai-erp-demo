@@ -1,10 +1,12 @@
 # Private OpenAI live evaluation
 
 This is an operator-only pre-production check for the existing
-`service_closeout_summary` route. It creates no new API route, uses one built-in
-synthetic work order, makes at most one provider request, and prints only a
-pass/fail aggregate. It never prints the prompt, response, API key, tenant, user,
-record ID, or source hash.
+`service_closeout_summary` route. It creates no new API route and uses five
+built-in synthetic cases covering factual grounding, prompt-injection refusal,
+PII redaction, invented-quantity refusal, and a benign baseline. It makes at
+most one provider request per case with no retries, five requests total, and
+prints only a pass/fail aggregate. It never prints the prompt, response, API
+key, tenant, user, record ID, or source hash.
 
 Do not run this with customer or production data. A pass is technical evidence,
 not approval for real data. DPA/DPIA, controller approval, European data
@@ -18,8 +20,9 @@ capacity gate remain separate requirements.
   it in a command, tracked `.env` file, CI log, issue, or screenshot.
 - Use the pinned model and `https://eu.api.openai.com/v1` from ADR-0006.
 - Set an OpenAI project-level hard budget and alert before the run. The harness
-  additionally enforces one call, no retry, a 32,000-byte input envelope, 2,000
-  output tokens, and a maximum 30-second provider timeout.
+  additionally enforces one call per case with no retry (five calls total), a
+  32,000-byte input envelope, 2,000 output tokens, and a maximum 8-second
+  provider timeout per call.
 
 ## Run
 
@@ -36,7 +39,7 @@ python -m ai_erp_control_plane.live_eval
 Expected stdout is exactly one safe aggregate line:
 
 ```text
-openai_live_eval=PASS cases=1 synthetic=true
+openai_live_eval=PASS cases=5 synthetic=true
 ```
 
 On failure, stdout contains only `openai_live_eval=FAIL
