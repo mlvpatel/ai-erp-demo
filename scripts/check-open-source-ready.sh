@@ -40,7 +40,6 @@ require_gitignore_pattern() {
 }
 
 require_file README.md
-require_file AGENTS.md
 require_file ROADMAP.md
 require_file BACKLOG.md
 require_file CONTRIBUTING.md

@@ -8,8 +8,8 @@ Developer Certificate of Origin sign-off (`git commit -s`) confirming that the
 contributor has the right to submit the work under this license.
 Use `BACKLOG.md` to choose small, safe starter issues.
 
-Before changing an ERP feature, read the repository `AGENTS.md` and the two
-repo-local delivery skills under `.agents/skills/`. Keep Frappe/ERPNext source
+Before changing an ERP feature, read `docs/architecture/system-boundaries.md`
+and `docs/workflows/quality-gates.md`. Keep Frappe/ERPNext source
 upstream; custom behavior belongs in `apps/`, provider and prompt code belongs
 in `services/ai_control_plane/`, and public schemas belong in `contracts/`.
 

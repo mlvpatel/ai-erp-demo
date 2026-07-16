@@ -207,7 +207,7 @@
       "evidence_paths": [
         "config/pilot-readiness.json",
         "docs/product/requirements-traceability.md",
-        "docs/audits/free-demo-release-status-2026-07-15.md"
+        "config/release-readiness.json"
       ]
     }
   ]
