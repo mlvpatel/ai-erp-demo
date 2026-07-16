@@ -226,6 +226,27 @@ class TestOpenAIProvider(unittest.TestCase):
 			self.assertNotIn(sensitive, captured["body"])
 		self.assertGreaterEqual(response.audit.redaction_count, 3)
 
+	def test_preserves_date_and_amount_facts_while_redacting_phone_shapes(self):
+		request = _request()
+		request.work_order.description = "Visited on 2026-07-10 and quoted 12 500.00 for the repair."
+		request.work_order.closeout_notes = "Call 415-555-0100 or +1 (415) 555-0100 with ref 12345678901."
+		captured = {}
+
+		def handler(http_request):
+			captured["body"] = http_request.content.decode()
+			return httpx.Response(200, json=_provider_payload())
+
+		client = httpx.Client(transport=httpx.MockTransport(handler))
+		with patch.dict(os.environ, _environment(), clear=True):
+			response = render_openai(request, client=client)
+		client.close()
+
+		for preserved_fact in ("2026-07-10", "12 500.00"):
+			self.assertIn(preserved_fact, captured["body"])
+		for phone_shape in ("415-555-0100", "+1 (415) 555-0100", "12345678901"):
+			self.assertNotIn(phone_shape, captured["body"])
+		self.assertEqual(response.audit.redaction_count, 3)
+
 	def test_rejects_model_mismatch_and_missing_audit_metadata(self):
 		for payload in (
 			_provider_payload(model="unexpected-model"),

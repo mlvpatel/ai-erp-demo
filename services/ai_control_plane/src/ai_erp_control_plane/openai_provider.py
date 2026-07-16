@@ -32,6 +32,9 @@ MAX_AUTOMATIC_RETRIES = 0
 MAX_TIMEOUT_SECONDS = 8
 EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 PHONE_PATTERN = re.compile(r"(?<![\w-])(?:\+?\d[\d .()\-]{7,}\d)(?![\w-])")
+# ponytail: shape allowlist for operational facts; datetimes and other digit runs
+# still redact (safe direction). Extend only when a live eval loses grounding on them.
+GROUNDING_FACT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}|\d{1,3}(?: \d{3})*\.\d{2}")
 SENSITIVE_VALUE_PATTERN = re.compile(
 	r"(?i)\b(?:api[_ -]?key|access[_ -]?token|bearer|password|secret|credential)\b\s*[:=]?\s*[^\s,;]{4,}"
 )
@@ -72,9 +75,19 @@ class OpenAIConfig:
 
 def _redact(value: str) -> tuple[str, int]:
 	count = 0
-	for pattern in (EMAIL_PATTERN, PHONE_PATTERN, SENSITIVE_VALUE_PATTERN):
-		value, matches = pattern.subn("[REDACTED]", value)
-		count += matches
+
+	def redact_phone(match: re.Match) -> str:
+		nonlocal count
+		if GROUNDING_FACT_PATTERN.fullmatch(match.group(0)):
+			return match.group(0)
+		count += 1
+		return "[REDACTED]"
+
+	value, matches = EMAIL_PATTERN.subn("[REDACTED]", value)
+	count += matches
+	value = PHONE_PATTERN.sub(redact_phone, value)
+	value, matches = SENSITIVE_VALUE_PATTERN.subn("[REDACTED]", value)
+	count += matches
 	return value, count
 
 

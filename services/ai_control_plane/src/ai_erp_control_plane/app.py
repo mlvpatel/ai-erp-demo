@@ -1,7 +1,6 @@
 """HTTP boundary for the stateless AI control plane."""
 
 import hmac
-import json
 import logging
 import os
 
@@ -100,18 +99,14 @@ def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
 				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 				detail="approved model provider is unavailable",
 				) from None
-		print(
-			json.dumps(
-				{
-					"event": "ai_provider_success",
-					"duration_ms": result.audit.duration_ms,
-					"input_tokens": result.audit.input_tokens,
-					"output_tokens": result.audit.output_tokens,
-					"redaction_count": result.audit.redaction_count,
-				},
-				separators=(",", ":"),
-			),
-			flush=True,
+		logger.info(
+			"ai_provider_success",
+			extra={
+				"duration_ms": result.audit.duration_ms,
+				"input_tokens": result.audit.input_tokens,
+				"output_tokens": result.audit.output_tokens,
+				"redaction_count": result.audit.redaction_count,
+			},
 		)
 		return result
 	else:
