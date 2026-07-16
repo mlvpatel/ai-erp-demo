@@ -13,6 +13,13 @@
   "service_location",
   "service_request",
   "description",
+  "service_foundation_section",
+  "service_asset",
+  "service_priority",
+  "sla_due_at",
+  "foundation_column",
+  "warranty_status",
+  "inspection_required",
   "status",
   "schedule_section",
   "scheduled_start",
@@ -23,6 +30,8 @@
   "time_entries",
   "parts",
   "closeout_section",
+  "inspection_result",
+  "inspection_notes",
   "closeout_notes",
   "closeout_evidence",
   "cannot_close_reason",
@@ -81,6 +90,58 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "service_foundation_section",
+   "fieldtype": "Section Break",
+   "label": "Service Foundation",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "service_asset",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Service Asset",
+   "options": "Asset",
+   "permlevel": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "service_priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Priority",
+   "options": "Low\nMedium\nHigh\nCritical",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "sla_due_at",
+   "fieldtype": "Datetime",
+   "in_standard_filter": 1,
+   "label": "SLA Due At",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "foundation_column",
+   "fieldtype": "Column Break",
+   "permlevel": 1
+  },
+  {
+   "default": "Unknown",
+   "fieldname": "warranty_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Warranty Status",
+   "options": "Unknown\nIn Warranty\nOut of Warranty\nNot Applicable",
+   "permlevel": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "inspection_required",
+   "fieldtype": "Check",
+   "label": "Inspection Required",
    "permlevel": 1
   },
   {
@@ -147,6 +208,17 @@
    "fieldname": "closeout_section",
    "fieldtype": "Section Break",
    "label": "Closeout"
+  },
+  {
+   "fieldname": "inspection_result",
+   "fieldtype": "Select",
+   "label": "Inspection Result",
+   "options": "\nPass\nNeeds Follow-up\nFailed"
+  },
+  {
+   "fieldname": "inspection_notes",
+   "fieldtype": "Small Text",
+   "label": "Inspection Notes"
   },
   {
    "fieldname": "closeout_notes",

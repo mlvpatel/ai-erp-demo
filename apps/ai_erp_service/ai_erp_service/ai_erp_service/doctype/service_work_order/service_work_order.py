@@ -6,7 +6,7 @@ from time import sleep
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, getdate, today
+from frappe.utils import flt, get_datetime, getdate, today
 
 from ai_erp_service.service_utils import (
 	DISPATCHER_ROLES,
@@ -38,6 +38,11 @@ TECHNICIAN_IMMUTABLE_FIELDS = (
 	"service_location",
 	"service_request",
 	"description",
+	"service_asset",
+	"service_priority",
+	"sla_due_at",
+	"warranty_status",
+	"inspection_required",
 	"scheduled_start",
 	"scheduled_end",
 	"assigned_technician",
@@ -61,6 +66,7 @@ class ServiceWorkOrder(Document):
 		self._validate_technician_field_scope()
 		self._validate_location()
 		self._validate_schedule()
+		self._validate_service_foundation()
 		self._validate_assignment()
 		self._validate_time_entries()
 		self._validate_parts()
@@ -105,6 +111,20 @@ class ServiceWorkOrder(Document):
 	def _validate_schedule(self):
 		if self.scheduled_start and self.scheduled_end and self.scheduled_end <= self.scheduled_start:
 			frappe.throw(_("Scheduled End must be later than Scheduled Start."))
+
+	def _validate_service_foundation(self):
+		if self.service_asset and frappe.get_meta("Asset").has_field("customer"):
+			asset_customer = frappe.db.get_value("Asset", self.service_asset, "customer")
+			if asset_customer and self.customer and asset_customer != self.customer:
+				frappe.throw(_("Service Asset must belong to the work-order Customer."))
+
+		if self.warranty_status == "In Warranty" and not self.service_asset:
+			frappe.throw(_("In Warranty work requires a linked Service Asset."))
+
+		if self.sla_due_at and self.scheduled_start and get_datetime(self.sla_due_at) < get_datetime(
+			self.scheduled_start
+		):
+			frappe.throw(_("SLA Due At cannot be earlier than Scheduled Start."))
 
 	def _validate_assignment(self):
 		if self.status in {"Scheduled", *TECHNICIAN_STATES, *FINAL_STATES} and not self.assigned_technician:
@@ -261,6 +281,10 @@ class ServiceWorkOrder(Document):
 			frappe.throw(_("Closeout Notes are required before submitting closeout."))
 		if not self.closeout_evidence:
 			frappe.throw(_("Closeout Evidence is required before submitting closeout."))
+		if self.inspection_required and not self.inspection_result:
+			frappe.throw(_("Inspection Result is required before submitting closeout."))
+		if self.inspection_result in {"Needs Follow-up", "Failed"} and not self.inspection_notes:
+			frappe.throw(_("Inspection Notes are required for failed or follow-up inspection results."))
 		if self.status in FINAL_STATES and any(not row.stock_entry for row in self.get("parts") or []):
 			frappe.throw(_("All declared parts must be issued before the work order can close."))
 

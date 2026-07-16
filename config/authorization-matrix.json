@@ -117,6 +117,26 @@
       ]
     },
     {
+      "id": "service-foundation-manager-controlled",
+      "description": "Asset, SLA, warranty, priority, and inspection requirement fields are manager-controlled while inspection execution remains available to the assigned technician.",
+      "roles_allowed": ["Service Manager", "Service Dispatcher", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "def _validate_service_foundation",
+            "inspection_required",
+            "Inspection Result is required before submitting closeout."
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_service_foundation_gates_warranty_and_required_inspection",
+        "(\"warranty_status\", \"In Warranty\")",
+        "Pressure test failed; manager follow-up required."
+      ]
+    },
+    {
       "id": "manager-only-stock-issue",
       "description": "Only manager roles can create the submitted ERPNext Material Issue from declared parts.",
       "roles_allowed": ["Service Manager", "System Manager"],

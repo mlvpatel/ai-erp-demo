@@ -170,6 +170,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user(self.technician)
 		for fieldname, value in (
 			("customer", alternate_customer),
+			("service_priority", "Critical"),
+			("warranty_status", "In Warranty"),
+			("inspection_required", 1),
 			("scheduled_end", add_to_date(work_order.scheduled_end, hours=1)),
 			("assigned_technician", "Administrator"),
 			("hourly_rate", 999),
@@ -198,6 +201,45 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			pass
 		work_order.reload()
 		self.assertEqual(work_order.parts[0].bill_rate, original_rate)
+
+	def test_service_foundation_gates_warranty_and_required_inspection(self):
+		work_order = self._make_work_order("Asset SLA inspection work order")
+		work_order.warranty_status = "In Warranty"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.reload()
+		work_order.warranty_status = "Unknown"
+		work_order.inspection_required = 1
+		work_order.save()
+		self._schedule(work_order, self.technician)
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Inspection completed during service."
+		work_order.closeout_evidence = "/private/files/test-inspection-closeout.txt"
+		work_order.status = "Closeout Submitted"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.inspection_result = "Failed"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.inspection_notes = "Pressure test failed; manager follow-up required."
+		work_order.save()
+		self.assertEqual(work_order.status, "Closeout Submitted")
 
 	def test_technician_related_reads_are_limited_to_assigned_work(self):
 		assigned_request = frappe.get_doc(
