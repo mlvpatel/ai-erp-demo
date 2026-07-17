@@ -89,7 +89,7 @@
     {
       "id": "margin-leakage-guardian",
       "title": "Margin leakage guardian",
-      "implementation_state": "planned",
+      "implementation_state": "partly_implemented",
       "current_score": 5.5,
       "target_score": 9.0,
       "role_owner": "Accounts Manager",
@@ -102,6 +102,7 @@
       "optimization_step": "Add leakage categories for missing billable time, part variance, discount risk, and repeated visit patterns.",
       "scalability_note": "Profitability reports must use indexed filters and avoid unrestricted cross-tenant search.",
       "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/margin_risk.py",
         "config/authorization-matrix.json",
         "config/transaction-safety.json",
         "docs/workflows/service-operations.md"

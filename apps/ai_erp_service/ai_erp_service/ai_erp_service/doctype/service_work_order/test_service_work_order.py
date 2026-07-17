@@ -792,6 +792,60 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertNotIn("draft_content", serialized)
 		self.assertNotIn("prompt_version", serialized)
 
+	def test_profitability_report_classifies_margin_leakage_deterministically(self):
+		first = self._make_work_order("Margin risk first visit")
+		self._schedule(first, self.technician)
+		frappe.set_user(self.technician)
+		first.reload()
+		first.status = "In Progress"
+		first.save()
+		first.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		first.inspection_result = "Failed"
+		first.inspection_notes = "Alignment drifts beyond tolerance after warm-up."
+		first.closeout_notes = "Repair attempted; alignment still drifts."
+		first.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		first.status = "Closeout Submitted"
+		first.save()
+
+		frappe.set_user("Administrator")
+		second = self._make_work_order("Margin risk repeat visit")
+		self._schedule(second, self.technician)
+		frappe.get_doc(
+			{
+				"doctype": "Service Closure Exception",
+				"work_order": first.name,
+				"reason": "Parts unavailable",
+				"exception_owner": self.manager,
+				"due_date": today(),
+				"status": "Open",
+			}
+		).insert(ignore_permissions=True)
+
+		frappe.set_user(self.manager)
+		columns, rows = profitability_report({})
+		self.assertIn("margin_risks", {column["fieldname"] for column in columns})
+		by_name = {row.name: row for row in rows}
+		first_risks = by_name[first.name].margin_risks
+		for expected_risk in (
+			"zero_rate_labor",
+			"warranty_risk",
+			"failed_inspection",
+			"unresolved_exception",
+			"repeat_visit_risk",
+		):
+			self.assertIn(expected_risk, first_risks)
+		self.assertNotIn("missing_billable_time", first_risks)
+		self.assertNotIn("part_cost_above_bill_rate", first_risks)
+		self.assertIn("repeat_visit_risk", by_name[second.name].margin_risks)
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

@@ -60,6 +60,16 @@ Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish
 asynchronous events.
 
+## Margin leakage categories
+
+The Service Profitability report classifies each work order with deterministic
+margin-risk categories: missing billable time, zero-rate labor, missing part
+bill rate, part cost above bill rate, unknown cost basis, warranty risk, failed
+inspection, unresolved exception, and repeat visit risk inside a thirty-day
+window. Classification never invents a margin: missing cost data becomes an
+unknown-cost category instead of a number, and the report stays restricted to
+manager roles.
+
 ## Billing controls
 
 - Labor invoicing requires a non-stock Labor Billing Item and Hourly Rate.

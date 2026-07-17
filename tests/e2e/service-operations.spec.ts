@@ -572,4 +572,5 @@ test("manager can open the permission-scoped profitability report", async ({ pag
   await page.goto("/app/query-report/Service%20Profitability");
   await expect(page).not.toHaveTitle(/Login/);
   await expect.poll(() => page.evaluate(() => (window as any).frappe?.get_route?.()[0])).toBe("query-report");
+  await expect(page.getByText("Margin Risks")).toBeVisible();
 });
