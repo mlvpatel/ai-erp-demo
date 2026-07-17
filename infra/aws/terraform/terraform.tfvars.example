@@ -1,0 +1,17 @@
+environment                   = "pilot"
+aws_account_id                = "000000000000"
+availability_zones            = ["eu-central-1a", "eu-central-1b"]
+public_subnet_cidrs            = ["10.40.0.0/24", "10.40.1.0/24"]
+private_subnet_cidrs           = ["10.40.10.0/24", "10.40.11.0/24"]
+domain_name                   = "erp.example.org"
+certificate_arn               = "arn:aws:acm:eu-central-1:000000000000:certificate/00000000-0000-0000-0000-000000000000"
+monthly_budget_usd            = 600
+backup_retention_days         = 14
+logical_backup_retention_days = 90
+log_retention_days            = 90
+owner                         = "Platform Operations"
+alert_topic_arn               = "arn:aws:sns:eu-central-1:000000000000:ai-erp-pilot-alerts"
+activate_services             = false
+frappe_backend_image          = "000000000000.dkr.ecr.eu-central-1.amazonaws.com/ai-erp-frappe-backend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+frappe_frontend_image         = "000000000000.dkr.ecr.eu-central-1.amazonaws.com/ai-erp-frappe-frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+ai_control_plane_image        = "000000000000.dkr.ecr.eu-central-1.amazonaws.com/ai-erp-control-plane@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"

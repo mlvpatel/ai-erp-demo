@@ -42,7 +42,8 @@
       "required_roles": {
         "Service Manager": ["read", "write", "create"],
         "Service Dispatcher": ["read", "write", "create"],
-        "Service Technician": ["read", "write"]
+        "Service Technician": ["read", "write"],
+        "Accounts User": ["read"]
       },
       "permission_query_hook": "ai_erp_service.permissions.service_work_order_query",
       "has_permission_hook": "ai_erp_service.permissions.service_work_order_has_permission"
@@ -116,6 +117,26 @@
       ]
     },
     {
+      "id": "service-foundation-manager-controlled",
+      "description": "Asset, SLA, warranty, priority, and inspection requirement fields are manager-controlled while inspection execution remains available to the assigned technician.",
+      "roles_allowed": ["Service Manager", "Service Dispatcher", "System Manager"],
+      "guard_files": [
+        {
+          "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
+          "required_snippets": [
+            "def _validate_service_foundation",
+            "inspection_required",
+            "Inspection Result is required before submitting closeout."
+          ]
+        }
+      ],
+      "test_anchors": [
+        "def test_service_foundation_gates_warranty_and_required_inspection",
+        "(\"warranty_status\", \"In Warranty\")",
+        "Pressure test failed; manager follow-up required."
+      ]
+    },
+    {
       "id": "manager-only-stock-issue",
       "description": "Only manager roles can create the submitted ERPNext Material Issue from declared parts.",
       "roles_allowed": ["Service Manager", "System Manager"],
@@ -133,26 +154,26 @@
       "test_anchors": [
         "def test_parts_issue_is_idempotent",
         "self.assertEqual(frappe.db.get_value(\"Stock Entry\", stock_entry_name, \"docstatus\"), 1)",
-        "self.assertIsNone(issue_parts(work_order.name))"
+        "self.assertEqual(issue_parts(work_order.name), stock_entry_name)"
       ]
     },
     {
-      "id": "manager-only-draft-sales-invoice",
-      "description": "Only manager roles with ERPNext Sales Invoice create permission can create one linked draft invoice.",
-      "roles_allowed": ["Service Manager", "System Manager"],
+      "id": "finance-only-draft-sales-invoice",
+      "description": "Only standard Accounts roles with ERPNext Sales Invoice create permission can create one linked draft invoice.",
+      "roles_allowed": ["Accounts User", "Accounts Manager"],
       "guard_files": [
         {
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
           "required_snippets": [
             "def make_draft_sales_invoice",
-            "work_order._require_manager()",
+            "work_order._require_finance()",
             "frappe.has_permission(\"Sales Invoice\", ptype=\"create\", throw=True)",
             "invoice.update_stock = 0"
           ]
         }
       ],
       "test_anchors": [
-        "def test_manager_creates_idempotent_draft_sales_invoice",
+        "def test_finance_creates_idempotent_draft_sales_invoice",
         "with self.assertRaises(frappe.PermissionError):",
         "self.assertEqual(invoice.docstatus, 0)",
         "self.assertEqual(invoice.update_stock, 0)"
@@ -191,7 +212,8 @@
   "test_file": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
   "required_doc_phrases": [
     "Service Technician records time, parts, closeout notes, and evidence.",
-    "Service Manager closes work, issues parts, and drafts invoices.",
+    "Service Manager closes work, issues parts, and marks work invoice-ready.",
+    "Accounts User drafts the linked Sales Invoice after invoice readiness.",
     "AI Proposal Approver reviews AI drafts without changing ERP state.",
     "Role bypass"
   ]

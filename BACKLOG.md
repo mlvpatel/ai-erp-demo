@@ -1,19 +1,19 @@
 # Contributor backlog
 
-This backlog is intentionally small and safety-weighted. These are the first
-issues to create after the remaining publication gates pass.
+This backlog is safety-weighted. The current release target is a zero-cost,
+local, synthetic demo. Human and billable production-pilot gates are deferred
+and do not block that demo.
 
-## Launch blockers
+## Deferred production-pilot evidence
 
-- Initialize the Git repository and verify ignored local Frappe Bench state does
-  not enter history.
-- Clean or exclude ignored generated artifacts before publishing any source
-  archive.
-- Run `scripts/check-open-source-ready.sh --release`.
-- Push to a private GitHub repository first and confirm CI passes.
-- Review Dependabot PR behavior against `docs/workflows/dependency-updates.md`.
-- Add a short demo screenshot or GIF to the README after the local demo runbook
-  is verified from a fresh clone.
+- Obtain protected AWS/OpenAI credentials, domain/certificate configuration,
+  reviewed recurring cost, and explicit billable-operation approval.
+- Build, scan, sign, and verify production images by digest.
+- Run protected foundation/activation, authenticated smoke, live OpenAI
+  evaluation, exact capacity, backup, isolated restore, deletion, and rollback
+  drills; retain private evidence.
+- Complete design-partner validation, human UAT, legal/DPA/DPIA review, named
+  support ownership, and accountable go/no-go.
 
 ## Good first issues after licensing
 
@@ -42,14 +42,16 @@ transaction boundaries or AI governance.
 - Add the next AI proposal type, such as overdue-invoice reminder draft.
   Use `.github/ISSUE_TEMPLATE/ai_workflow.md` and
   `docs/security/ai-workflow-review.md` before design.
-- Add a distribution or light-manufacturing discovery spike.
+- Validate the configured distribution and light-manufacturing demos with design partners before promoting either pack to implemented.
 - Add integration-adapter scaffolding under `apps/ai_erp_connectors/`.
-- Add an end-to-end browser smoke test for the service workflow.
-- Expand the executable scaled performance smoke check into full-profile load
-  evidence after queue workers, parts concurrency, and the profitability report
-  exist. The current `SMOKE_PASS_NOT_FULL_PROFILE` result cannot support a
-  public capacity claim.
-- Add production deployment hardening after a real hosting target is chosen.
+- Run the tracked full-profile load contract on approved pilot infrastructure
+  and retain private capacity evidence with the protected
+  `production-capacity.yml` workflow. The exact-volume runner and authenticated ten-request/
+  five-user concurrency gate are implemented, but remain unexecuted until the
+  billable pilot is authorized. The local `SMOKE_PASS_NOT_FULL_PROFILE` result
+  cannot support a public capacity claim.
+- Cost-review and apply the implemented ADR-0007 AWS foundation only after the
+  account, budget, domain, RPO/RTO, support owner, and legal/data gates are approved.
 
 ## Suggested labels
 

@@ -2,11 +2,8 @@
   "schema_version": 1,
   "description": "Machine-readable repository layout contract for AI ERP Demo. This keeps the repo ERPNext/Frappe-specific instead of drifting into a generic frontend/backend project.",
   "required_directories": [
-    ".agents/skills/ai-erp-delivery",
-    ".agents/skills/erp-minimal-change",
     ".github/ISSUE_TEMPLATE",
     ".github/workflows",
-    "agents",
     "apps",
     "apps/ai_erp_connectors",
     "apps/ai_erp_core",
@@ -26,6 +23,7 @@
     "docs/security",
     "docs/workflows",
     "infra/compose",
+    "infra/aws/terraform",
     "infra/kubernetes",
     "infra/observability",
     "infra/security",
@@ -38,7 +36,6 @@
   ],
   "required_files": [
     "README.md",
-    "AGENTS.md",
     "apps/README.md",
     "services/README.md",
     "contracts/README.md",

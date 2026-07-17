@@ -44,8 +44,8 @@ invoice-ready, and draft-invoiced work order.
 3. A technician records time, parts, and closeout notes.
 4. The workflow blocks invoice-readiness until required closeout data or a
    tracked exception exists.
-5. A manager reviews the work and creates exactly one linked draft Sales
-   Invoice.
+5. A manager reviews the work and marks it invoice-ready; a separately
+   authorized Accounts user creates exactly one linked draft Sales Invoice.
 6. The AI control plane drafts a cited closeout summary for human review.
 
 ## Claims to avoid before public release

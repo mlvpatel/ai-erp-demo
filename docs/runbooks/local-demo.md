@@ -67,6 +67,7 @@ scripts/dev.sh control-plane-test
 scripts/dev.sh contract-test
 scripts/dev.sh migrate
 scripts/dev.sh service-test
+scripts/dev.sh e2e-test
 ```
 
 Or run the combined check:
@@ -80,7 +81,7 @@ The service-app integration suite proves:
 - Service Location creation enforces its required Customer link,
 - a Service Request creates a linked draft Service Work Order,
 - a non-admin technician can work only within their allowed scope,
-- manager-only closeout, parts issue, and draft-invoice controls hold,
+- manager-only closeout and parts issue plus finance-only draft-invoice controls hold,
 - Stock Entry and Sales Invoice creation are idempotent,
 - AI closeout proposals are cited, immutable, and review-only.
 

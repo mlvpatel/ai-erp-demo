@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -82,8 +83,34 @@ def validate_root_entries(failures: list[str], manifest: dict[str, Any]) -> None
     allowed_names.update(Path(path).parts[0] for path in required_files)
 
     for entry in sorted(REPO_ROOT.iterdir(), key=lambda path: path.name):
-        if entry.name not in allowed_names:
+        if entry.name not in allowed_names and not _is_ignored_untracked(entry):
             fail(failures, f"unexpected repository root entry: {entry.name}")
+
+
+def _is_ignored_untracked(entry: Path) -> bool:
+    """Local working files excluded from version control are not layout drift."""
+    try:
+        ignored = (
+            subprocess.run(
+                ["git", "check-ignore", "--quiet", entry.name],
+                cwd=REPO_ROOT,
+                check=False,
+                capture_output=True,
+            ).returncode
+            == 0
+        )
+        tracked = (
+            subprocess.run(
+                ["git", "ls-files", "--error-unmatch", entry.name],
+                cwd=REPO_ROOT,
+                check=False,
+                capture_output=True,
+            ).returncode
+            == 0
+        )
+    except OSError:
+        return False
+    return ignored and not tracked
 
 
 def validate_forbidden_root_dirs(failures: list[str], manifest: dict[str, Any]) -> None:

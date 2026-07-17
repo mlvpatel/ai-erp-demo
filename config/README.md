@@ -9,6 +9,13 @@ secrets belong in the deployment platform or a secrets manager.
 - `industry-pack-lifecycle.json`: machine-readable industry expansion workflow.
   It keeps planned, reserved, and implemented pack status rules aligned with the
   roadmap, design template, and reserved app folders.
+- `../infra/aws/terraform/`: plan-only AWS pilot foundation. Its static checker
+  rejects secret values, workload services without approved image contracts,
+  and drift from the accepted EU/security topology.
+- `pilot-readiness.json`: truthful demo and service-pilot evidence map. It
+  marks the local/private synthetic demo as allowed while keeping human UAT,
+  legal, deployment, recovery, capacity, and owner gates pending for a
+  production pilot until private evidence and accountable approvals exist.
 - `repository-structure.json`: machine-readable layout contract. It keeps the
   repo organized around Frappe apps, AI control-plane services, contracts,
   docs, infra, tests, and scripts instead of generic frontend/backend folders.

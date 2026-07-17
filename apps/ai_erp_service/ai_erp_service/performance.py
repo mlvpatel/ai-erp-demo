@@ -6,14 +6,18 @@ import json
 import math
 import os
 from pathlib import Path
-from time import perf_counter
+from time import perf_counter, sleep
 
 import frappe
+from frappe.desk.search import search_link
 from frappe.utils import add_to_date, now_datetime, today
 
 from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import (
 	make_draft_sales_invoice,
+)
+from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import (
+	execute as profitability_report,
 )
 
 PROFILE_NAME = "service-operations-load-profile.example.json"
@@ -28,14 +32,14 @@ REQUIRED_PRIVACY_TERMS = (
 )
 IMPLEMENTED_SCENARIOS = {
 	"service-work-order-list",
+	"service-work-order-search",
 	"invoice-ready-draft-invoice",
 	"ai-closeout-draft",
+	"service-profitability-report",
+	"queue-and-scheduler-backlog",
 }
-SKIPPED_SCENARIOS = {
-	"service-work-order-search": "A true permission-scoped Frappe link-search scenario is not implemented.",
-	"parts-issue-idempotency": "Concurrent retry load is outside this single-process smoke harness.",
-	"queue-and-scheduler-backlog": "No worker-backed synthetic queue scenario is implemented.",
-	"service-profitability-report": "No service profitability report is implemented.",
+EXTERNAL_SCENARIOS = {
+	"parts-issue-idempotency": "Executed by the five-session browser concurrency gate.",
 }
 
 
@@ -90,7 +94,7 @@ def validate_profile(profile):
 		raise ValueError("performance profile scenario IDs must be non-empty strings")
 	if len(scenario_ids) != len(set(scenario_ids)):
 		raise ValueError("performance profile scenario IDs must be unique")
-	if set(scenario_ids) != IMPLEMENTED_SCENARIOS | set(SKIPPED_SCENARIOS):
+	if set(scenario_ids) != IMPLEMENTED_SCENARIOS | set(EXTERNAL_SCENARIOS):
 		raise ValueError("performance profile scenario catalog does not match the smoke harness")
 	for scenario in scenarios:
 		if scenario.get("target") not in targets:
@@ -130,6 +134,15 @@ def run(scale=0.01, samples=20, strict=True, allow_local=False):
 		current_scenario = "service-work-order-list"
 		results.append(_run_list_scenario(context, profile, samples))
 
+		current_scenario = "service-work-order-search"
+		results.append(_run_search_scenario(context, profile, samples))
+
+		current_scenario = "service-profitability-report"
+		results.append(_run_profitability_report_scenario(context, profile, samples))
+
+		current_scenario = "queue-and-scheduler-backlog"
+		results.append(_run_queue_scenario(context, profile, samples))
+
 		current_scenario = "invoice-ready-draft-invoice"
 		results.append(_run_invoice_scenario(context, profile, samples))
 
@@ -137,12 +150,12 @@ def run(scale=0.01, samples=20, strict=True, allow_local=False):
 		results.append(_run_ai_scenario(context, profile, samples))
 
 		for scenario in profile["scenarios"]:
-			if scenario["id"] in SKIPPED_SCENARIOS:
+			if scenario["id"] in EXTERNAL_SCENARIOS:
 				results.append(
 					{
 						"scenario": scenario["id"],
-						"status": "SKIP_UNIMPLEMENTED",
-						"reason": SKIPPED_SCENARIOS[scenario["id"]],
+						"status": "EXTERNAL_CROSS_SESSION_GATE",
+						"reason": EXTERNAL_SCENARIOS[scenario["id"]],
 					}
 				)
 
@@ -250,21 +263,23 @@ def _seed_context(profile, scale, preflight):
 	prefix = f"PERF-{run_key.upper()}"
 	frappe.set_user("Administrator")
 	technician = _make_user(f"perf.tech.{run_key}@example.test", ["Service Technician", "AI Proposal Requester"])
-	manager = _make_user(f"perf.manager.{run_key}@example.test", ["Service Manager", "Accounts User"])
-	frappe.get_doc(
-		{
-			"doctype": "User Permission",
-			"user": manager,
-			"allow": "Company",
-			"for_value": preflight["company"],
-			"is_default": 1,
-			"apply_to_all_doctypes": 1,
-		}
-	).insert(ignore_permissions=True)
-	frappe.defaults.set_user_default("Company", preflight["company"], user=manager)
-	frappe.defaults.set_user_default("Selling Price List", preflight["price_list"], user=manager)
-	frappe.defaults.set_user_default("Currency", preflight["currency"], user=manager)
-	frappe.clear_cache(user=manager)
+	manager = _make_user(f"perf.manager.{run_key}@example.test", ["Service Manager"])
+	finance = _make_user(f"perf.finance.{run_key}@example.test", ["Accounts User"])
+	for user in (manager, finance):
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": user,
+				"allow": "Company",
+				"for_value": preflight["company"],
+				"is_default": 1,
+				"apply_to_all_doctypes": 1,
+			}
+		).insert(ignore_permissions=True)
+		frappe.defaults.set_user_default("Company", preflight["company"], user=user)
+		frappe.defaults.set_user_default("Selling Price List", preflight["price_list"], user=user)
+		frappe.defaults.set_user_default("Currency", preflight["currency"], user=user)
+		frappe.clear_cache(user=user)
 	customer = frappe.get_doc(
 		{
 			"doctype": "Customer",
@@ -304,6 +319,7 @@ def _seed_context(profile, scale, preflight):
 		"prefix": prefix,
 		"technician": technician,
 		"manager": manager,
+		"finance": finance,
 		"customer": customer.name,
 		"location": location.name,
 		"service_item": service_item.name,
@@ -401,10 +417,10 @@ def _run_invoice_scenario(context, profile, samples):
 	]
 	measurements = []
 	invoices = []
-	frappe.set_user(context["manager"])
+	frappe.set_user(context["finance"])
 	_require(
 		frappe.defaults.get_user_default("Company") == context["company"],
-		"synthetic manager company default was not applied",
+		"synthetic finance company default was not applied",
 	)
 	for work_order in work_orders:
 		started = perf_counter()
@@ -418,6 +434,112 @@ def _run_invoice_scenario(context, profile, samples):
 		_require(document.docstatus == 0 and not document.update_stock, "invoice escaped draft-only policy")
 	_require(len(set(invoices)) == len(work_orders), "invoice action created an unexpected duplicate")
 	return _timed_result(scenario_id, measurements[WARMUP_SAMPLES:], target)
+
+
+def _run_search_scenario(context, profile, samples):
+	scenario_id = "service-work-order-search"
+	target = _target(profile, scenario_id)
+	limit = len(context["list_work_orders"]) + 1
+
+	def query(user):
+		frappe.set_user(user)
+		return search_link(
+			"Service Work Order",
+			context["prefix"],
+			filters={"status": "Scheduled"},
+			page_length=limit,
+		)
+
+	technician_visible = {row["value"] for row in query(context["technician"])}
+	manager_visible = {row["value"] for row in query(context["manager"])}
+	_require(technician_visible == set(context["technician_work_orders"]), "link search leaked technician scope")
+	_require(manager_visible == set(context["list_work_orders"]), "link search omitted manager scope")
+
+	technician_measurements = _measure(lambda: query(context["technician"]), samples)
+	manager_measurements = _measure(lambda: query(context["manager"]), samples)
+	technician_p95 = nearest_rank_p95(technician_measurements)
+	manager_p95 = nearest_rank_p95(manager_measurements)
+	return {
+		"scenario": scenario_id,
+		"status": "PASS" if max(technician_p95, manager_p95) <= target else "FAIL",
+		"target_seconds": target,
+		"roles": {
+			"Service Technician": {"p95_seconds": round(technician_p95, 6), "sample_count": samples},
+			"Service Manager": {"p95_seconds": round(manager_p95, 6), "sample_count": samples},
+		},
+		"safety_invariants": "PASS",
+	}
+
+
+def _run_profitability_report_scenario(context, profile, samples):
+	scenario_id = "service-profitability-report"
+	target = _target(profile, scenario_id)
+	frappe.set_user(context["manager"])
+
+	def query():
+		_columns, rows = profitability_report({"customer": context["customer"]})
+		return rows
+
+	rows = query()
+	visible = {row.name for row in rows}
+	_require(set(context["list_work_orders"]).issubset(visible), "profitability report omitted permitted work orders")
+	measurements = _measure(query, samples)
+	return _timed_result(scenario_id, measurements, target)
+
+
+def synthetic_queue_probe():
+	"""Side-effect-free worker probe used only by an approved synthetic harness."""
+	local_smoke = str(frappe.local.site).endswith(".localhost")
+	capacity_acknowledgement = "I_ACKNOWLEDGE_DISPOSABLE_SYNTHETIC_CAPACITY"
+	capacity_run = str(frappe.local.site).startswith("capacity-run-") and (
+		os.environ.get("AI_ERP_FULL_CAPACITY_ALLOW") == capacity_acknowledgement
+		or frappe.conf.get("ai_erp_full_capacity_allow") == capacity_acknowledgement
+	)
+	if not (local_smoke or capacity_run):
+		raise PerformanceSmokeError("synthetic queue probe is restricted to an approved performance harness")
+	return "ok"
+
+
+def _run_queue_scenario(context, profile, samples):
+	scenario_id = "queue-and-scheduler-backlog"
+	target = _target(profile, scenario_id)
+	frappe.set_user(context["manager"])
+	started = perf_counter()
+	jobs = [
+		frappe.enqueue(
+			"ai_erp_service.performance.synthetic_queue_probe",
+			queue="short",
+			timeout=30,
+			enqueue_after_commit=False,
+			job_id=f"{context['prefix']}-queue-{index:03d}",
+		)
+		for index in range(samples + WARMUP_SAMPLES)
+	]
+	deadline = started + target
+	pending = list(jobs)
+	while pending and perf_counter() < deadline:
+		next_pending = []
+		for job in pending:
+			status = job.get_status(refresh=True)
+			status_value = getattr(status, "value", str(status)).casefold()
+			if status_value == "finished":
+				continue
+			if status_value in {"failed", "stopped", "canceled", "cancelled"}:
+				raise PerformanceSmokeError("synthetic worker probe failed")
+			next_pending.append(job)
+		pending = next_pending
+		if pending:
+			sleep(0.05)
+	clear_seconds = perf_counter() - started
+	_require(not pending, "synthetic worker backlog did not clear within target")
+	return {
+		"scenario": scenario_id,
+		"status": "PASS" if clear_seconds <= target else "FAIL",
+		"clear_seconds": round(clear_seconds, 6),
+		"target_seconds": target,
+		"job_count": len(jobs),
+		"safety_invariants": "PASS",
+	}
 
 
 def _run_ai_scenario(context, profile, samples):
@@ -457,6 +579,11 @@ def _make_closeout_work_order(context, suffix, invoice_ready):
 		context["location"],
 		context["technician"],
 	)
+	frappe.set_user(context["manager"])
+	work_order.reload()
+	work_order.service_billing_item = context["service_item"]
+	work_order.hourly_rate = 1
+	work_order.save()
 	frappe.set_user(context["technician"])
 	work_order.reload()
 	work_order.status = "In Progress"
@@ -472,8 +599,6 @@ def _make_closeout_work_order(context, suffix, invoice_ready):
 	)
 	work_order.closeout_notes = "Synthetic performance closeout; no customer data."
 	work_order.closeout_evidence = "/private/files/synthetic-performance-evidence.txt"
-	work_order.service_billing_item = context["service_item"]
-	work_order.hourly_rate = 1
 	work_order.status = "Closeout Submitted"
 	work_order.save()
 	if invoice_ready:

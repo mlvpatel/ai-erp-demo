@@ -4,7 +4,7 @@ Documentation is part of the product. Use the folders below instead of creating
 unstructured notes at the repository root.
 
 - `adr/`: one short decision per material architectural choice.
-- `audits/`: sanitized dated findings and remediation dispositions.
+- `compliance/`: engineering readiness gates that require human/legal approval.
 - `discovery/`: evidence from research, interviews, and technical spikes.
 - `product/`: target users, scope, KPIs, and roadmap.
 - `architecture/`: context, container, component, and data-boundary diagrams.
@@ -14,12 +14,6 @@ unstructured notes at the repository root.
 
 Start with:
 
-- [`audits/2026-07-12-remediation-status.md`](audits/2026-07-12-remediation-status.md)
-  for the initial audit disposition and remaining external gates.
-- [`audits/2026-07-11-baseline-gap-analysis.md`](audits/2026-07-11-baseline-gap-analysis.md)
-  for the sanitized historical baseline findings.
-- [`audits/2026-07-12-remediation-work-order.md`](audits/2026-07-12-remediation-work-order.md)
-  for the sanitized historical remediation specification.
 - `architecture/tech-stack-2026-07.md` for the July 2026 stack decision.
 - `architecture/system-context-and-repository-map.md` for the contributor-facing
   product context and folder responsibility map.
@@ -27,8 +21,6 @@ Start with:
   boundaries.
 - [`architecture/mvp-containers.md`](architecture/mvp-containers.md) for the
   compact MVP deployment and container view.
-- [`architecture/multi-agent-delivery-system.md`](architecture/multi-agent-delivery-system.md)
-  for risk-gated task routing, validation, feedback, and scaling.
 - `architecture/domain-data-model.md` for the custom DocType and ERPNext reuse
   map.
 - `discovery/open-source-erp-scan-2026-07.md` for the GitHub ERP scan.

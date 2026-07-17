@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import re
+from contextlib import contextmanager
+from datetime import UTC, datetime
 
 import frappe
 import requests
@@ -13,6 +15,10 @@ from frappe.utils import now_datetime
 CONTROL_PLANE_PATH = "/v1/proposals/service-closeout-summary"
 PROPOSAL_TYPE = "service_closeout_summary"
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+MAX_CONCURRENT_REQUESTS = 2
+MAX_REQUESTS_PER_HOUR = 30
+MAX_REQUESTS_PER_DAY = 100
+RATE_LIMIT_PREFIX = "ai_erp:proposal_limit"
 
 
 def canonical_json(value):
@@ -33,6 +39,7 @@ def request_service_closeout_summary(reference_doctype, reference_name, request_
 	input_hash = content_hash(
 		{"work_order": request_payload["work_order"], "sources": request_payload["sources"]}
 	)
+	_lock_reference(reference_doctype, reference_name)
 	if existing := frappe.db.get_value(
 		"AI Proposal",
 		{
@@ -44,7 +51,8 @@ def request_service_closeout_summary(reference_doctype, reference_name, request_
 	):
 		return frappe.get_doc("AI Proposal", existing)
 
-	response = _post_to_control_plane(request_payload)
+	with _proposal_rate_limit():
+		response = _post_to_control_plane(request_payload)
 	_validate_response(response, request_payload)
 
 	proposal = frappe.get_doc(
@@ -74,11 +82,64 @@ def request_service_closeout_summary(reference_doctype, reference_name, request_
 			"model_provider": response["model"]["provider"],
 			"model_name": response["model"]["name"],
 			"prompt_version": response["model"]["prompt_version"],
+			"provider_response_id_hash": (response.get("audit") or {}).get("response_id_hash"),
+			"provider_input_tokens": (response.get("audit") or {}).get("input_tokens"),
+			"provider_output_tokens": (response.get("audit") or {}).get("output_tokens"),
+			"provider_duration_ms": (response.get("audit") or {}).get("duration_ms"),
+			"provider_redaction_count": (response.get("audit") or {}).get("redaction_count"),
 		}
 	)
 	proposal.flags.from_control_plane = True
 	proposal.insert(ignore_permissions=True)
 	return proposal
+
+
+def _lock_reference(reference_doctype, reference_name):
+	if reference_doctype != "Service Work Order":
+		frappe.throw(_("The AI proposal reference is outside the policy allowlist."))
+	frappe.db.sql(
+		"SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE",
+		reference_name,
+	)
+
+
+@contextmanager
+def _proposal_rate_limit():
+	"""Use site-scoped Redis counters and fail closed if cache enforcement is unavailable."""
+	now = datetime.now(UTC)
+	try:
+		cache = frappe.cache
+		concurrent_key = cache.make_key(f"{RATE_LIMIT_PREFIX}:concurrent")
+		hour_key = cache.make_key(f"{RATE_LIMIT_PREFIX}:hour:{now:%Y%m%d%H}")
+		day_key = cache.make_key(f"{RATE_LIMIT_PREFIX}:day:{now:%Y%m%d}")
+		with cache.pipeline() as pipeline:
+			pipeline.incr(concurrent_key)
+			pipeline.expire(concurrent_key, 30)
+			pipeline.incr(hour_key)
+			pipeline.expire(hour_key, 3_700)
+			pipeline.incr(day_key)
+			pipeline.expire(day_key, 90_000)
+			concurrent, _concurrent_expiry, hourly, _hour_expiry, daily, _day_expiry = pipeline.execute()
+	except Exception:
+		frappe.log_error(title="AI proposal rate-limit cache unavailable")
+		frappe.throw(_("AI proposal limits are unavailable. No provider request was made."))
+
+	if concurrent > MAX_CONCURRENT_REQUESTS or hourly > MAX_REQUESTS_PER_HOUR or daily > MAX_REQUESTS_PER_DAY:
+		_release_concurrent_slot(concurrent_key)
+		frappe.throw(_("AI proposal request limit reached. No provider request was made."))
+
+	try:
+		yield
+	finally:
+		_release_concurrent_slot(concurrent_key)
+
+
+def _release_concurrent_slot(key):
+	try:
+		if frappe.cache.decr(key) <= 0:
+			frappe.cache.delete(key)
+	except Exception:
+		frappe.log_error(title="AI proposal concurrency slot release failed")
 
 
 def _post_to_control_plane(request_payload):
@@ -92,7 +153,7 @@ def _post_to_control_plane(request_payload):
 			f"{base_url}{CONTROL_PLANE_PATH}",
 			json=request_payload,
 			headers={"Authorization": f"Bearer {service_key}"},
-			timeout=10,
+			timeout=12,
 		)
 		response.raise_for_status()
 		return response.json()
@@ -119,6 +180,16 @@ def _validate_response(response, request_payload):
 	model = response.get("model") or {}
 	if not all(model.get(field) for field in ("provider", "name", "prompt_version")):
 		frappe.throw(_("The AI control plane response is missing model audit metadata."))
+	if model.get("provider") == "openai":
+		expected_model = os.environ.get("AI_CONTROL_PLANE_EXPECTED_MODEL", "gpt-5.4-mini-2026-03-17")
+		if model.get("name") != expected_model:
+			frappe.throw(_("The AI control plane returned an unapproved model."))
+		audit = response.get("audit")
+		if not isinstance(audit, dict) or not HASH_PATTERN.fullmatch(audit.get("response_id_hash") or ""):
+			frappe.throw(_("The AI control plane response is missing safe provider audit metadata."))
+		for fieldname in ("input_tokens", "output_tokens", "duration_ms", "redaction_count"):
+			if not isinstance(audit.get(fieldname), int) or audit[fieldname] < 0:
+				frappe.throw(_("The AI control plane response has invalid provider audit metadata."))
 	if not isinstance(response.get("draft_content"), str) or not response["draft_content"].strip():
 		frappe.throw(_("The AI control plane response is missing a draft."))
 	sources = response.get("sources")

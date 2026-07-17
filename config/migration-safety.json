@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Machine-readable migration safety guardrail. It keeps Frappe-managed DocTypes, fixtures, empty patch files, demo-check migration order, and no-direct-DDL rules aligned.",
+  "description": "Machine-readable migration safety guardrail. It keeps Frappe-managed DocTypes, fixtures, explicitly approved patches, demo-check migration order, and no-direct-DDL rules aligned.",
   "workflow_doc": "docs/workflows/migration-safety.md",
   "quality_gates_doc": "docs/workflows/quality-gates.md",
   "dependency_workflow_doc": "docs/workflows/dependency-updates.md",
@@ -13,6 +13,9 @@
       "name": "ai_erp_core",
       "hooks": "apps/ai_erp_core/ai_erp_core/hooks.py",
       "patches": "apps/ai_erp_core/ai_erp_core/patches.txt",
+	  "approved_patches": [
+		"ai_erp_core.patches.v1_0.add_ai_proposal_context_uniqueness"
+	  ],
       "required_hook_snippets": [
         "fixture_auto_order = True",
         "fixtures = [",
@@ -27,6 +30,7 @@
       "name": "ai_erp_service",
       "hooks": "apps/ai_erp_service/ai_erp_service/hooks.py",
       "patches": "apps/ai_erp_service/ai_erp_service/patches.txt",
+	  "approved_patches": [],
       "required_hook_snippets": [
         "required_apps = [\"erpnext\", \"ai_erp_core\"]",
         "fixture_auto_order = True",

@@ -1,4 +1,0 @@
-interface:
-  display_name: "AI ERP Delivery"
-  short_description: "Build safe modular AI ERP features"
-  default_prompt: "Use $ai-erp-delivery to design or implement a safe modular ERP feature."

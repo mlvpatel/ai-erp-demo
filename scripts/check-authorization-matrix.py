@@ -133,11 +133,11 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
         if not isinstance(permissions, list):
             fail(failures, f"{path_value}: permissions must be a list")
             continue
-        by_role = {
-            permission.get("role"): permission
-            for permission in permissions
-            if isinstance(permission, dict) and isinstance(permission.get("role"), str)
-        }
+        by_role: dict[str, list[dict[str, Any]]] = {}
+        for permission in permissions:
+            if not isinstance(permission, dict) or not isinstance(permission.get("role"), str):
+                continue
+            by_role.setdefault(permission["role"], []).append(permission)
         required_roles = entry.get("required_roles")
         if not isinstance(required_roles, dict):
             fail(failures, f"{doctype}: required_roles must be an object")
@@ -149,8 +149,11 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
             if not isinstance(rights, list) or not rights:
                 fail(failures, f"{doctype}: required rights for {role} must be a non-empty list")
                 continue
+            base_permissions = [row for row in by_role[role] if row.get("permlevel", 0) == 0]
             for right in rights:
-                if not isinstance(right, str) or not permission_enabled(by_role[role], right):
+                if not isinstance(right, str) or not any(
+                    permission_enabled(permission, right) for permission in base_permissions
+                ):
                     fail(failures, f"{doctype}: role {role} must have {right} permission")
 
         record_scope = entry.get("record_scope", "hooked")

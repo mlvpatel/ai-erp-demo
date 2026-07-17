@@ -1,0 +1,171 @@
+name: Publish production images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-image-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: frappe-backend
+            repository: ai-erp-frappe-backend
+            context: .
+            dockerfile: infra/images/frappe/backend.Dockerfile
+            base_argument: FRAPPE_BACKEND_BASE_IMAGE
+            base_variable: FRAPPE_BACKEND_BASE_IMAGE
+          - name: frappe-frontend
+            repository: ai-erp-frappe-frontend
+            context: .
+            dockerfile: infra/images/frappe/frontend.Dockerfile
+            base_argument: FRAPPE_FRONTEND_BASE_IMAGE
+            base_variable: FRAPPE_FRONTEND_BASE_IMAGE
+          - name: ai-control-plane
+            repository: ai-erp-control-plane
+            context: services/ai_control_plane
+            dockerfile: services/ai_control_plane/Dockerfile.production
+            base_argument: PYTHON_BASE_IMAGE
+            base_variable: PYTHON_BASE_IMAGE
+    env:
+      AWS_REGION: eu-central-1
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_IMAGE_PUBLISH_ROLE_ARN: ${{ vars.AWS_IMAGE_PUBLISH_ROLE_ARN }}
+      COSIGN_KMS_KEY_URI: ${{ vars.COSIGN_KMS_KEY_URI }}
+      BASE_IMAGE: ${{ vars[matrix.base_variable] }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate protected inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${AWS_ACCOUNT_ID}" =~ ^[0-9]{12}$ ]]
+          [[ "${AWS_IMAGE_PUBLISH_ROLE_ARN}" =~ ^arn:aws:iam::${AWS_ACCOUNT_ID}:role/ ]]
+          [[ "${COSIGN_KMS_KEY_URI}" =~ ^awskms:// ]]
+          [[ "${BASE_IMAGE}" =~ ^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ env.AWS_IMAGE_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ai-erp-image-${{ github.run_id }}
+
+      - name: Authenticate to private ECR
+        id: ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+          registry="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          aws ecr get-login-password --region "${AWS_REGION}" |
+            docker login --username AWS --password-stdin "${registry}"
+          echo "registry=${registry}" >>"${GITHUB_OUTPUT}"
+
+      - name: Set up isolated BuildKit builder
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build immutable image locally for pre-promotion scanning
+        id: build_local
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: local/${{ matrix.repository }}:${{ github.sha }}
+          build-args: |
+            ${{ matrix.base_argument }}=${{ env.BASE_IMAGE }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: Prepare private evidence directory
+        shell: bash
+        run: mkdir -p evidence
+
+      - name: Scan image vulnerabilities and embedded secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: local/${{ matrix.repository }}:${{ github.sha }}
+          format: json
+          output: evidence/${{ matrix.name }}.trivy.json
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: local/${{ matrix.repository }}:${{ github.sha }}
+          format: cyclonedx
+          output: evidence/${{ matrix.name }}.cdx.json
+          scanners: vuln
+
+      - name: Install verified Cosign release
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Push the exact scanned image and record its immutable digest
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_uri="${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}:${GITHUB_SHA}"
+          docker tag "local/${{ matrix.repository }}:${GITHUB_SHA}" "${image_uri}"
+          docker push "${image_uri}"
+          digest="$(aws ecr describe-images --repository-name '${{ matrix.repository }}' --image-ids imageTag="${GITHUB_SHA}" --query 'imageDetails[0].imageDigest' --output text)"
+          image_ref="${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}@${digest}"
+          [[ "${image_ref}" =~ @sha256:[0-9a-f]{64}$ ]]
+          echo "ref=${image_ref}" >>"${GITHUB_OUTPUT}"
+          jq -n \
+            --arg image "${image_ref}" \
+            --arg commit "${GITHUB_SHA}" \
+            --arg run "${GITHUB_RUN_ID}" \
+            '{image:$image, commit:$commit, workflow_run:$run, synthetic:false, scan_result:"HIGH_CRITICAL_CLEAR"}' \
+            >"evidence/${{ matrix.name }}.json"
+          jq -n \
+            --arg workflow "${GITHUB_WORKFLOW_REF}" \
+            --arg commit "${GITHUB_SHA}" \
+            --arg base "${BASE_IMAGE}" \
+            --arg run "${GITHUB_RUN_ID}" \
+            '{buildDefinition:{buildType:"https://github.com/Attestations/GitHubActionsWorkflow@v1",externalParameters:{workflow:$workflow,source_commit:$commit,scan_result:"HIGH_CRITICAL_CLEAR"},resolvedDependencies:[{uri:$base}]},runDetails:{builder:{id:$workflow},metadata:{invocationId:$run}}}' \
+            >"evidence/${{ matrix.name }}.provenance.json"
+
+      - name: Attest, sign, and verify immutable image with AWS KMS
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          cosign attest --yes --key "${COSIGN_KMS_KEY_URI}" --type cyclonedx \
+            --predicate "evidence/${{ matrix.name }}.cdx.json" "${IMAGE_REF}"
+          cosign attest --yes --key "${COSIGN_KMS_KEY_URI}" --type slsaprovenance \
+            --predicate "evidence/${{ matrix.name }}.provenance.json" "${IMAGE_REF}"
+          cosign sign --yes --key "${COSIGN_KMS_KEY_URI}" "${IMAGE_REF}"
+          cosign verify --key "${COSIGN_KMS_KEY_URI}" "${IMAGE_REF}" >/dev/null
+          cosign verify-attestation --key "${COSIGN_KMS_KEY_URI}" --type cyclonedx "${IMAGE_REF}" >/dev/null
+          cosign verify-attestation --key "${COSIGN_KMS_KEY_URI}" --type slsaprovenance "${IMAGE_REF}" >/dev/null
+
+      - name: Retain private supply-chain evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-image-${{ matrix.name }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

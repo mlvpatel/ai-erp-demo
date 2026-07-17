@@ -1,0 +1,12 @@
+{
+  "name": "ai-erp-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0"
+  }
+}

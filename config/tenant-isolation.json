@@ -21,7 +21,7 @@
       "id": "control-plane-model-requires-tenant-site",
       "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
       "required_snippets": [
-        "tenant_site: str = Field(min_length=1)",
+        "tenant_site: str = Field(min_length=1, max_length=253)",
         "model_config = ConfigDict(extra=\"forbid\")"
       ]
     },

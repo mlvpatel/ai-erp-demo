@@ -34,7 +34,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Bill Rate",
-   "non_negative": 1
+	  "non_negative": 1,
+	  "permlevel": 1
   },
   {
    "fieldname": "source_warehouse",
@@ -50,6 +51,7 @@
    "in_list_view": 1,
    "label": "Stock Entry",
    "options": "Stock Entry",
+	  "permlevel": 1,
    "read_only": 1
   }
  ],

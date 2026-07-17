@@ -30,7 +30,9 @@
       "Control-plane unit tests",
       "Contract tests",
       "Python lint",
-      "Repository checks"
+      "Repository checks",
+      "AWS IaC validation (no credentials)",
+      "ERP Docker behavior and browser tests"
     ]
   },
   "community_files": [
