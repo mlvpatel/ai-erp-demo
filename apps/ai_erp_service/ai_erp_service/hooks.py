@@ -26,11 +26,15 @@ fixtures = [
 ]
 
 permission_query_conditions = {
+	"Service Location": "ai_erp_service.permissions.service_location_query",
+	"Service Request": "ai_erp_service.permissions.service_request_query",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_query",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_query",
 }
 
 has_permission = {
+	"Service Location": "ai_erp_service.permissions.service_location_has_permission",
+	"Service Request": "ai_erp_service.permissions.service_request_has_permission",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_has_permission",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_has_permission",
 }
@@ -179,23 +183,12 @@ has_permission = {
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"ai_erp_service.tasks.all"
-# 	],
-# 	"daily": [
-# 		"ai_erp_service.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"ai_erp_service.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"ai_erp_service.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"ai_erp_service.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"hourly": ["ai_erp_service.tasks.escalate_overdue_closure_exceptions"],
+	"cron": {"*/5 * * * *": ["ai_erp_service.tasks.publish_queue_age_metric"]},
+}
+
+after_request = ["ai_erp_service.observability.record_permission_failure"]
 
 # Testing
 # -------

@@ -19,6 +19,9 @@ __pycache__/
 .ruff_cache/
 .venv/
 node_modules/
+tests/e2e/playwright/.auth/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
 dist/
 coverage/
 
@@ -36,3 +39,13 @@ development/.venv/
 .idea/
 .vscode/
 config/owner-decisions.local.json
+
+# Terraform local state and private production inputs
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+.terraform.tfstate.lock.info
+crash.log

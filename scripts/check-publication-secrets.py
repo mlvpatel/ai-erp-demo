@@ -292,6 +292,11 @@ def normalize_assignment_value(value: str) -> str:
 
 def sensitive_key(key: str, manifest: dict[str, Any]) -> bool:
     normalized_key = key.lower().replace("-", "_").replace(".", "_")
+    allowed_non_secret = manifest.get("allowed_non_secret_assignment_keys", [])
+    if isinstance(allowed_non_secret, list) and normalized_key in {
+        item for item in allowed_non_secret if isinstance(item, str)
+    }:
+        return False
     if key != key.lower() and key != key.upper():
         return False
     configured = manifest.get("sensitive_assignment_keys", [])
@@ -335,6 +340,10 @@ def scan_sensitive_assignments(path: Path, text: str, manifest: dict[str, Any], 
     for line_no, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
         if not stripped or stripped.startswith(("#", "//")):
+            continue
+        # A quoted scalar in a list can contain a colon (for example an IAM
+        # action) but is not a key/value assignment.
+        if re.fullmatch(r'''["'][^"']+["'],?''', stripped):
             continue
         match = ASSIGNMENT_PATTERN.match(line)
         if not match:

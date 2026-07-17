@@ -101,13 +101,11 @@
    "share": 1,
    "write": 1
   },
-  {
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "role": "Service Technician",
-   "share": 1
-  }
+	  {
+	   "print": 1,
+	   "read": 1,
+	   "role": "Service Technician"
+	  }
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,

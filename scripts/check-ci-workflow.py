@@ -140,6 +140,11 @@ def validate_workflow(contract: dict[str, Any], metadata: dict[str, Any], failur
     if not contains_snippet(workflow_text, "permissions: contents: read"):
         fail(failures, "CI workflow permissions must be contents: read")
 
+    for line_number, line in enumerate(workflow_text.splitlines(), 1):
+        action = re.search(r"\buses:\s*([^\s#]+)", line)
+        if action and not re.fullmatch(r"[^@\s]+@[0-9a-f]{40}", action.group(1)):
+            fail(failures, f"CI workflow action must be pinned to a full commit SHA at line {line_number}")
+
     forbidden = contract.get("forbidden_snippets", [])
     if not isinstance(forbidden, list):
         fail(failures, "forbidden_snippets must be a list")
@@ -184,8 +189,8 @@ def validate_workflow(contract: dict[str, Any], metadata: dict[str, Any], failur
             continue
         if f"name: {job_name}" not in block:
             fail(failures, f"{job_id}: workflow job name must be {job_name!r}")
-        if "runs-on: ubuntu-latest" not in block:
-            fail(failures, f"{job_id}: job must run on ubuntu-latest")
+        if "runs-on: ubuntu-latest" not in block and "runs-on: ubuntu-24.04" not in block:
+            fail(failures, f"{job_id}: job must run on an approved Ubuntu runner")
 
         snippets = job.get("required_snippets")
         if not isinstance(snippets, list) or not snippets:

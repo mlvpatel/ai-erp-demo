@@ -53,6 +53,15 @@ Run a restore drill before production use, before major upgrades, and after any
 change that affects DocTypes, permissions, invoices, stock, payroll, or AI audit
 records.
 
+For the AWS pilot, use the protected
+`.github/workflows/production-restore-drill.yml` workflow and select only a
+manifest written last by the verified backup task. It generates a
+`restore-drill-*.internal` site, never targets the production hostname, verifies
+all database/configuration/public/private artifact checksums, uses the official
+Bench restore options below, runs payload-free integrity checks, and deletes the
+site and database with `drop-site --no-backup --force`. The workflow stores only
+aggregate private evidence; the manifest URI and restored data stay out of Git.
+
 Restore into a clean non-production site first:
 
 ```sh

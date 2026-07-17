@@ -11,7 +11,8 @@
   "work_order",
   "reason",
   "exception_owner",
-  "due_date",
+    "due_date",
+	"escalated_on",
   "status",
   "resolution_note"
  ],
@@ -48,8 +49,14 @@
    "label": "Due Date",
    "reqd": 1
   },
-  {
-   "default": "Open",
+    {
+	  "fieldname": "escalated_on",
+	  "fieldtype": "Datetime",
+	  "label": "Escalated On",
+	  "read_only": 1
+	},
+	{
+      "default": "Open",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -105,13 +112,11 @@
    "share": 1,
    "write": 1
   },
-  {
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "role": "Service Technician",
-   "share": 1
-  }
+    {
+      "print": 1,
+      "read": 1,
+	  "role": "Service Technician"
+    }
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,

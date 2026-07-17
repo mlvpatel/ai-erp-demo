@@ -3,6 +3,7 @@ from frappe import _
 
 MANAGER_ROLES = frozenset({"System Manager", "Service Manager"})
 DISPATCHER_ROLES = MANAGER_ROLES | {"Service Dispatcher"}
+FINANCE_ROLES = frozenset({"Accounts User", "Accounts Manager"})
 
 
 def user_roles(user=None):

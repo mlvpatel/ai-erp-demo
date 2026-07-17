@@ -25,13 +25,19 @@ lifecycle evidence when a pack changes status.
 
 | Order | Pack | Why it fits | First proof workflow | Reuse first |
 | --- | --- | --- | --- | --- |
-| 1 | Field service | Clear fit for the current service, parts, technician, and invoice-ready flow. | Request to work order to parts issue to manager review to draft invoice. | CRM, Stock, Selling, Accounting |
-| 2 | Distribution | Broad industry reach, strong ERPNext stock/selling/buying foundation, and clear AI opportunities in exceptions. | Sales order to pick/pack issue to delivery exception summary. | Stock, Selling, Buying, Accounting |
-| 3 | Light manufacturing | Common ERP buyer need; ERPNext already has BOMs, work orders, and stock movements. | Make-to-order quote to BOM/work order to material availability exception. | Manufacturing, Stock, Selling |
+| 1 | Field service | Clear fit for the current service, parts, technician, and invoice-ready flow. | Request to work order to manager parts issue and invoice readiness to finance draft invoice. | CRM, Stock, Selling, Accounting |
+| 2 | Distribution | Configured demo uses only standard ERPNext records; human validation remains pending. | Sales order to pick/pack issue to delivery exception summary. | Stock, Selling, Buying, Accounting |
+| 3 | Light manufacturing | Configured demo uses only standard ERPNext records; human validation remains pending. | Make-to-order quote to BOM/work order to material availability exception. | Manufacturing, Stock, Selling |
 | 4 | Professional services | Lower inventory risk and useful AI drafting for statements of work, time summaries, and billing review. | Project kickoff to timesheet review to draft invoice. | Projects, Selling, Accounting |
 | 5 | Maintenance/assets | Close to field service, but asset history and preventive schedules become the proof point. | Preventive schedule to service work order to asset maintenance history. | Assets, Maintenance, Stock |
 
 ## Entry gate for a new pack
+
+Distribution and light manufacturing have standard-ERPNext configured demos
+and explicit hypothesis briefs under `docs/discovery/`. Their app folders
+remain documentation-only and named design-partner validation is still
+pending. Configured-demo status is not approval to generate Frappe application
+code.
 
 A pack is ready for implementation only when it has:
 

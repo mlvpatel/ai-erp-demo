@@ -23,6 +23,11 @@ IMMUTABLE_FIELDS = {
 	"model_provider",
 	"model_name",
 	"prompt_version",
+	"provider_response_id_hash",
+	"provider_input_tokens",
+	"provider_output_tokens",
+	"provider_duration_ms",
+	"provider_redaction_count",
 }
 FINAL_STATUSES = {"Approved", "Rejected"}
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
@@ -48,6 +53,8 @@ class AIProposal(Document):
 			frappe.throw(_("An AI Proposal requires at least one cited source."))
 		if not HASH_PATTERN.fullmatch(self.input_context_hash or "") or not HASH_PATTERN.fullmatch(self.output_hash or ""):
 			frappe.throw(_("AI Proposal hashes must be SHA-256 values."))
+		if self.model_provider == "openai" and not HASH_PATTERN.fullmatch(self.provider_response_id_hash or ""):
+			frappe.throw(_("OpenAI Proposals require a hashed provider response identifier."))
 		self._validate_source_rows(self.sources)
 
 	def _validate_existing_proposal(self):

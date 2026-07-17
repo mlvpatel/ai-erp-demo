@@ -1,0 +1,2 @@
+Synthetic field-service closeout evidence for local browser testing only.
+No customer, credential, prompt, or production information is present.

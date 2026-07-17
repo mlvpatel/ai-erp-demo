@@ -43,7 +43,7 @@ flowchart TB
 | --- | --- | --- |
 | ERPNext/Frappe | Customers, items, stock, invoices, accounting, users, roles, workflows, audit history | Yes, through Frappe permissions and deterministic server-side methods |
 | `apps/ai_erp_core` | Shared AI governance records and reusable policy helpers | Only for its own audit/proposal records |
-| `apps/ai_erp_service` | Service-operation workflow records and manager-triggered ERP handoffs | Yes, but only through explicit role checks, idempotency, and ERPNext documents |
+| `apps/ai_erp_service` | Service-operation workflow records and role-separated ERP handoffs | Yes, but only through explicit role checks, idempotency, and ERPNext documents |
 | `services/ai_control_plane` | Prompt rendering, policy metadata, draft proposals, citations, future provider adapters | No. It returns proposals; it does not post money, stock, payroll, access, or compliance changes |
 | `contracts/` | Versioned external API and business-event shapes | No |
 
@@ -78,7 +78,7 @@ flowchart LR
     closeout["Structured closeout\nor tracked exception"]
     stock["Manager issues parts\nidempotent Material Issue"]
     ready["Invoice Ready"]
-    invoice["Manager drafts one linked\nERPNext Sales Invoice"]
+    invoice["Accounts user drafts one linked\nERPNext Sales Invoice"]
     ai["Optional AI closeout draft\nreview-only"]
 
     request --> work --> schedule --> progress --> closeout --> stock --> ready --> invoice

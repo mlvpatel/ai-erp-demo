@@ -13,6 +13,12 @@
 *.backup export-ignore
 *-files.tar export-ignore
 *-private-files.tar export-ignore
+*.tfstate export-ignore
+*.tfstate.* export-ignore
+*.tfvars export-ignore
+*.tfvars.example -export-ignore
+*.tfplan export-ignore
+.terraform/ export-ignore
 
 development/.env export-ignore
 development/frappe-bench/ export-ignore

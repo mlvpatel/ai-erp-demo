@@ -11,7 +11,8 @@ security, or compliance risk.
   decisions until a named maintainer group is created.
 - Architecture changes that add a service, datastore, external provider, or
   irreversible dependency require an ADR in `docs/adr/`.
-- Feature work must stay inside the project boundaries in `AGENTS.md`.
+- Feature work must stay inside the project boundaries in
+  `docs/architecture/system-boundaries.md`.
 - AI may draft, summarize, classify, retrieve, or propose. It must not directly
   post money, stock, payroll, permission, or compliance changes.
 
@@ -33,4 +34,4 @@ infrastructure, or weaken the AI approval model.
 
 Repository-owned code is licensed under `AGPL-3.0-only`. External contributions
 must include DCO sign-off and preserve the ERP safety, tenant, audit, and AI
-approval boundaries described in `AGENTS.md`.
+approval boundaries described in `docs/architecture/system-boundaries.md`.

@@ -52,11 +52,11 @@
       ]
     },
     {
-      "id": "manager-transaction-controls",
-      "title": "Act 3 — Manager transaction controls",
+      "id": "manager-finance-transaction-controls",
+      "title": "Act 3 — Manager and finance transaction controls",
       "acceptance_claims": [
         "time-and-parts-responsibility",
-        "manager-draft-invoice-idempotent",
+        "finance-draft-invoice-idempotent",
         "profitability-projection"
       ],
       "required_phrases": [
@@ -92,7 +92,7 @@
       "title": "Act 5 — Safety and extensibility",
       "acceptance_claims": [
         "ai-proposal-traceable-human-approved",
-        "manager-draft-invoice-idempotent"
+        "finance-draft-invoice-idempotent"
       ],
       "required_phrases": [
         "ERPNext/Frappe stays upstream",

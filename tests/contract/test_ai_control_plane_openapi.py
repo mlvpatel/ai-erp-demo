@@ -11,10 +11,12 @@ from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi" / "ai-control-plane-v1.yaml"
 HEALTH_PATH = "/healthz"
+READY_PATH = "/readyz"
 SERVICE_CLOSEOUT_PATH = "/v1/proposals/service-closeout-summary"
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 EXPECTED_RESPONSES = {
 	(HEALTH_PATH, "get"): frozenset({"200"}),
+	(READY_PATH, "get"): frozenset({"200", "503"}),
 	(SERVICE_CLOSEOUT_PATH, "post"): frozenset({"200", "401", "422", "503"}),
 }
 
@@ -57,7 +59,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 			f"  {HEALTH_PATH}:",
 			"security: []",
 			"'503':",
-			"No approved production model adapter is configured.",
+			"The selected approved model provider is unavailable.",
 		)
 
 		health_operation = self.openapi["paths"][HEALTH_PATH]["get"]
@@ -66,6 +68,9 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		proposal_operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertIn("503", proposal_operation["responses"])
+		ready_operation = self.openapi["paths"][READY_PATH]["get"]
+		self.assertNotIn("security", ready_operation)
+		self.assertEqual(set(ready_operation["responses"]), {"200", "503"})
 
 	def test_path_and_response_sets_match_exactly(self):
 		contract_paths = self.contract["paths"]
@@ -161,6 +166,30 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		policy_schema = schemas[policy_ref.rsplit("/", 1)[1]]
 		self.assertEqual(policy_schema["properties"]["decision"]["const"], "draft_only")
 		self.assertEqual(policy_schema["properties"]["allowed_action"]["const"], "none")
+
+		for schema_name, field_constraints in {
+			"TimeEntry": {
+				"technician": {"minLength": 1, "maxLength": 256},
+				"work_date": {"format": "date"},
+				"time_type": {"minLength": 1, "maxLength": 128},
+				"hours": {"exclusiveMinimum": 0, "maximum": 24},
+			},
+			"PartUsage": {
+				"item": {"minLength": 1, "maxLength": 256},
+				"qty": {"exclusiveMinimum": 0, "maximum": 100000},
+				"source_warehouse": {"minLength": 1, "maxLength": 256},
+			},
+		}.items():
+			for fieldname, constraints in field_constraints.items():
+				for key, expected in constraints.items():
+					self.assertEqual(
+						schemas[schema_name]["properties"][fieldname][key],
+						expected,
+					)
+					self.assertEqual(
+						self.contract["components"]["schemas"][schema_name]["properties"][fieldname][key],
+						expected,
+					)
 
 	def test_runtime_model_rejects_unsupported_action_shape(self):
 		payload = {

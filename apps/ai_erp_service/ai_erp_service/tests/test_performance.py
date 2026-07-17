@@ -6,8 +6,8 @@ import frappe
 
 import ai_erp_service.performance as performance
 from ai_erp_service.performance import (
+	EXTERNAL_SCENARIOS,
 	IMPLEMENTED_SCENARIOS,
-	SKIPPED_SCENARIOS,
 	nearest_rank_p95,
 	scaled_count,
 	validate_profile,
@@ -38,7 +38,7 @@ class TestPerformanceSmokeHelpers(TestCase):
 	def test_profile_rejects_duplicate_scenarios_and_invalid_values(self):
 		scenarios = [
 			{"id": scenario_id, "target": "interactive_p95_seconds"}
-			for scenario_id in sorted(IMPLEMENTED_SCENARIOS | set(SKIPPED_SCENARIOS))
+			for scenario_id in sorted(IMPLEMENTED_SCENARIOS | set(EXTERNAL_SCENARIOS))
 		]
 		base = {
 			"schema_version": 1,

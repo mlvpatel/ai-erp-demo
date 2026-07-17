@@ -59,6 +59,8 @@ This checks:
 - license metadata reconciliation consistency,
 - industry-pack manifest consistency,
 - industry-pack lifecycle consistency,
+- credential-free AWS production-IaC invariants,
+- synthetic service-pilot evidence and pending-gate consistency,
 - public claim/release-blocker consistency,
 - Python syntax for custom apps, the AI control plane, and contract tests.
 
@@ -143,16 +145,16 @@ This gate must prove:
 - AI Proposal requesters cannot list or directly read another requester's proposal,
 - Service Location creation enforces its required Customer link,
 - non-admin technician scope,
-- manager-only close/invoice/parts issue actions,
+- manager-only close/parts issue actions and finance-only invoice drafting,
 - idempotent Stock Entry and draft Sales Invoice creation,
 - draft-only cited AI proposal behavior,
 - no AI approval side effect on ERP transactions.
 
-GitHub CI does not currently execute this Docker-backed Frappe behavioral gate.
-Accordingly, `implemented` in `config/mvp-acceptance.json` means the cited source
-and evidence anchors are verified by the static gate; it does not mean the
-behavior has been executed in CI. Run `scripts/dev.sh service-test` locally and
-record its result for behavior-sensitive changes and releases.
+The required `ERP Docker behavior and browser tests` GitHub check executes this
+gate in a clean runner, including both custom-app integration suites, the
+rollback-only performance smoke, and the pinned synthetic Chromium suite. Run
+`scripts/dev.sh service-test` and `scripts/dev.sh e2e-test` locally for faster
+feedback. Automated browser success is still not human UAT.
 
 ## Synthetic performance smoke gate
 
@@ -167,8 +169,9 @@ The command uses a local-only, rollback-scoped synthetic database transaction.
 It fails before writes outside a `.localhost` site or deterministic local
 template control plane, and fails on latency or safety-invariant regression,
 but its successful status is deliberately
-`SMOKE_PASS_NOT_FULL_PROFILE`. Queue, report, and concurrent parts-issue
-scenarios plus true Frappe link search remain `SKIP_UNIMPLEMENTED`, so this gate
+`SMOKE_PASS_NOT_FULL_PROFILE`. Native link search, queue clearing, and the
+profitability report are measured; true concurrent parts issue is executed by
+the five-session browser suite and is reported here as `EXTERNAL_CROSS_SESSION_GATE`, so this gate
 is not evidence for a public capacity claim. Database rollback does not cover
 external effects; the local/template preflight prevents external provider use.
 

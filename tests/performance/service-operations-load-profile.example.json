@@ -54,8 +54,8 @@
     },
     {
       "id": "invoice-ready-draft-invoice",
-      "surface": "Manager invoice-ready and draft invoice action",
-      "roles": ["Service Manager"],
+      "surface": "Finance invoice-ready and draft invoice action",
+      "roles": ["Accounts User"],
       "minimum_records": ["service_work_orders", "service_work_order_time_rows", "service_work_order_part_rows"],
       "target": "transaction_action_p95_seconds",
       "required_evidence": [

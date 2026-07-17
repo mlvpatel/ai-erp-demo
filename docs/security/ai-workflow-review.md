@@ -108,3 +108,17 @@ implementation.
 The audit evidence contract is `config/audit-evidence.json`. The static quality
 gate runs `scripts/check-audit-evidence.py` so AI Proposal ledger fields, source
 hashes, reviewer metadata, and deterministic ERP record links remain reviewable.
+
+## Approved production provider boundary
+
+ADR-0006 approves OpenAI only for the existing service-closeout summary. The
+adapter sends minimized operational facts without tenant, requester, record,
+source-hash, technician, or warehouse identifiers. It uses the Responses API,
+no tools, `store=false`, one strict `draft_content` field, a pinned model
+snapshot, and bounded input/output. Policy and citations remain local.
+
+This approval is technical, not permission to send real client data. An EU
+OpenAI project with the required residency and retention controls, DPA/DPIA,
+controller approval, and private live evaluation evidence are pre-production
+gates. Missing configuration or any provider failure returns 503; the service
+does not silently fall back.

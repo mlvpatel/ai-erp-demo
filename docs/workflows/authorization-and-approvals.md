@@ -10,7 +10,8 @@ DocType permissions, or human approval.
 | --- | --- |
 | Service Dispatcher | Creates, schedules, and cancels service work. |
 | Service Technician | Sees assigned Service Work Orders, records own time, declares parts, and submits closeout. |
-| Service Manager | Closes work, issues declared parts, marks invoice-ready, and drafts linked Sales Invoices. |
+| Service Manager | Closes work, issues declared parts, and marks work invoice-ready; cannot draft the Sales Invoice without a separate Accounts role. |
+| Accounts User / Accounts Manager | Reads invoice-ready work, checks standard accounting permission, and creates one linked draft Sales Invoice. |
 | Service Closure Owner | Reviews owned Service Closure Exceptions. |
 | AI Proposal Requester | Reads AI proposals they requested. |
 | AI Proposal Approver | Approves or rejects AI proposals without changing ERP transaction state. |

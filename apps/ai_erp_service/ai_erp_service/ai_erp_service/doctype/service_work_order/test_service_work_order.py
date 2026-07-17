@@ -1,7 +1,7 @@
 # Copyright (c) 2026, AI ERP Demo and Contributors
 # See license.txt
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import frappe
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
@@ -11,10 +11,15 @@ from frappe.utils import add_to_date, flt, now_datetime, today
 from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
 from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order import (
+	_with_transaction_retry,
 	issue_parts,
 	make_draft_sales_invoice,
 )
-from ai_erp_service.demo_seed import seed_service_demo
+from ai_erp_service.ai_erp_service.report.service_profitability.service_profitability import (
+	execute as profitability_report,
+)
+from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
+from ai_erp_service.tasks import escalate_overdue_closure_exceptions
 
 # This focused integration suite creates its synthetic dependencies directly.
 # Avoid recursively loading unrelated ERPNext test-record modules.
@@ -22,7 +27,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = [
 	"Customer",
 	"AI Proposal",
 	"AI Proposal Source",
+	"Asset",
 	"Item",
+	"Price List",
 	"Service Closure Exception",
 	"Service Location",
 	"Service Request",
@@ -40,6 +47,12 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		self.addCleanup(frappe.set_user, "Administrator")
 		self.technician = self._make_technician()
+		self.manager = self._make_role_user(
+			"service.manager.finance-separation@example.test", ("Service Manager",)
+		)
+		self.finance_user = self._make_role_user(
+			"service.finance@example.test", ("Accounts User",)
+		)
 		self.customer = self._make_customer()
 		self.location = self._make_location()
 
@@ -62,6 +75,20 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(work_order.service_request, request.name)
 		self.assertEqual(work_order.status, "Draft")
 
+	def test_transient_database_deadlock_is_retried(self):
+		operation = Mock(side_effect=[frappe.QueryDeadlockError("retry"), "completed"])
+
+		with (
+			patch("frappe.db.rollback") as rollback,
+			patch(
+				"ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.sleep"
+			),
+		):
+			self.assertEqual(_with_transaction_retry(operation), "completed")
+
+		self.assertEqual(operation.call_count, 2)
+		rollback.assert_called_once_with()
+
 	def test_technician_scope_and_manager_only_close(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 		assigned = self._make_work_order("Assigned work order")
@@ -78,6 +105,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			)
 		)
 		self.assertEqual(visible, {assigned.name})
+		self.assertFalse(assigned.has_permission("share"))
+		self.assertFalse(assigned.has_permission("email"))
+		self.assertFalse(other.has_permission("read"))
 
 		assigned.reload()
 		assigned.status = "In Progress"
@@ -112,21 +142,195 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 	def test_cannot_close_creates_an_owned_exception(self):
 		work_order = self._make_work_order("Blocked work order")
 		self._schedule(work_order, self.technician)
+		work_order.closure_owner = self.manager
+		work_order.closure_due_date = today()
+		work_order.save()
 
 		frappe.set_user(self.technician)
 		work_order.reload()
 		work_order.status = "In Progress"
 		work_order.save()
 		work_order.cannot_close_reason = "Parts unavailable"
-		work_order.closure_owner = "Administrator"
-		work_order.closure_due_date = today()
 		work_order.status = "Cannot Close"
 		work_order.save()
 
 		exception = frappe.get_doc("Service Closure Exception", work_order.closure_exception)
 		self.assertEqual(exception.work_order, work_order.name)
-		self.assertEqual(exception.exception_owner, "Administrator")
+		self.assertEqual(exception.exception_owner, self.manager)
 		self.assertEqual(exception.status, "Open")
+
+	def test_technician_cannot_mutate_manager_or_finance_fields(self):
+		item, warehouse = self._make_stocked_item()
+		work_order = self._make_work_order("Permission boundary work order")
+		work_order.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		self._schedule(work_order, self.technician)
+		alternate_customer = self._make_customer()
+
+		frappe.set_user(self.technician)
+		for fieldname, value in (
+			("customer", alternate_customer),
+			("service_priority", "Critical"),
+			("warranty_status", "In Warranty"),
+			("inspection_required", 1),
+			("scheduled_end", add_to_date(work_order.scheduled_end, hours=1)),
+			("assigned_technician", "Administrator"),
+			("hourly_rate", 999),
+			("projected_revenue", 999),
+		):
+			work_order.reload()
+			original = work_order.get(fieldname)
+			work_order.set(fieldname, value)
+			with self.assertRaises(frappe.PermissionError, msg=f"defense in depth: {fieldname}"):
+				work_order._validate_technician_field_scope()
+			try:
+				work_order.save()
+			except frappe.PermissionError:
+				pass
+			work_order.reload()
+			self.assertEqual(work_order.get(fieldname), original, fieldname)
+
+		work_order.reload()
+		original_rate = work_order.parts[0].bill_rate
+		work_order.parts[0].bill_rate = 999
+		with self.assertRaises(frappe.PermissionError, msg="defense in depth: part bill rate"):
+			work_order._validate_technician_field_scope()
+		try:
+			work_order.save()
+		except frappe.PermissionError:
+			pass
+		work_order.reload()
+		self.assertEqual(work_order.parts[0].bill_rate, original_rate)
+
+	def test_service_foundation_gates_warranty_and_required_inspection(self):
+		work_order = self._make_work_order("Asset SLA inspection work order")
+		work_order.warranty_status = "In Warranty"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.reload()
+		work_order.warranty_status = "Unknown"
+		work_order.inspection_required = 1
+		work_order.save()
+		self._schedule(work_order, self.technician)
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Inspection completed during service."
+		work_order.closeout_evidence = "/private/files/test-inspection-closeout.txt"
+		work_order.save()
+		work_order.status = "Closeout Submitted"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.reload()
+		work_order.status = "Closeout Submitted"
+		work_order.inspection_result = "Failed"
+		with self.assertRaises(frappe.ValidationError):
+			work_order.save()
+
+		work_order.reload()
+		work_order.status = "Closeout Submitted"
+		work_order.inspection_result = "Failed"
+		work_order.inspection_notes = "Pressure test failed; manager follow-up required."
+		work_order.save()
+		self.assertEqual(work_order.status, "Closeout Submitted")
+
+	def test_technician_related_reads_are_limited_to_assigned_work(self):
+		assigned_request = frappe.get_doc(
+			{
+				"doctype": "Service Request",
+				"subject": "Assigned request",
+				"customer": self.customer,
+				"service_location": self.location,
+			}
+		).insert()
+		assigned = self._make_work_order("Assigned related records")
+		assigned.service_request = assigned_request.name
+		assigned.save()
+		self._schedule(assigned, self.technician)
+
+		other_customer = self._make_customer()
+		other_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Other Site {0}".format(frappe.generate_hash(length=8)),
+				"customer": other_customer,
+			}
+		).insert()
+		other_request = frappe.get_doc(
+			{
+				"doctype": "Service Request",
+				"subject": "Unassigned request",
+				"customer": other_customer,
+				"service_location": other_location.name,
+			}
+		).insert()
+
+		frappe.set_user(self.technician)
+		self.assertTrue(frappe.get_doc("Service Request", assigned_request.name).has_permission("read"))
+		self.assertTrue(frappe.get_doc("Service Location", self.location).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Request", other_request.name).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Location", other_location.name).has_permission("read"))
+		self.assertFalse(frappe.get_doc("Service Request", assigned_request.name).has_permission("share"))
+		self.assertFalse(frappe.get_doc("Service Location", self.location).has_permission("email"))
+
+	def test_overdue_cannot_close_is_escalated_once_without_auto_close(self):
+		work_order = self._make_work_order("Overdue blocked work order")
+		self._schedule(work_order, self.technician)
+		work_order.closure_owner = self.manager
+		work_order.closure_due_date = today()
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.cannot_close_reason = "Parts unavailable"
+		work_order.status = "Cannot Close"
+		work_order.save()
+		exception_name = work_order.closure_exception
+
+		frappe.set_user("Administrator")
+		frappe.db.set_value(
+			"Service Closure Exception",
+			exception_name,
+			"due_date",
+			add_to_date(today(), days=-1),
+			update_modified=False,
+		)
+		escalate_overdue_closure_exceptions()
+		first_count = frappe.db.count(
+			"Notification Log",
+			{"document_type": "Service Closure Exception", "document_name": exception_name},
+		)
+		escalate_overdue_closure_exceptions()
+
+		work_order.reload()
+		exception = frappe.get_doc("Service Closure Exception", exception_name)
+		self.assertEqual(work_order.status, "Cannot Close")
+		self.assertTrue(exception.escalated_on)
+		self.assertGreaterEqual(first_count, 1)
+		self.assertEqual(
+			frappe.db.count(
+				"Notification Log",
+				{"document_type": "Service Closure Exception", "document_name": exception_name},
+			),
+			first_count,
+		)
 
 	def test_parts_issue_is_idempotent(self):
 		item, warehouse = self._make_stocked_item()
@@ -161,9 +365,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 
 		self.assertEqual(frappe.db.get_value("Stock Entry", stock_entry_name, "docstatus"), 1)
 		self.assertEqual(work_order.parts[0].stock_entry, stock_entry_name)
-		self.assertIsNone(issue_parts(work_order.name))
+		self.assertEqual(issue_parts(work_order.name), stock_entry_name)
 
-	def test_manager_creates_idempotent_draft_sales_invoice(self):
+	def test_finance_creates_idempotent_draft_sales_invoice(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 		item, warehouse = self._make_stocked_item()
 		service_item = self._make_service_item()
@@ -193,6 +397,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		work_order.save()
 
 		frappe.set_user("Administrator")
+		work_order.reload()
+		work_order.parts[0].bill_rate = 25
+		work_order.save()
 		issue_parts(work_order.name)
 		work_order.reload()
 		work_order.service_billing_item = service_item
@@ -219,7 +426,17 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			make_draft_sales_invoice(work_order.name)
 
-		frappe.set_user("Administrator")
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			make_draft_sales_invoice(work_order.name)
+
+		frappe.set_user(self.finance_user)
+		self.assertEqual(
+			frappe.get_list(
+				"Service Work Order", filters={"name": work_order.name}, pluck="name"
+			),
+			[work_order.name],
+		)
 		invoice_name = make_draft_sales_invoice(work_order.name)
 		self.assertEqual(make_draft_sales_invoice(work_order.name), invoice_name)
 
@@ -240,6 +457,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(items_by_code[item].qty, 2)
 		self.assertEqual(items_by_code[item].rate, 25)
 
+		frappe.set_user("Administrator")
 		work_order.hourly_rate = 90
 		with self.assertRaises(frappe.ValidationError):
 			work_order.save()
@@ -362,6 +580,34 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "docstatus"), 1)
 			self.assertEqual(frappe.db.get_value("Stock Entry", result["initial_stock_entry"], "purpose"), "Material Receipt")
 
+	def test_e2e_preparation_requires_explicit_local_opt_in(self):
+		with patch.dict("os.environ", {}, clear=True):
+			with self.assertRaises(frappe.ValidationError):
+				prepare_e2e_demo()
+
+	def test_profitability_report_is_manager_only_and_permission_scoped(self):
+		work_order = self._make_work_order("Profitability report work order")
+		work_order.hourly_rate = 100
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 2,
+			},
+		)
+		work_order.save()
+
+		_columns, rows = profitability_report({"customer": self.customer})
+		row = next(item for item in rows if item.name == work_order.name)
+		self.assertEqual(flt(row.projected_revenue), 200)
+		self.assertEqual(flt(row.projected_margin_before_labor), 200)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			profitability_report({"customer": self.customer})
+
 	def _make_customer(self):
 		name = "AI ERP Service Test Customer {0}".format(frappe.generate_hash(length=8))
 		customer = frappe.get_doc(
@@ -380,7 +626,19 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		return location.name
 
 	def _make_stocked_item(self):
-		warehouse = frappe.db.get_value("Warehouse", {"is_group": 0}, "name")
+		warehouse = next(
+			(
+				row.name
+				for row in frappe.get_all(
+					"Warehouse",
+					filters={"is_group": 0},
+					fields=["name", "company"],
+					order_by="creation asc",
+				)
+				if self._company_accounts_use_base_currency(row.company)
+			),
+			None,
+		)
 		self.assertTrue(warehouse)
 		company = frappe.db.get_value("Warehouse", warehouse, "company")
 		item = frappe.get_doc(
@@ -402,6 +660,22 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			company=company,
 		)
 		return item.name, warehouse
+
+	def _company_accounts_use_base_currency(self, company):
+		company_currency = frappe.db.get_value("Company", company, "default_currency")
+		receivable_account = frappe.db.get_value(
+			"Company", company, "default_receivable_account"
+		) or frappe.db.get_value(
+			"Account",
+			{"company": company, "account_type": "Receivable", "is_group": 0},
+			"name",
+		)
+		account_currency = (
+			frappe.db.get_value("Account", receivable_account, "account_currency")
+			if receivable_account
+			else None
+		)
+		return bool(company_currency and account_currency == company_currency)
 
 	def _make_service_item(self):
 		uom = self._make_fractional_hour_uom()
@@ -466,6 +740,31 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 					roles_changed = True
 			if roles_changed:
 				user.save()
+		frappe.clear_cache(user=email)
+		return user.name
+
+	def _make_role_user(self, email, roles):
+		if frappe.db.exists("User", email):
+			user = frappe.get_doc("User", email)
+		else:
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": "AI ERP",
+					"last_name": "Role Test",
+					"enabled": 1,
+					"send_welcome_email": 0,
+					"user_type": "System User",
+				}
+			).insert()
+		changed = False
+		for role in roles:
+			if not any(row.role == role for row in user.roles):
+				user.append("roles", {"role": role})
+				changed = True
+		if changed:
+			user.save()
 		frappe.clear_cache(user=email)
 		return user.name
 

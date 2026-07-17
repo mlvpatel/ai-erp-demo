@@ -126,7 +126,12 @@ def validate_apps(manifest: dict[str, Any], failures: list[str]) -> None:
             if not contains_snippet(hooks_text, snippet):
                 fail(failures, f"{app_name}: hooks missing snippet: {snippet}")
 
-        validate_empty_patches(app_name, REPO_ROOT / patches_path, failures)
+        validate_patches(
+            app_name,
+            REPO_ROOT / patches_path,
+            app.get("approved_patches", []),
+            failures,
+        )
         for doctype_path in string_list(app.get("doctypes"), f"{app_name}.doctypes", failures):
             value = load_json(REPO_ROOT / doctype_path, failures)
             if not isinstance(value, dict):
@@ -137,14 +142,23 @@ def validate_apps(manifest: dict[str, Any], failures: list[str]) -> None:
                 fail(failures, f"{doctype_path}: DocType JSON must have a name")
 
 
-def validate_empty_patches(app_name: str, path: Path, failures: list[str]) -> None:
+def validate_patches(app_name: str, path: Path, approved: Any, failures: list[str]) -> None:
+    if not isinstance(approved, list) or any(not isinstance(item, str) or not item for item in approved):
+        fail(failures, f"{app_name}: approved_patches must be a list of dotted patch paths")
+        approved = []
+    approved_set = set(approved)
+    active: set[str] = set()
     text = read_text(path, failures)
     allowed_sections = {"[pre_model_sync]", "[post_model_sync]"}
     for line_number, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or stripped in allowed_sections:
             continue
-        fail(failures, f"{app_name}: patches.txt has active entry on line {line_number}: {stripped}")
+        active.add(stripped)
+        if stripped not in approved_set:
+            fail(failures, f"{app_name}: unapproved patches.txt entry on line {line_number}: {stripped}")
+    for missing in sorted(approved_set - active):
+        fail(failures, f"{app_name}: approved patch is not active in patches.txt: {missing}")
 
 
 def validate_dev_helper(manifest: dict[str, Any], failures: list[str]) -> None:

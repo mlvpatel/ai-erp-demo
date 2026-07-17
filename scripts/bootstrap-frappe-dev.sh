@@ -30,12 +30,37 @@ pin_app_commit() {
   fi
 
   if ! git -C "$app_dir" diff --quiet || ! git -C "$app_dir" diff --cached --quiet; then
-    echo "Cannot pin $app_name to $target_commit because $app_dir has local changes." >&2
-    echo "Commit, stash, or remove those changes, then rerun this script." >&2
+    if [ "${fresh_bench:-0}" = 1 ]; then
+      git -C "$app_dir" stash push --include-untracked --message "fresh bench generated dependency state"
+    else
+      echo "Cannot pin $app_name to $target_commit because $app_dir has local changes." >&2
+      echo "Commit, stash, or remove those changes, then rerun this script." >&2
+      exit 1
+    fi
+  fi
+
+  local remote=origin
+  if ! git -C "$app_dir" remote get-url "$remote" >/dev/null 2>&1; then
+    remote=upstream
+  fi
+  if ! git -C "$app_dir" remote get-url "$remote" >/dev/null 2>&1; then
+    echo "Cannot pin $app_name because $app_dir has no origin or upstream remote." >&2
     exit 1
   fi
 
-  git -C "$app_dir" fetch origin "$target_commit"
+  local fetched=0
+  local attempt
+  for attempt in 1 2 3; do
+    if git -C "$app_dir" fetch --depth 1 "$remote" "$target_commit"; then
+      fetched=1
+      break
+    fi
+    sleep "$((attempt * 2))"
+  done
+  if [ "$fetched" != 1 ]; then
+    echo "Cannot fetch pinned commit for $app_name after three attempts." >&2
+    exit 1
+  fi
   git -C "$app_dir" checkout --detach "$target_commit"
   echo "$app_name pinned to $target_commit"
 }
@@ -66,6 +91,13 @@ ensure_local_app() {
   fi
 
   "$bench_dir/env/bin/python" -m pip install --no-deps -e "$target_dir"
+  touch "$bench_dir/sites/apps.txt"
+  if [ -s "$bench_dir/sites/apps.txt" ] && [ -n "$(tail -c 1 "$bench_dir/sites/apps.txt")" ]; then
+    printf '\n' >>"$bench_dir/sites/apps.txt"
+  fi
+  if ! grep -Fqx "$app_name" "$bench_dir/sites/apps.txt"; then
+    printf '%s\n' "$app_name" >>"$bench_dir/sites/apps.txt"
+  fi
 }
 
 ensure_site_app() {
@@ -79,11 +111,35 @@ ensure_site_app() {
   bench --site "$SITE_NAME" install-app "$app_name"
 }
 
+preserve_fresh_generated_state() {
+  local app_name="$1"
+  local app_dir="apps/$app_name"
+  local dirty
+
+  if [ "${fresh_bench:-0}" != 1 ] || [ ! -d "$app_dir/.git" ]; then
+    return
+  fi
+  dirty="$(git -C "$app_dir" status --short)"
+  if [ -z "$dirty" ]; then
+    return
+  fi
+  if [ "$app_name" = erpnext ] && [ "$dirty" = " M banking/yarn.lock" ]; then
+    git -C "$app_dir" stash push --message "fresh bench generated banking dependency state" -- banking/yarn.lock
+    return
+  fi
+  echo "Fresh bootstrap left unexpected changes in $app_dir:" >&2
+  printf '%s\n' "$dirty" >&2
+  exit 1
+}
+
 cd "$development_dir"
 
+fresh_bench=0
 if [ ! -d "$bench_dir" ]; then
+  fresh_bench=1
   bench init \
     --skip-redis-config-generation \
+    --skip-assets \
     --frappe-branch "$FRAPPE_BRANCH" \
     --apps_path "$apps_json" \
     frappe-bench
@@ -92,6 +148,11 @@ fi
 cd "$bench_dir"
 pin_app_commit frappe "$FRAPPE_COMMIT"
 pin_app_commit erpnext "$ERPNEXT_COMMIT"
+if [ "$fresh_bench" = 1 ]; then
+  yarn --cwd apps/frappe install --frozen-lockfile --check-files
+  yarn --cwd apps/erpnext install --frozen-lockfile --check-files
+  yarn --cwd apps/erpnext/banking install --frozen-lockfile --check-files
+fi
 ensure_local_app ai_erp_core
 ensure_local_app ai_erp_service
 
@@ -115,5 +176,11 @@ fi
 
 ensure_site_app ai_erp_core
 ensure_site_app ai_erp_service
+
+if [ "$fresh_bench" = 1 ]; then
+  bench build
+  preserve_fresh_generated_state frappe
+  preserve_fresh_generated_state erpnext
+fi
 
 bench --site "$SITE_NAME" list-apps

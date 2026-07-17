@@ -32,9 +32,26 @@ The helper supplies both the process-level allow flag and
 profile can create records. It also runs focused profile, percentile, and
 failure-cleanup tests before executing the timed smoke scenarios.
 
-This is not a full-profile benchmark. Frappe link search, parts-issue
-concurrency, worker queue backlog, and the service profitability report are
-reported as `SKIP_UNIMPLEMENTED`; a smoke pass is
+This is not a full-profile benchmark. True parts-issue concurrency is reported
+as `EXTERNAL_CROSS_SESSION_GATE` because `scripts/dev.sh e2e-test` executes ten
+issue attempts through five authenticated manager sessions. Native Frappe link search is measured for technician
+and manager isolation, a side-effect-free worker batch measures queue-clear
+time, and the manager-only service
+profitability report is measured through permission-aware `frappe.get_list`;
+a smoke pass is
 `SMOKE_PASS_NOT_FULL_PROFILE` and cannot support a public capacity claim.
 Database rollback cannot undo external effects; the fail-closed local/template
 preflight prevents the smoke path from using an external provider.
+The queue probe is restricted to `.localhost`, performs no ERP read or write,
+and is the only intentional non-database side effect of the smoke command.
+
+The protected `.github/workflows/production-capacity.yml` workflow is the
+executable full-profile path. After production infrastructure and immutable
+images exist, an authorized operator enters `RUN-FULL-CAPACITY`. The workflow
+creates a disposable `capacity-run-*.internal` site, seeds exactly the tracked
+volumes, uses a task-local deterministic AI renderer, measures all seven
+scenarios, and sends ten concurrent parts requests through ten authenticated API
+sessions spanning five Service Manager users. It requires one Stock Entry,
+idempotent retry results, and no partial issue state. The site and database are
+deleted after the run, while only aggregate encrypted evidence is retained for
+30 days. The workflow definition is not evidence that the billable run passed.

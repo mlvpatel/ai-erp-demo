@@ -24,6 +24,15 @@
         "path": "services/ai_control_plane/src/ai_erp_control_plane/render.py",
         "function": "render_development_template"
       },
+      "production_provider_adapter": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/openai_provider.py",
+        "function": "render_openai"
+      },
+      "production_provider_evaluation": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/live_eval.py",
+        "function": "run_live_eval",
+        "runbook": "docs/runbooks/openai-live-evaluation.md"
+      },
       "request_model": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
         "class": "ServiceCloseoutSummaryRequest"
@@ -45,10 +54,13 @@
         "docs/security/ai-workflow-review.md",
         "docs/security/data-classification.md",
         "docs/security/threat-model.md",
-        "docs/workflows/service-operations.md"
+        "docs/workflows/service-operations.md",
+        "docs/runbooks/openai-live-evaluation.md"
       ],
       "tests": [
         "services/ai_control_plane/tests/test_render.py",
+        "services/ai_control_plane/tests/test_openai_provider.py",
+        "services/ai_control_plane/tests/test_live_eval.py",
         "tests/contract/test_ai_control_plane_openapi.py",
         "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
       ],

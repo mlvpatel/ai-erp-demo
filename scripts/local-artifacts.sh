@@ -25,6 +25,9 @@ list_artifacts() {
       -name '.pytest_cache' -o \
       -name '.mypy_cache' -o \
       -name '.ruff_cache' -o \
+      -name 'node_modules' -o \
+      -name 'playwright-report' -o \
+      -name 'test-results' -o \
       -name '*.egg-info' -o \
       -name 'build' -o \
       -name 'dist' \

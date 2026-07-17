@@ -7,6 +7,9 @@ frappe.ui.form.on("Service Work Order", {
 		const is_manager = ["Service Manager", "System Manager"].some((role) =>
 			frappe.user_roles.includes(role),
 		);
+		const is_finance = ["Accounts User", "Accounts Manager"].some((role) =>
+			frappe.user_roles.includes(role),
+		);
 		const has_unissued_parts = (frm.doc.parts || []).some((row) => !row.stock_entry);
 
 		if (["Closeout Submitted", "Closed"].includes(frm.doc.status)) {
@@ -43,7 +46,7 @@ frappe.ui.form.on("Service Work Order", {
 			});
 		}
 
-		if (frm.doc.status === "Invoice Ready" && !frm.doc.sales_invoice) {
+		if (is_finance && frm.doc.status === "Invoice Ready" && !frm.doc.sales_invoice) {
 			frm.add_custom_button(__("Draft Sales Invoice"), async () => {
 				const response = await frappe.call({
 					method:

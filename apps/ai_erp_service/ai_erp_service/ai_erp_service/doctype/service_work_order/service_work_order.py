@@ -1,13 +1,16 @@
 # Copyright (c) 2026, AI ERP Demo and contributors
 # For license information, please see license.txt
 
+from time import sleep
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, getdate, today
+from frappe.utils import flt, get_datetime, getdate, today
 
 from ai_erp_service.service_utils import (
 	DISPATCHER_ROLES,
+	FINANCE_ROLES,
 	MANAGER_ROLES,
 	has_any_role,
 	require_any_role,
@@ -28,12 +31,42 @@ TRANSITIONS = {
 TECHNICIAN_STATES = {"In Progress", "Closeout Submitted", "Cannot Close"}
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 FINAL_STATES = {"Closed", "Invoice Ready"}
+MAX_TRANSACTION_RETRIES = 3
+TECHNICIAN_IMMUTABLE_FIELDS = (
+	"subject",
+	"customer",
+	"service_location",
+	"service_request",
+	"description",
+	"service_asset",
+	"service_priority",
+	"sla_due_at",
+	"warranty_status",
+	"inspection_required",
+	"scheduled_start",
+	"scheduled_end",
+	"assigned_technician",
+	"closure_owner",
+	"closure_due_date",
+	"closure_exception",
+	"invoice_ready",
+	"service_billing_item",
+	"hourly_rate",
+	"sales_invoice",
+	"projected_revenue",
+	"issued_parts_cost",
+	"projected_margin_before_labor",
+	"projected_margin_percent",
+	"profitability_basis",
+)
 
 
 class ServiceWorkOrder(Document):
 	def validate(self):
+		self._validate_technician_field_scope()
 		self._validate_location()
 		self._validate_schedule()
+		self._validate_service_foundation()
 		self._validate_assignment()
 		self._validate_time_entries()
 		self._validate_parts()
@@ -46,12 +79,52 @@ class ServiceWorkOrder(Document):
 		self._validate_invoice_ready()
 		self._update_profitability_projection()
 
+	def _validate_technician_field_scope(self):
+		if self.is_new() or not self._is_technician_only():
+			return
+
+		stored = frappe.db.get_value(self.doctype, self.name, TECHNICIAN_IMMUTABLE_FIELDS, as_dict=True)
+		if not stored:
+			frappe.throw(_("The work order could not be loaded for permission validation."), frappe.PermissionError)
+		for fieldname in TECHNICIAN_IMMUTABLE_FIELDS:
+			if self.get(fieldname) != stored.get(fieldname):
+				frappe.throw(
+					_("Technicians cannot change manager-controlled field {0}.").format(fieldname),
+					frappe.PermissionError,
+				)
+
+		stored_rates = {
+			row.name: flt(row.bill_rate)
+			for row in frappe.get_all(
+				"Service Work Order Part",
+				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "parts"},
+				fields=["name", "bill_rate"],
+			)
+		}
+		for row in self.get("parts") or []:
+			if flt(row.bill_rate) != stored_rates.get(row.name, 0):
+				frappe.throw(_("Technicians cannot change Part Bill Rate."), frappe.PermissionError)
+
 	def _validate_location(self):
 		validate_location_customer(self.customer, self.service_location)
 
 	def _validate_schedule(self):
 		if self.scheduled_start and self.scheduled_end and self.scheduled_end <= self.scheduled_start:
 			frappe.throw(_("Scheduled End must be later than Scheduled Start."))
+
+	def _validate_service_foundation(self):
+		if self.service_asset and frappe.get_meta("Asset").has_field("customer"):
+			asset_customer = frappe.db.get_value("Asset", self.service_asset, "customer")
+			if asset_customer and self.customer and asset_customer != self.customer:
+				frappe.throw(_("Service Asset must belong to the work-order Customer."))
+
+		if self.warranty_status == "In Warranty" and not self.service_asset:
+			frappe.throw(_("In Warranty work requires a linked Service Asset."))
+
+		if self.sla_due_at and self.scheduled_start and get_datetime(self.sla_due_at) < get_datetime(
+			self.scheduled_start
+		):
+			frappe.throw(_("SLA Due At cannot be earlier than Scheduled Start."))
 
 	def _validate_assignment(self):
 		if self.status in {"Scheduled", *TECHNICIAN_STATES, *FINAL_STATES} and not self.assigned_technician:
@@ -208,6 +281,10 @@ class ServiceWorkOrder(Document):
 			frappe.throw(_("Closeout Notes are required before submitting closeout."))
 		if not self.closeout_evidence:
 			frappe.throw(_("Closeout Evidence is required before submitting closeout."))
+		if self.inspection_required and not self.inspection_result:
+			frappe.throw(_("Inspection Result is required before submitting closeout."))
+		if self.inspection_result in {"Needs Follow-up", "Failed"} and not self.inspection_notes:
+			frappe.throw(_("Inspection Notes are required for failed or follow-up inspection results."))
 		if self.status in FINAL_STATES and any(not row.stock_entry for row in self.get("parts") or []):
 			frappe.throw(_("All declared parts must be issued before the work order can close."))
 
@@ -268,15 +345,24 @@ class ServiceWorkOrder(Document):
 		return self.assigned_technician == frappe.session.user
 
 	def _is_technician_only(self):
-		roles = {"Service Technician"}
-		return "Service Technician" in frappe.get_roles() and not has_any_role(DISPATCHER_ROLES | roles)
+		return "Service Technician" in frappe.get_roles() and not has_any_role(DISPATCHER_ROLES)
 
 	def _require_manager(self):
 		require_any_role(MANAGER_ROLES, "Only a service manager can issue inventory for a work order.")
 
+	def _require_finance(self):
+		require_any_role(
+			FINANCE_ROLES,
+			"Only an Accounts User or Accounts Manager can draft a Sales Invoice.",
+		)
+
 
 @frappe.whitelist()
 def issue_parts(name):
+	return _with_transaction_retry(lambda: _issue_parts(name))
+
+
+def _issue_parts(name):
 	work_order = frappe.get_doc("Service Work Order", name)
 	work_order.check_permission("write")
 	work_order._require_manager()
@@ -290,6 +376,11 @@ def issue_parts(name):
 
 	unissued_parts = [row for row in work_order.get("parts") or [] if not row.stock_entry]
 	if not unissued_parts:
+		existing_entries = {row.stock_entry for row in work_order.get("parts") or [] if row.stock_entry}
+		if len(existing_entries) == 1:
+			return existing_entries.pop()
+		if existing_entries:
+			frappe.throw(_("Issued parts must reference exactly one Stock Entry for an idempotent retry."))
 		return None
 
 	company = _company_for_parts(unissued_parts)
@@ -319,9 +410,13 @@ def issue_parts(name):
 
 @frappe.whitelist()
 def make_draft_sales_invoice(name):
+	return _with_transaction_retry(lambda: _make_draft_sales_invoice(name))
+
+
+def _make_draft_sales_invoice(name):
 	work_order = frappe.get_doc("Service Work Order", name)
-	work_order.check_permission("write")
-	work_order._require_manager()
+	work_order.check_permission("read")
+	work_order._require_finance()
 	frappe.has_permission("Sales Invoice", ptype="create", throw=True)
 
 	frappe.db.sql("SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE", name)
@@ -332,7 +427,7 @@ def make_draft_sales_invoice(name):
 		if work_order.sales_invoice != existing_invoice:
 			work_order.flags.from_invoice_creation = True
 			work_order.sales_invoice = existing_invoice
-			work_order.save()
+			work_order.save(ignore_permissions=True)
 		return existing_invoice
 
 	_validate_invoice_creation(work_order)
@@ -341,8 +436,20 @@ def make_draft_sales_invoice(name):
 
 	work_order.flags.from_invoice_creation = True
 	work_order.sales_invoice = invoice.name
-	work_order.save()
+	work_order.save(ignore_permissions=True)
 	return invoice.name
+
+
+def _with_transaction_retry(operation):
+	"""Retry only Frappe's transient row-change/deadlock signal."""
+	for attempt in range(MAX_TRANSACTION_RETRIES):
+		try:
+			return operation()
+		except frappe.QueryDeadlockError:
+			frappe.db.rollback()
+			if attempt + 1 == MAX_TRANSACTION_RETRIES:
+				raise
+			sleep(0.05 * (attempt + 1))
 
 
 def _existing_sales_invoice(work_order):

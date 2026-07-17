@@ -99,10 +99,10 @@
       ]
     },
     {
-      "id": "manager-draft-invoice-idempotent",
-      "source_metric": "A manager can draft exactly one linked Sales Invoice after invoice readiness; the draft invoice does not submit or move stock.",
+      "id": "finance-draft-invoice-idempotent",
+      "source_metric": "An Accounts user can draft exactly one linked Sales Invoice after manager-approved invoice readiness; the draft invoice does not submit or move stock.",
       "status": "implemented",
-      "safety_boundary": "Only a manager-triggered deterministic action can create the linked Sales Invoice; it remains draft-only and does not update stock.",
+      "safety_boundary": "Only an Accounts-role deterministic action with standard Sales Invoice create permission can create the linked invoice; it remains draft-only and does not update stock.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
         "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
@@ -111,7 +111,7 @@
       "anchors": [
         {
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
-          "contains": "def test_manager_creates_idempotent_draft_sales_invoice"
+          "contains": "def test_finance_creates_idempotent_draft_sales_invoice"
         },
         {
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
@@ -123,7 +123,7 @@
         },
         {
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
-          "contains": "work_order._require_manager()"
+          "contains": "work_order._require_finance()"
         }
       ],
       "verification_commands": [

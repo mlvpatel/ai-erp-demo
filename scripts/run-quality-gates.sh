@@ -50,6 +50,12 @@ echo "==> Integration safety"
 echo "==> Operations readiness"
 "$python_bin" scripts/check-operations-readiness.py
 
+echo "==> AWS production IaC"
+"$python_bin" scripts/check-aws-iac.py
+
+echo "==> Service pilot readiness"
+"$python_bin" scripts/check-pilot-readiness.py
+
 echo "==> Observability readiness"
 "$python_bin" scripts/check-observability-readiness.py
 
@@ -82,6 +88,9 @@ echo "==> First public issues"
 
 echo "==> MVP acceptance"
 "$python_bin" scripts/check-mvp-acceptance.py
+
+echo "==> Field-service 9/10 scorecard"
+"$python_bin" scripts/check-field-service-9-scorecard.py
 
 echo "==> Authorization matrix"
 "$python_bin" scripts/check-authorization-matrix.py

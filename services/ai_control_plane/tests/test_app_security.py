@@ -83,3 +83,54 @@ class TestAppSecurity(unittest.TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json()["policy"]["decision"], "draft_only")
+
+	def test_openai_provider_without_key_fails_closed(self):
+		environment = {
+			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
+			"AI_ERP_PROVIDER": "openai",
+		}
+		with patch.dict(os.environ, environment, clear=True):
+			with self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured:
+				response = self._post(f"Bearer {SHARED_SECRET}")
+
+		self.assertEqual(response.status_code, 503)
+		self.assertEqual(response.json()["detail"], "approved model provider is unavailable")
+		joined = " ".join(captured.output)
+		self.assertIn("ai_provider_attempt", joined)
+		self.assertIn("ai_provider_failure", joined)
+		for sensitive in (SHARED_SECRET, "demo.localhost", "SVC-WO-00001", "Tightened the mount"):
+			self.assertNotIn(sensitive, joined)
+
+	def test_readiness_is_separate_from_liveness_and_fails_closed(self):
+		with patch.dict(os.environ, {"AI_ERP_PROVIDER": "openai"}, clear=True):
+			self.assertEqual(self.client.get("/healthz").status_code, 200)
+			self.assertEqual(self.client.get("/readyz").status_code, 503)
+		with patch.dict(os.environ, {"AI_ERP_PROVIDER": "template"}, clear=True):
+			self.assertEqual(self.client.get("/readyz").status_code, 200)
+		with patch.dict(os.environ, {"AI_ERP_PROVIDER": "unapproved"}, clear=True):
+			self.assertEqual(self.client.get("/readyz").status_code, 503)
+
+	def test_rejects_empty_identifiers_bad_dates_non_finite_and_out_of_range_numbers(self):
+		invalid_mutations = (
+			lambda payload: payload["work_order"].update({"name": ""}),
+			lambda payload: payload["work_order"].update(
+				{"time_entries": [{"technician": "", "work_date": "2026-13-40", "time_type": "Work", "hours": 1}]}
+			),
+			lambda payload: payload["work_order"].update(
+				{"time_entries": [{"technician": "tech", "work_date": "2026-07-10", "time_type": "Work", "hours": "NaN"}]}
+			),
+			lambda payload: payload["work_order"].update(
+				{"parts": [{"item": "PART", "qty": 100001, "source_warehouse": "WH", "issued": False}]}
+			),
+		)
+		environment = {"AI_CONTROL_PLANE_SHARED_SECRET": SHARED_SECRET, "AI_ERP_PROVIDER": "template"}
+		with patch.dict(os.environ, environment, clear=True):
+			for mutate in invalid_mutations:
+				payload = _valid_request_payload()
+				mutate(payload)
+				response = self.client.post(
+					PROPOSAL_PATH,
+					headers={"Authorization": f"Bearer {SHARED_SECRET}"},
+					json=payload,
+				)
+				self.assertEqual(response.status_code, 422)

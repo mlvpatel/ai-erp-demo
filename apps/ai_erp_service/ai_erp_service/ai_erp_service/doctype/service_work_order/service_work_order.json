@@ -13,6 +13,13 @@
   "service_location",
   "service_request",
   "description",
+  "service_foundation_section",
+  "service_asset",
+  "service_priority",
+  "sla_due_at",
+  "foundation_column",
+  "warranty_status",
+  "inspection_required",
   "status",
   "schedule_section",
   "scheduled_start",
@@ -23,6 +30,8 @@
   "time_entries",
   "parts",
   "closeout_section",
+  "inspection_result",
+  "inspection_notes",
   "closeout_notes",
   "closeout_evidence",
   "cannot_close_reason",
@@ -48,6 +57,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Subject",
+   "permlevel": 1,
    "reqd": 1
   },
   {
@@ -57,6 +67,7 @@
    "in_standard_filter": 1,
    "label": "Customer",
    "options": "Customer",
+   "permlevel": 1,
    "reqd": 1
   },
   {
@@ -64,19 +75,74 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Service Location",
-   "options": "Service Location"
+   "options": "Service Location",
+   "permlevel": 1
   },
   {
    "fieldname": "service_request",
    "fieldtype": "Link",
    "label": "Service Request",
    "options": "Service Request",
+   "permlevel": 1,
    "read_only": 1
   },
   {
    "fieldname": "description",
    "fieldtype": "Small Text",
-   "label": "Description"
+   "label": "Description",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "service_foundation_section",
+   "fieldtype": "Section Break",
+   "label": "Service Foundation",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "service_asset",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Service Asset",
+   "options": "Asset",
+   "permlevel": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "service_priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Priority",
+   "options": "Low\nMedium\nHigh\nCritical",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "sla_due_at",
+   "fieldtype": "Datetime",
+   "in_standard_filter": 1,
+   "label": "SLA Due At",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "foundation_column",
+   "fieldtype": "Column Break",
+   "permlevel": 1
+  },
+  {
+   "default": "Unknown",
+   "fieldname": "warranty_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Warranty Status",
+   "options": "Unknown\nIn Warranty\nOut of Warranty\nNot Applicable",
+   "permlevel": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "inspection_required",
+   "fieldtype": "Check",
+   "label": "Inspection Required",
+   "permlevel": 1
   },
   {
    "default": "Draft",
@@ -91,22 +157,26 @@
   {
    "fieldname": "schedule_section",
    "fieldtype": "Section Break",
-   "label": "Schedule"
+   "label": "Schedule",
+   "permlevel": 1
   },
   {
    "fieldname": "scheduled_start",
    "fieldtype": "Datetime",
    "in_list_view": 1,
-   "label": "Scheduled Start"
+   "label": "Scheduled Start",
+   "permlevel": 1
   },
   {
    "fieldname": "scheduled_end",
    "fieldtype": "Datetime",
-   "label": "Scheduled End"
+   "label": "Scheduled End",
+   "permlevel": 1
   },
   {
    "fieldname": "assignment_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "permlevel": 1
   },
   {
    "fieldname": "assigned_technician",
@@ -114,7 +184,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Assigned Technician",
-   "options": "User"
+   "options": "User",
+   "permlevel": 1
   },
   {
    "fieldname": "execution_section",
@@ -139,6 +210,17 @@
    "label": "Closeout"
   },
   {
+   "fieldname": "inspection_result",
+   "fieldtype": "Select",
+   "label": "Inspection Result",
+   "options": "\nPass\nNeeds Follow-up\nFailed"
+  },
+  {
+   "fieldname": "inspection_notes",
+   "fieldtype": "Small Text",
+   "label": "Inspection Notes"
+  },
+  {
    "fieldname": "closeout_notes",
    "fieldtype": "Text",
    "label": "Closeout Notes"
@@ -158,18 +240,21 @@
    "fieldname": "closure_owner",
    "fieldtype": "Link",
    "label": "Closure Owner",
-   "options": "User"
+   "options": "User",
+   "permlevel": 1
   },
   {
    "fieldname": "closure_due_date",
    "fieldtype": "Date",
-   "label": "Closure Due Date"
+   "label": "Closure Due Date",
+   "permlevel": 1
   },
   {
    "fieldname": "closure_exception",
    "fieldtype": "Link",
    "label": "Closure Exception",
    "options": "Service Closure Exception",
+   "permlevel": 1,
    "read_only": 1
   },
   {
@@ -178,24 +263,28 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Invoice Ready",
+   "permlevel": 1,
    "read_only": 1
   },
   {
    "fieldname": "billing_section",
    "fieldtype": "Section Break",
-   "label": "Billing"
+   "label": "Billing",
+   "permlevel": 2
   },
   {
    "fieldname": "service_billing_item",
    "fieldtype": "Link",
    "label": "Labor Billing Item",
-   "options": "Item"
+   "options": "Item",
+   "permlevel": 2
   },
   {
    "fieldname": "hourly_rate",
    "fieldtype": "Currency",
    "label": "Hourly Rate",
-   "non_negative": 1
+   "non_negative": 1,
+   "permlevel": 2
   },
   {
    "fieldname": "sales_invoice",
@@ -203,42 +292,49 @@
    "in_list_view": 1,
    "label": "Sales Invoice",
    "options": "Sales Invoice",
+   "permlevel": 2,
    "read_only": 1
   },
   {
    "fieldname": "profitability_section",
    "fieldtype": "Section Break",
-   "label": "Profitability Projection"
+   "label": "Profitability Projection",
+   "permlevel": 2
   },
   {
    "fieldname": "projected_revenue",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Projected Revenue",
+   "permlevel": 2,
    "read_only": 1
   },
   {
    "fieldname": "issued_parts_cost",
    "fieldtype": "Currency",
    "label": "Issued Parts Cost",
+   "permlevel": 2,
    "read_only": 1
   },
   {
    "fieldname": "projected_margin_before_labor",
    "fieldtype": "Currency",
    "label": "Projected Margin Before Labor Overhead",
+   "permlevel": 2,
    "read_only": 1
   },
   {
    "fieldname": "projected_margin_percent",
    "fieldtype": "Percent",
    "label": "Projected Margin %",
+   "permlevel": 2,
    "read_only": 1
   },
   {
    "fieldname": "profitability_basis",
    "fieldtype": "Small Text",
    "label": "Profitability Basis",
+   "permlevel": 2,
    "read_only": 1
   }
  ],
@@ -286,12 +382,77 @@
    "write": 1
   },
   {
-   "email": 1,
    "print": 1,
    "read": 1,
    "role": "Service Technician",
-   "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Service Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "role": "Service Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Service Dispatcher",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Service Technician"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "role": "Accounts Manager"
   }
  ],
  "row_format": "Dynamic",

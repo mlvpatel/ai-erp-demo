@@ -232,6 +232,13 @@ def validate_implemented_workflow(workflow: dict[str, Any], failures: list[str])
 
     for field in ("control_plane_handler", "control_plane_renderer", "payload_builder", "frappe_requester", "proposal_storage"):
         validate_symbol_reference(workflow_id, workflow, field, failures)
+    validate_symbol_reference(workflow_id, workflow, "production_provider_adapter", failures)
+    validate_symbol_reference(workflow_id, workflow, "production_provider_evaluation", failures)
+    evaluation = workflow.get("production_provider_evaluation")
+    if isinstance(evaluation, dict):
+        runbook = evaluation.get("runbook")
+        if not isinstance(runbook, str) or not (REPO_ROOT / runbook).is_file():
+            fail(failures, f"{workflow_id}: production provider evaluation runbook is missing: {runbook}")
     validate_class_reference(workflow_id, workflow, "request_model", failures)
 
     for field in ("docs", "tests"):

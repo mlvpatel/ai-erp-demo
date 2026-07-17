@@ -1,21 +1,11 @@
 # Changelog
 
-This project follows a simple changelog format until the first public release.
 Dates use `YYYY-MM-DD`.
 
 ## Unreleased
 
-- Created the AI ERP Demo repository structure for a Frappe/ERPNext-based,
-  AI-assisted ERP product.
-- Added repo-local delivery skills and working rules for ERP safety,
-  minimal-change implementation, and AI approval boundaries.
-- Added the first service-operations industry pack with work-order, closeout,
-  parts, invoice-readiness, profitability, and AI proposal workflow checks.
-- Added a draft-only FastAPI AI control plane with a versioned OpenAPI contract.
-- Added reproducible local development configuration, Docker Compose, demo seed,
-  and quality-gate scripts.
-- Added discovery, design, architecture, security, publication, and local demo
-  documentation.
+No public release has been tagged. The project currently ships as a private,
+zero-cost, local synthetic demo of a governed, AI-assisted field-service ERP.
 
 ## Release policy
 

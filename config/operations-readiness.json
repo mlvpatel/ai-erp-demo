@@ -27,6 +27,12 @@
     "*.backup",
     "*-files.tar",
     "*-private-files.tar"
+    ,
+    ".terraform/",
+    "*.tfstate",
+    "*.tfstate.*",
+    "*.tfvars",
+    "*.tfplan"
   ],
   "required_export_ignore_patterns": [
     "sites/",
@@ -40,6 +46,12 @@
     "*.backup",
     "*-files.tar",
     "*-private-files.tar"
+    ,
+    ".terraform/",
+    "*.tfstate",
+    "*.tfstate.*",
+    "*.tfvars",
+    "*.tfplan"
   ],
   "required_publication_source_snippets": [
     "-path './sites'",
@@ -53,6 +65,12 @@
     "-name '*.backup'",
     "-name '*-files.tar'",
     "-name '*-private-files.tar'"
+    ,
+    "-path './.terraform'",
+    "-name '*.tfstate'",
+    "-name '*.tfstate.*'",
+    "-name '*.tfvars'",
+    "-name '*.tfplan'"
   ],
   "publication_scan_required_exclusions": [
     "sites/",
@@ -66,6 +84,12 @@
     "*.backup",
     "*-files.tar",
     "*-private-files.tar"
+    ,
+    ".terraform/",
+    "*.tfstate",
+    "*.tfstate.*",
+    "*.tfvars",
+    "*.tfplan"
   ],
   "required_doc_phrases": [
     {

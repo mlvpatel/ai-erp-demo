@@ -80,19 +80,19 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
             fail(failures, f"{field} path is missing: {value}")
 
     status_flow = string_list(manifest.get("status_flow"), "status_flow", failures)
-    if status_flow != ["planned", "reserved", "implemented"]:
-        fail(failures, "status_flow must be planned, reserved, implemented")
+    if status_flow != ["planned", "reserved", "configured_demo", "implemented"]:
+        fail(failures, "status_flow must be planned, reserved, configured_demo, implemented")
 
     allowed_entry_gates = set(string_list(manifest.get("allowed_entry_gates"), "allowed_entry_gates", failures))
-    required_entry_gates = {"not_started", "discovery_brief_ready", "passed_for_mvp"}
+    required_entry_gates = {"not_started", "discovery_brief_ready", "configured_demo_ready", "passed_for_mvp"}
     if not required_entry_gates.issubset(allowed_entry_gates):
-        fail(failures, "allowed_entry_gates must include not_started, discovery_brief_ready, passed_for_mvp")
+        fail(failures, "allowed_entry_gates must include not_started, discovery_brief_ready, configured_demo_ready, passed_for_mvp")
 
     rules = manifest.get("status_rules")
     if not isinstance(rules, dict):
         fail(failures, "status_rules must be an object")
         return
-    for status in ("planned", "reserved", "implemented"):
+    for status in ("planned", "reserved", "configured_demo", "implemented"):
         rule = rules.get(status)
         if not isinstance(rule, dict):
             fail(failures, f"status_rules.{status} must be an object")
@@ -168,6 +168,124 @@ def validate_reserved_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, A
         for match in matches:
             fail(failures, f"{pack_id}: reserved pack contains generated marker: {rel(match)}")
 
+    docs = pack.get("docs")
+    discovery_docs = [
+        doc
+        for doc in docs
+        if isinstance(doc, str) and doc.startswith("docs/discovery/")
+    ] if isinstance(docs, list) else []
+    if len(discovery_docs) != 1:
+        fail(failures, f"{pack_id}: reserved pack requires exactly one docs/discovery brief")
+        return
+
+    evidence_level = pack.get("discovery_evidence_level")
+    human_validation = pack.get("human_validation")
+    if pack.get("entry_gate") == "not_started":
+        if evidence_level != "hypothesis_only" or human_validation != "pending":
+            fail(
+                failures,
+                f"{pack_id}: not_started must remain hypothesis_only with human validation pending",
+            )
+        brief_text = read_text(REPO_ROOT / discovery_docs[0], failures)
+        phrases = string_list(
+            rule.get("hypothesis_required_phrases"),
+            "reserved.hypothesis_required_phrases",
+            failures,
+        )
+        for phrase in phrases:
+            if not contains_snippet(brief_text, phrase):
+                fail(failures, f"{pack_id}: hypothesis brief missing phrase: {phrase}")
+    elif pack.get("entry_gate") == "discovery_brief_ready":
+        if evidence_level == "hypothesis_only" or human_validation != "approved":
+            fail(failures, f"{pack_id}: discovery_brief_ready requires approved human evidence")
+
+
+def validate_documentation_only_app(
+    pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]
+) -> None:
+    app_path_value = pack.get("app_path")
+    if not isinstance(app_path_value, str) or not app_path_value.strip():
+        fail(failures, f"{pack_id}: documentation-only pack must set app_path")
+        return
+    app_path = REPO_ROOT / app_path_value
+    if not app_path.is_dir():
+        fail(failures, f"{pack_id}: app_path is not a directory: {app_path_value}")
+        return
+    readme_text = read_text(app_path / "README.md", failures)
+    for phrase in string_list(rule.get("required_readme_phrases"), f"{pack_id}.required_readme_phrases", failures):
+        if not contains_snippet(readme_text, phrase):
+            fail(failures, f"{pack_id}: README missing configured-demo phrase: {phrase}")
+    for marker in string_list(rule.get("forbidden_generated_markers"), f"{pack_id}.forbidden_generated_markers", failures):
+        for match in [path for path in app_path.rglob("*") if path.name == marker or marker in path.parts]:
+            fail(failures, f"{pack_id}: configured demo contains generated marker: {rel(match)}")
+
+
+def validate_configured_demo(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
+    validate_documentation_only_app(pack_id, pack, rule, failures)
+    if pack.get("entry_gate") != "configured_demo_ready":
+        fail(failures, f"{pack_id}: configured_demo must use configured_demo_ready entry gate")
+    if pack.get("discovery_evidence_level") != "hypothesis_only" or pack.get("human_validation") != "pending":
+        fail(failures, f"{pack_id}: configured demo must keep product evidence hypothesis_only and human validation pending")
+
+    docs = pack.get("docs", [])
+    discovery_docs = [doc for doc in docs if isinstance(doc, str) and doc.startswith("docs/discovery/")]
+    runbooks = [doc for doc in docs if isinstance(doc, str) and doc.startswith("docs/runbooks/")]
+    if len(discovery_docs) != 1:
+        fail(failures, f"{pack_id}: configured demo requires exactly one discovery brief")
+    else:
+        discovery_text = read_text(REPO_ROOT / discovery_docs[0], failures)
+        for phrase in string_list(rule.get("required_discovery_phrases"), "configured_demo.required_discovery_phrases", failures):
+            if not contains_snippet(discovery_text, phrase):
+                fail(failures, f"{pack_id}: discovery brief missing configured-demo phrase: {phrase}")
+    if len(runbooks) != 1:
+        fail(failures, f"{pack_id}: configured demo requires exactly one walkthrough runbook")
+
+    demo_manifest_path = pack.get("demo_manifest")
+    if not isinstance(demo_manifest_path, str) or not demo_manifest_path.startswith("config/industry-demo-"):
+        fail(failures, f"{pack_id}: demo_manifest must use config/industry-demo-* path")
+        return
+    demo = load_json(REPO_ROOT / demo_manifest_path, failures)
+    required_fields = set(
+        string_list(rule.get("required_demo_manifest_fields"), "configured_demo.required_demo_manifest_fields", failures)
+    )
+    missing = sorted(required_fields - set(demo))
+    if missing:
+        fail(failures, f"{pack_id}: demo manifest missing fields: {', '.join(missing)}")
+    if demo.get("schema_version") != 1 or demo.get("pack_id") != pack_id:
+        fail(failures, f"{pack_id}: demo manifest identity/schema mismatch")
+    if demo.get("status") != "configured_demo" or demo.get("synthetic_only") is not True:
+        fail(failures, f"{pack_id}: demo manifest must be configured_demo and synthetic_only")
+    if runbooks and demo.get("walkthrough") != runbooks[0]:
+        fail(failures, f"{pack_id}: demo walkthrough must match the pack runbook")
+    for field in ("expected_results", "erpnext_records", "required_roles", "invariants", "verification"):
+        string_list(demo.get(field), f"{pack_id}.demo.{field}", failures)
+    for action in ("seeder", "reset"):
+        value = demo.get(action)
+        if not isinstance(value, dict):
+            fail(failures, f"{pack_id}: demo {action} must be an object")
+            continue
+        path_value = value.get("path")
+        if not isinstance(path_value, str) or not (REPO_ROOT / path_value).is_file():
+            fail(failures, f"{pack_id}: demo {action} path is missing")
+        if not isinstance(value.get("function"), str) or not value.get("function"):
+            fail(failures, f"{pack_id}: demo {action} function is required")
+        if value.get("argument") != pack_id:
+            fail(failures, f"{pack_id}: demo {action} argument must match pack id")
+    seeder = demo.get("seeder")
+    seeder_path = seeder.get("path") if isinstance(seeder, dict) else None
+    if isinstance(seeder_path, str) and (REPO_ROOT / seeder_path).is_file():
+        seeder_text = read_text(REPO_ROOT / seeder_path, failures)
+        for phrase in string_list(rule.get("required_seeder_phrases"), "configured_demo.required_seeder_phrases", failures):
+            if phrase not in seeder_text:
+                fail(failures, f"{pack_id}: configured-demo seeder missing safety phrase: {phrase}")
+        for phrase in string_list(rule.get("forbidden_seeder_phrases"), "configured_demo.forbidden_seeder_phrases", failures):
+            if phrase in seeder_text:
+                fail(failures, f"{pack_id}: configured-demo seeder contains forbidden posting phrase: {phrase}")
+    invariant_text = " ".join(demo.get("invariants", [])).casefold() if isinstance(demo.get("invariants"), list) else ""
+    for phrase in ("does not submit", "no ai route", "human validation remains pending"):
+        if phrase not in invariant_text:
+            fail(failures, f"{pack_id}: demo invariants must state {phrase!r}")
+
 
 def validate_implemented_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
     app_path_value = pack.get("app_path")
@@ -237,6 +355,9 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
         elif status == "reserved" and isinstance(rule, dict):
             reserved_or_planned_count += 1
             validate_reserved_pack(pack_id, pack, rule, failures)
+        elif status == "configured_demo" and isinstance(rule, dict):
+            reserved_or_planned_count += 1
+            validate_configured_demo(pack_id, pack, rule, failures)
         elif status == "implemented" and isinstance(rule, dict):
             implemented_count += 1
             validate_implemented_pack(pack_id, pack, rule, failures)

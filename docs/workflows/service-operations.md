@@ -4,7 +4,8 @@
 
 - Service Dispatcher schedules work.
 - Service Technician records time, parts, closeout notes, and evidence.
-- Service Manager closes work, issues parts, and drafts invoices.
+- Service Manager closes work, issues parts, and marks work invoice-ready.
+- Accounts User drafts the linked Sales Invoice after invoice readiness.
 - AI Proposal Approver reviews AI drafts without changing ERP state.
 
 ## Happy path
@@ -12,16 +13,20 @@
 1. Create a Service Request for an ERPNext Customer and optional Service
    Location.
 2. Create the linked Service Work Order.
-3. Schedule the work order and assign one technician.
-4. The assigned technician moves it to In Progress, records their own time,
-   declares parts, attaches closeout evidence, and submits closeout.
-5. A manager issues declared parts. The app creates one submitted ERPNext
+3. A dispatcher or manager records manager-controlled service foundation data:
+   Service Asset, Service Priority, SLA Due At, Warranty Status, and whether an
+   inspection is required.
+4. Schedule the work order and assign one technician.
+5. The assigned technician moves it to In Progress, records their own time,
+   declares parts, records any required inspection result and notes, attaches
+   closeout evidence, and submits closeout.
+6. A manager issues declared parts. The app creates one submitted ERPNext
    Material Issue and links it to each part row.
-6. A manager closes the work order and marks it Invoice Ready.
-7. A manager with ERPNext Sales Invoice create permission drafts the linked
+7. A manager closes the work order and marks it Invoice Ready.
+8. An Accounts User or Accounts Manager with ERPNext Sales Invoice create permission drafts the linked
    Sales Invoice. The action is idempotent, creates only a draft, and does not
    update stock.
-8. A technician or manager may request a Draft AI Closeout Summary. The AI
+9. A technician or manager may request a Draft AI Closeout Summary. The AI
    proposal is cited, immutable, and review-only; approval has no invoice,
    stock, status, payroll, access, or email side effect.
 
@@ -48,6 +53,16 @@ asynchronous events.
   drafting.
 - After a Sales Invoice is linked, the billing basis is immutable on the work
   order.
+
+## Service foundation controls
+
+- Service Asset, Service Priority, SLA Due At, Warranty Status, and Inspection
+  Required are manager-controlled fields.
+- Technicians can read those fields on assigned work but cannot change them.
+- In Warranty work requires a linked Service Asset.
+- If Inspection Required is set, a technician must record an Inspection Result
+  before closeout. Failed or follow-up inspection results require Inspection
+  Notes.
 
 ## Profitability projection
 

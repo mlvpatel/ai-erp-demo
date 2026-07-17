@@ -1,6 +1,6 @@
 # Industry pack lifecycle
 
-Industry expansion must move through planned → reserved → implemented. This
+Industry expansion must move through planned → reserved → configured demo → implemented. This
 keeps AI ERP Demo useful for many industries without claiming unfinished packs
 or generating speculative Frappe apps.
 
@@ -28,6 +28,22 @@ app code yet.
 - Keep AI behavior draft-only: retrieve, classify, summarize, explain, or draft
   for human review.
 
+### Configured demo
+
+A configured demo proves a candidate workflow with standard ERPNext records,
+roles, and UI actions while the reserved industry folder remains
+documentation-only.
+
+- A configured demo uses only standard ERPNext records and configuration.
+- Synthetic seed helpers may live in `ai_erp_core` when they are generic,
+  idempotent, local-only, permission checked, and unable to submit business
+  transactions.
+- The walkthrough must separate seeded draft state from each manual,
+  authorized ERP action and list the expected result.
+- A configured demo is not design-partner validation, an implemented industry
+  app, production evidence, or approval to add custom DocTypes or AI routes.
+- AI remains draft-only; this stage does not need an AI workflow.
+
 ### Implemented
 
 An implemented pack has generated Frappe app code and a demo-quality proof
@@ -53,12 +69,26 @@ Before reserving an app folder:
 4. Update `config/industry-packs.json`, `docs/product/industry-pack-roadmap.md`,
    and the reserved app README together.
 
-### Reserved → implemented
+### Reserved → configured demo
+
+Before marking a standard-ERPNext configured demo ready:
+
+1. Add a machine-readable `config/industry-demo-*.json` manifest.
+2. Keep the reserved app folder documentation-only.
+3. Seed only synthetic master data and draft records on an explicitly enabled
+   `.localhost` site.
+4. Add a reset that refuses to cancel or delete submitted business records.
+5. Document the manual roles, walkthrough, shortage/exception, expected
+   results, and no-autonomous-posting boundary.
+6. Test idempotency, permissions, draft-only state, and absence of stock or
+   accounting ledger writes.
+
+### Configured demo → implemented
 
 Before generating app code:
 
-1. Confirm the discovery brief is complete enough to reject or implement the
-   pack.
+1. Obtain named design-partner evidence and confirm the discovery brief is
+   complete enough to reject, configure, or implement the pack.
 2. Write tests or acceptance checks for the first workflow and risky boundary.
 3. Confirm the app depends on `ai_erp_core` only where shared AI proposal,
    audit, or permission behavior is needed.

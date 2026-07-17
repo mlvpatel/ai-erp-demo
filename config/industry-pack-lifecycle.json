@@ -7,11 +7,13 @@
   "status_flow": [
     "planned",
     "reserved",
+    "configured_demo",
     "implemented"
   ],
   "allowed_entry_gates": [
     "not_started",
     "discovery_brief_ready",
+    "configured_demo_ready",
     "passed_for_mvp"
   ],
   "status_rules": {
@@ -40,6 +42,69 @@
         "patches.txt",
         "fixtures",
         "doctype"
+      ],
+      "hypothesis_required_phrases": [
+        "Status: hypothesis only",
+        "Lifecycle decision: entry gate not started; remain **reserved**",
+        "Design partner validation: pending",
+        "System of record:",
+        "Tenant isolation is one Frappe site/database per tenant.",
+        "Ready to generate or expand a Frappe app: **no**.",
+        "Needs more discovery: **yes**"
+      ]
+    },
+    "configured_demo": {
+      "app_path": "must_be_documentation_only_directory",
+      "allowed_entry_gates": [
+        "configured_demo_ready"
+      ],
+      "required_readme_phrases": [
+        "No Frappe app is generated",
+        "Configured demo",
+        "Human validation remains pending",
+        "Do not add yet"
+      ],
+      "forbidden_generated_markers": [
+        "pyproject.toml",
+        "hooks.py",
+        "modules.txt",
+        "patches.txt",
+        "fixtures",
+        "doctype"
+      ],
+      "required_demo_manifest_fields": [
+        "schema_version",
+        "pack_id",
+        "status",
+        "synthetic_only",
+        "seeder",
+        "reset",
+        "walkthrough",
+        "expected_results",
+        "erpnext_records",
+        "required_roles",
+        "invariants",
+        "verification"
+      ],
+      "required_discovery_phrases": [
+        "Status: configured demo; product hypothesis not validated",
+        "Lifecycle decision: configured demo using standard ERPNext only",
+        "Design partner validation: pending",
+        "Ready to generate or expand a Frappe app: **no**.",
+        "Needs more discovery: **yes**"
+      ],
+      "required_seeder_phrases": [
+        "def seed(",
+        "def reset(",
+        "frappe.only_for(\"System Manager\")",
+        "endswith(\".localhost\")"
+      ],
+      "forbidden_seeder_phrases": [
+        ".submit(",
+        "ignore_permissions=True",
+        "frappe.db.sql(",
+        "frappe.db.set_value(\"Bin\"",
+        "Stock Ledger Entry\").insert"
       ]
     },
     "implemented": {
@@ -52,9 +117,10 @@
     }
   },
   "required_lifecycle_doc_phrases": [
-    "planned → reserved → implemented",
+    "planned → reserved → configured demo → implemented",
     "Do not generate a Frappe app for a planned pack.",
     "Reserved folders are documentation-only until discovery proves a gap",
+    "A configured demo uses only standard ERPNext records and configuration.",
     "An implemented pack must have an end-to-end demo workflow.",
     "AI remains draft-only"
   ],

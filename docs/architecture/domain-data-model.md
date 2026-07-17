@@ -49,7 +49,7 @@ AI proposal records that ERPNext does not supply directly.
 | --- | --- | --- |
 | Customer identity and billing party | ERPNext `Customer` and `Contact` | Service records link to these; they do not replace them. |
 | Stock movement | ERPNext `Stock Entry` | `issue_parts` creates one submitted Material Issue for unissued part rows, manager-gated and idempotent. |
-| Invoice draft | ERPNext `Sales Invoice` | `make_draft_sales_invoice` creates or returns one linked draft invoice, manager-gated and idempotent. |
+| Invoice draft | ERPNext `Sales Invoice` | `make_draft_sales_invoice` creates or returns one linked draft invoice, Accounts-role-gated and idempotent. |
 | Work execution | `Service Work Order` | Custom workflow validates scheduling, technician scope, closeout, exceptions, invoice readiness, and profitability projection. |
 | AI review | `AI Proposal` | AI output is stored as an immutable proposal. Review records an approval/rejection only. |
 

@@ -7,7 +7,7 @@ AI output may support review, but it must not create or submit ERP records.
 
 - Parts issue is manager-triggered and creates at most one submitted ERPNext
   Material Issue for the currently unissued rows.
-- Draft invoice creation is manager-triggered, idempotent, draft-only, and
+- Draft invoice creation is finance-triggered, idempotent, draft-only, and
   never updates stock.
 - Billing fields, time rows, and part rows cannot change after a Sales Invoice
   is linked.

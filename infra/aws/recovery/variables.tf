@@ -1,0 +1,12 @@
+variable "aws_region" { type = string }
+variable "aws_account_id" { type = string }
+variable "recovery_id" { type = string }
+variable "vpc_id" { type = string }
+variable "endpoint_security_group_id" { type = string }
+variable "private_subnet_ids" { type = list(string) }
+variable "frappe_backend_image" { type = string }
+variable "ecs_operation_role_arn" { type = string }
+variable "ecs_cluster_arn" { type = string }
+variable "frappe_secret_arn" { type = string }
+variable "backup_bucket_name" { type = string }
+variable "platform_kms_key_arn" { type = string }

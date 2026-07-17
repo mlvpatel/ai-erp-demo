@@ -40,6 +40,7 @@ list_forbidden_paths() {
        -path './logs' -o \
        -path './private' -o \
        -path './public/assets' \
+       -o -path './.terraform' \
     \) -print -prune -o \
     \( -type f \( \
        -name '*.pem' -o \
@@ -50,8 +51,13 @@ list_forbidden_paths() {
        -name '*.backup' -o \
        -name '*-files.tar' -o \
        -name '*-private-files.tar' \
+       -o -name '*.tfstate' \
+       -o -name '*.tfstate.*' \
+       -o -name '*.tfvars' \
+       -o -name '*.tfplan' \
     \) -print \) |
     awk '$0 != "./.env.example"' |
+    awk '$0 !~ /[.]tfvars[.]example$/' |
     sort
 }
 
@@ -79,6 +85,11 @@ else
   require_export_ignore "[*][.]backup"
   require_export_ignore "[*]-files[.]tar"
   require_export_ignore "[*]-private-files[.]tar"
+  require_export_ignore "[*][.]tfstate"
+  require_export_ignore "[*][.]tfstate[.][*]"
+  require_export_ignore "[*][.]tfvars"
+  require_export_ignore "[*][.]tfplan"
+  require_export_ignore "[.]terraform/"
   require_export_ignore "sites/"
   require_export_ignore "logs/"
   require_export_ignore "private/"

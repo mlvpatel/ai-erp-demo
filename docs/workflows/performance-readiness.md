@@ -30,7 +30,7 @@ hurt a real business when they become slow or unsafe.
 | --- | --- | --- |
 | Service Work Order list and filters | p95 list latency with technician and manager roles over realistic work-order counts. | p95 latency target is named, slow filters are explained, and role restrictions still hold. |
 | Search and link fields | Search latency for customer, service location, item, and work-order references. | Search does not require customer data exports and does not bypass permissions. |
-| Invoice-ready workflow | Manager closeout review, invoice-ready transition, and draft Sales Invoice creation. | The action remains idempotent and draft-only under retry. |
+| Invoice-ready workflow | Manager closeout review and invoice-ready transition, followed by Accounts-role draft Sales Invoice creation. | The action remains idempotent and draft-only under retry. |
 | Parts issue and stock handoff | Manager-triggered Material Issue creation with concurrent retries. | Exactly one submitted Stock Entry is linked per part row. |
 | AI closeout draft | AI payload build, control-plane validation, proposal storage, and review. | AI remains draft-only, cited, and unable to mutate ERP records. |
 | Background jobs and queues | Queue age, failed jobs, and scheduler behavior under seeded record volume. | Queue backlog clears within the deployment target and failures are observable. |
@@ -79,11 +79,12 @@ AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 
 The command uses a fixed scaled synthetic developer dataset, reports its actual
 record counts, measures nearest-rank p95 with at least 20 samples per role, and
-checks technician/manager list isolation plus draft-invoice and deterministic
-draft-only AI safety invariants. Synthetic database changes are rolled back,
-including on failure. Missing Frappe link-search, parts-issue concurrency,
-worker queue, and profitability-report coverage is
-reported as `SKIP_UNIMPLEMENTED`, so the only successful status is
+checks technician/manager list isolation, the manager-only profitability report,
+draft-invoice safety, and deterministic draft-only AI invariants. Synthetic
+database changes are rolled back, including on failure. Native Frappe link
+search proves technician/manager isolation, and a side-effect-free local worker
+batch measures queue-clear time. True parts-issue concurrency is delegated to
+the five-session browser gate and reported as `EXTERNAL_CROSS_SESSION_GATE`, so the smoke status remains
 `SMOKE_PASS_NOT_FULL_PROFILE`.
 
 The command fails closed before writes unless it runs on a `.localhost` site
@@ -93,6 +94,29 @@ This matters because a database rollback cannot undo an external provider call.
 This scaled command detects regressions on a developer machine. It is not a
 capacity result and must not be described as full-profile validation or used
 for a public performance claim.
+
+## Protected full-profile execution
+
+After the protected AWS pilot has been deployed, run
+`.github/workflows/production-capacity.yml` from `main` and enter the exact
+`RUN-FULL-CAPACITY` confirmation. Its one-off Fargate task creates a generated
+disposable site and the exact tracked dataset: 250 customers, 500 locations,
+750 items, 1,000 requests, 5,000 work orders, 10,000 time rows, 10,000 part
+rows, 1,000 AI proposals, 2,000 Stock Entries, and 1,000 draft Sales Invoices.
+
+The task uses the deterministic template provider in a task-local sidecar, so
+the AI measurement excludes provider latency and makes no OpenAI call. The
+parts gate sends ten simultaneous requests through ten independently
+authenticated API sessions across five manager identities. It accepts exactly
+one linked Stock Entry, one shared retry result, no duplicate, and no partial
+part state. Aggregate p95 and count evidence is KMS-encrypted, validated again
+by the workflow, and retained privately for 30 days; record names, payloads,
+credentials, hostnames, and customer data are excluded. The disposable site is
+deleted even after failure.
+
+This is a billable, protected deployment gate. A checked-in workflow or a local
+smoke pass does not count as capacity evidence. Only a successful authorized
+workflow run against the promoted image digest satisfies the deployment gate.
 
 ## Verification
 
@@ -106,4 +130,4 @@ AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 
 The static checker proves the public repository keeps the performance contract
 visible and safe. The scaled smoke command adds executable regression evidence;
-neither replaces a full load test on declared deployment hardware.
+neither replaces the protected full-profile run on declared deployment hardware.

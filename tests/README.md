@@ -25,3 +25,12 @@ Run the synthetic performance smoke check after the local site is migrated:
 ```sh
 AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh performance-smoke
 ```
+
+For the pinned synthetic Chromium role/route smoke:
+
+```sh
+AI_ERP_ENV_FILE=/tmp/ai-erp-ci.env scripts/dev.sh e2e-test
+```
+
+See [`tests/e2e/README.md`](e2e/README.md). This is browser automation evidence,
+not human user-acceptance sign-off.
