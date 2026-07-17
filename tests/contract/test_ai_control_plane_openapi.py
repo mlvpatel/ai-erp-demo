@@ -37,7 +37,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		self.assert_contract_contains(
 			"openapi: 3.1.0",
 			"title: AI ERP Control Plane API",
-			"version: 1.1.0",
+			"version: 1.2.0",
 			f"  {SERVICE_CLOSEOUT_PATH}:",
 			"operationId: draftServiceCloseoutSummary",
 			"ControlPlaneServiceKey: []",
@@ -45,7 +45,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		self.assertEqual(self.openapi["openapi"], "3.1.0")
 		self.assertEqual(self.openapi["info"]["title"], "AI ERP Control Plane API")
-		self.assertEqual(self.openapi["info"]["version"], "1.1.0")
+		self.assertEqual(self.openapi["info"]["version"], "1.2.0")
 
 		operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertEqual(operation["operationId"], "draftServiceCloseoutSummary")
@@ -178,6 +178,13 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 				"item": {"minLength": 1, "maxLength": 256},
 				"qty": {"exclusiveMinimum": 0, "maximum": 100000},
 				"source_warehouse": {"minLength": 1, "maxLength": 256},
+			},
+			"RelatedWorkSummary": {
+				"name": {"minLength": 1, "maxLength": 256},
+				"subject": {"minLength": 1, "maxLength": 256},
+				"status": {"minLength": 1, "maxLength": 128},
+				"inspection_result": {"maxLength": 128},
+				"closeout_notes": {"maxLength": 4000},
 			},
 		}.items():
 			for fieldname, constraints in field_constraints.items():

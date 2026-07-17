@@ -16,7 +16,7 @@ logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
-	version="1.1.0",
+	version="1.2.0",
 	description=(
 		"Site-scoped, draft-only AI proposal boundary. The control plane never has "
 		"credentials for an ERP database and never receives permission to post ERP transactions."

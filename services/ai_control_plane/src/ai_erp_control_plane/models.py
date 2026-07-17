@@ -32,6 +32,14 @@ class PartUsage(StrictModel):
 	issued: bool
 
 
+class RelatedWorkSummary(StrictModel):
+	name: str = Field(min_length=1, max_length=256)
+	subject: str = Field(min_length=1, max_length=256)
+	status: str = Field(min_length=1, max_length=128)
+	inspection_result: str = Field(default="", max_length=128)
+	closeout_notes: str = Field(default="", max_length=4000)
+
+
 class ServiceWorkOrder(StrictModel):
 	doctype: Literal["Service Work Order"]
 	name: str = Field(min_length=1, max_length=256)
@@ -41,6 +49,7 @@ class ServiceWorkOrder(StrictModel):
 	closeout_notes: str = Field(default="", max_length=4000)
 	time_entries: list[TimeEntry] = Field(max_length=100)
 	parts: list[PartUsage] = Field(max_length=200)
+	related_history: list[RelatedWorkSummary] = Field(default_factory=list, max_length=5)
 
 
 class ServiceCloseoutSummaryRequest(StrictModel):

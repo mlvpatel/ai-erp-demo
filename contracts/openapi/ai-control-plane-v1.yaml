@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI ERP Control Plane API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     Site-scoped, draft-only AI proposal boundary. The control plane never has
     credentials for an ERP database and never receives permission to post ERP
@@ -95,6 +95,29 @@ components:
           type: number
           exclusiveMinimum: 0
           maximum: 24
+    RelatedWorkSummary:
+      type: object
+      additionalProperties: false
+      required: [name, subject, status]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 256
+        status:
+          type: string
+          minLength: 1
+          maxLength: 128
+        inspection_result:
+          type: string
+          maxLength: 128
+        closeout_notes:
+          type: string
+          maxLength: 4000
     PartUsage:
       type: object
       additionalProperties: false
@@ -175,6 +198,11 @@ components:
               maxItems: 200
               items:
                 $ref: '#/components/schemas/PartUsage'
+            related_history:
+              type: array
+              maxItems: 5
+              items:
+                $ref: '#/components/schemas/RelatedWorkSummary'
         sources:
           type: array
           minItems: 1

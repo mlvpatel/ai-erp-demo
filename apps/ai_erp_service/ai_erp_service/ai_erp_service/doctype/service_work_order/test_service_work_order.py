@@ -549,6 +549,107 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(frappe.db.count("Sales Invoice"), invoices_before)
 		self.assertEqual(frappe.db.count("Stock Entry"), stock_entries_before)
 
+	def test_closeout_draft_history_retrieval_is_permission_scoped_and_cited(self):
+		other_technician = self._make_role_user(
+			"service.technician.history@example.test", ("Service Technician",)
+		)
+		history = self._make_work_order("Historical pump repair")
+		self._schedule(history, other_technician)
+		frappe.set_user(other_technician)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{
+				"technician": other_technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 2,
+			},
+		)
+		history.closeout_notes = "Cleared debris and replaced the worn seal."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "Closed"
+		history.save()
+
+		current = self._make_work_order("Repeat pump vibration")
+		self._schedule(current, self.technician)
+		frappe.set_user(self.technician)
+		current.reload()
+		current.status = "In Progress"
+		current.save()
+		current.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		current.closeout_notes = "Re-tightened the mount."
+		current.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		current.status = "Closeout Submitted"
+		current.save()
+
+		def control_plane_response(payload):
+			return {
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {
+					"decision": "draft_only",
+					"allowed_action": "none",
+					"reason": "Draft only; human review has no ERP side effect.",
+				},
+				"model": {
+					"provider": "test-control-plane",
+					"name": "test-closeout-model",
+					"prompt_version": "service-closeout-summary@v1",
+				},
+				"draft_content": "Draft closeout with cited history.",
+				"sources": payload["sources"],
+			}
+
+		with patch(
+			"ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response
+		) as control_plane:
+			request_closeout_summary(current.name)
+		technician_payload = control_plane.call_args[0][0]
+		self.assertEqual(technician_payload["work_order"]["related_history"], [])
+		self.assertNotIn(
+			"history", {source["field"] for source in technician_payload["sources"]}
+		)
+
+		frappe.set_user(self.manager)
+		with patch(
+			"ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response
+		) as control_plane:
+			request_closeout_summary(current.name)
+		manager_payload = control_plane.call_args[0][0]
+		entries = manager_payload["work_order"]["related_history"]
+		entry = next(row for row in entries if row["name"] == history.name)
+		self.assertEqual(
+			set(entry), {"name", "subject", "status", "inspection_result", "closeout_notes"}
+		)
+		self.assertEqual(entry["closeout_notes"], "Cleared debris and replaced the worn seal.")
+
+		history_citations = {
+			source["name"]
+			for source in manager_payload["sources"]
+			if source["field"] == "history"
+		}
+		self.assertIn(history.name, history_citations)
+		visible_to_manager = set(
+			frappe.get_list("Service Work Order", pluck="name", limit_page_length=0)
+		)
+		self.assertLessEqual(history_citations, visible_to_manager)
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

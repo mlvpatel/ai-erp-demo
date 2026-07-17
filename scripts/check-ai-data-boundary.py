@@ -143,7 +143,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     if not isinstance(allowed_fields, dict):
         fail(failures, "allowed_fields must be an object")
         return
-    for key in ("request", "work_order", "time_entry", "part_usage", "source_reference", "source_fields"):
+    for key in ("request", "work_order", "time_entry", "part_usage", "related_work", "source_reference", "source_fields"):
         value = allowed_fields.get(key)
         if not isinstance(value, list) or not value or any(not isinstance(item, str) for item in value):
             fail(failures, f"allowed_fields.{key} must be a non-empty list of strings")
@@ -181,6 +181,7 @@ def validate_payload_builder(manifest: dict[str, Any], failures: list[str]) -> N
         "work_order": assigned_dict_keys(function, "work_order_payload"),
         "time_entry": assigned_dict_keys(function, "time_entries"),
         "part_usage": assigned_dict_keys(function, "parts"),
+        "related_work": assigned_dict_keys(function, "related_history"),
     }
     for name, actual in checks.items():
         expected = set(allowed[name])
@@ -226,6 +227,7 @@ def validate_models(manifest: dict[str, Any], failures: list[str]) -> None:
         "ServiceWorkOrder": "work_order",
         "TimeEntry": "time_entry",
         "PartUsage": "part_usage",
+        "RelatedWorkSummary": "related_work",
         "SourceReference": "source_reference",
     }
     for class_name, key in class_map.items():

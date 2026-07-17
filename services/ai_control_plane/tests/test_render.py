@@ -58,6 +58,42 @@ class TestDevelopmentTemplate(unittest.TestCase):
 		self.assertEqual(response.model.provider, "development-template")
 		self.assertIn("Tightened the mount.", response.draft_content)
 
+	def test_related_history_is_cited_bounded_and_absent_when_empty(self):
+		payload = _valid_request_payload()
+		history_entry = {
+			"name": "SVC-WO-00000",
+			"subject": "Prior pump repair",
+			"status": "Closed",
+			"inspection_result": "Passed",
+			"closeout_notes": "Replaced the seal.",
+		}
+		payload["work_order"]["related_history"] = [history_entry]
+		payload["sources"].append(
+			{
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00000",
+				"field": "history",
+				"content_hash": _hash("Replaced the seal."),
+			}
+		)
+		request = ServiceCloseoutSummaryRequest.model_validate(payload)
+
+		response = render_development_template(request)
+
+		self.assertIn("Prior related work (cited)", response.draft_content)
+		self.assertIn("SVC-WO-00000: Prior pump repair (Closed)", response.draft_content)
+		self.assertIn("Replaced the seal.", response.draft_content)
+		self.assertEqual(response.sources, request.sources)
+
+		empty_payload = _valid_request_payload()
+		empty_request = ServiceCloseoutSummaryRequest.model_validate(empty_payload)
+		self.assertNotIn("Prior related work", render_development_template(empty_request).draft_content)
+
+		bounded = _valid_request_payload()
+		bounded["work_order"]["related_history"] = [history_entry] * 6
+		with self.assertRaises(ValidationError):
+			ServiceCloseoutSummaryRequest.model_validate(bounded)
+
 	def test_rejects_unsupported_erp_record_payload(self):
 		payload = _valid_request_payload()
 		payload["work_order"]["doctype"] = "Sales Invoice"

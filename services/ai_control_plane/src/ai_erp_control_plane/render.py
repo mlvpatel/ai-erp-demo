@@ -31,6 +31,15 @@ def render_development_template(request: ServiceCloseoutSummaryRequest) -> Propo
 			issue_state = "issued" if part.issued else "not issued"
 			lines.append(f"- {part.item}: {part.qty:g} from {part.source_warehouse} ({issue_state})")
 
+	if work_order.related_history:
+		lines.extend(["", "Prior related work (cited)"])
+		for entry in work_order.related_history:
+			lines.append(f"- {entry.name}: {entry.subject} ({entry.status})")
+			if entry.inspection_result:
+				lines.append(f"  Inspection result: {entry.inspection_result}")
+			if entry.closeout_notes:
+				lines.append(f"  Closeout notes: {entry.closeout_notes}")
+
 	lines.extend(
 		[
 			"",
