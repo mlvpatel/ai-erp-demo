@@ -7,6 +7,8 @@ frappe.ui.form.on("Service Work Order", {
 		const is_manager = ["Service Manager", "System Manager"].some((role) =>
 			frappe.user_roles.includes(role),
 		);
+		const is_dispatcher =
+			is_manager || frappe.user_roles.includes("Service Dispatcher");
 		const is_finance = ["Accounts User", "Accounts Manager"].some((role) =>
 			frappe.user_roles.includes(role),
 		);
@@ -76,6 +78,18 @@ frappe.ui.form.on("Service Work Order", {
 			show_evidence_replay(response.message);
 		});
 
+		if (is_dispatcher && ["Draft", "Scheduled"].includes(frm.doc.status)) {
+			frm.add_custom_button(__("Suggest Technicians"), async () => {
+				const response = await frappe.call({
+					method: "ai_erp_service.scheduling.suggest_technicians",
+					args: { name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Ranking available technicians..."),
+				});
+				show_technician_suggestions(frm, response.message);
+			});
+		}
+
 		if (is_manager) {
 			frm.add_custom_button(__("Evidence Packet"), async () => {
 				const response = await frappe.call({
@@ -96,6 +110,47 @@ frappe.ui.form.on("Service Work Order", {
 		}
 	},
 });
+
+function show_technician_suggestions(frm, suggestions) {
+	const escape = frappe.utils.escape_html;
+	const rows = suggestions.candidates
+		.map(
+			(candidate) => `
+			<tr>
+				<td>${escape(candidate.technician)}</td>
+				<td>${candidate.score}</td>
+				<td>${escape(candidate.reasons.join(", "))}</td>
+				<td>
+					<button type="button" class="btn btn-xs btn-primary suggestion-assign"
+						data-technician="${escape(candidate.technician)}">
+						${__("Use Suggestion")}
+					</button>
+				</td>
+			</tr>`,
+		)
+		.join("");
+	const excluded = suggestions.excluded
+		.map((row) => `<li>${escape(row.technician)}: ${escape(row.reason)}</li>`)
+		.join("");
+	const dialog = new frappe.ui.Dialog({ title: __("Technician Suggestions"), size: "large" });
+	dialog.$body.html(`
+		<table class="table table-bordered">
+			<thead><tr><th>${__("Technician")}</th><th>${__("Score")}</th><th>${__("Reasons")}</th><th></th></tr></thead>
+			<tbody>${rows || `<tr><td colspan="4">${__("No available technician")}</td></tr>`}</tbody>
+		</table>
+		${excluded ? `<p>${__("Excluded")}:</p><ul>${excluded}</ul>` : ""}
+		<p>${escape(suggestions.assignment_note)}</p>`);
+	dialog.$body.find(".suggestion-assign").on("click", (event) => {
+		const technician = event.currentTarget.dataset.technician;
+		dialog.hide();
+		frm.set_value("assigned_technician", technician);
+		frappe.show_alert({
+			message: __("Suggestion applied. Review and save to assign."),
+			indicator: "blue",
+		});
+	});
+	dialog.show();
+}
 
 function show_evidence_replay(chain) {
 	const escape = frappe.utils.escape_html;

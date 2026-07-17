@@ -188,6 +188,16 @@ test("dispatcher assigns scheduled work through visible form controls", async ({
   const validationDialog = page.locator(".modal:visible").last();
   await expect(validationDialog).toContainText("Assigned Technician is required");
   await validationDialog.locator(".btn-modal-close").click();
+
+  await clickAction(page, "Suggest Technicians");
+  const suggestionDialog = page.locator(".modal:visible").last();
+  await expect(suggestionDialog).toContainText("Technician Suggestions");
+  await expect(suggestionDialog).toContainText("open_workload");
+  await suggestionDialog.locator(".suggestion-assign").first().click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).cur_frm?.doc?.assigned_technician || ""))
+    .not.toBe("");
+
   await setLinkField(page, "assigned_technician", technician);
   await saveForm(page);
   await expect(field(page, "assigned_technician").locator("input").first()).toHaveValue(technician);

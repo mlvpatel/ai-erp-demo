@@ -60,6 +60,17 @@ Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish
 asynchronous events.
 
+## Scheduling suggestions
+
+The Suggest Technicians button on a draft or scheduled work order ranks
+available technicians deterministically: prior completed work at the same asset
+or location counts double, open workload subtracts, and ties break on workload
+and then on the technician id. Technicians with overlapping scheduled work are
+listed as excluded with the reason. A missing schedule window aborts instead of
+guessing availability. Suggestions never assign anyone: the dispatcher applies
+a suggestion into the form and the normal permission-checked save performs the
+assignment.
+
 ## Margin leakage categories
 
 The Service Profitability report classifies each work order with deterministic

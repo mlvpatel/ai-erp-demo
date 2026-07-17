@@ -846,6 +846,78 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertNotIn("part_cost_above_bill_rate", first_risks)
 		self.assertIn("repeat_visit_risk", by_name[second.name].margin_risks)
 
+	def test_scheduling_suggestions_are_deterministic_bounded_and_propose_only(self):
+		from ai_erp_service.scheduling import suggest_technicians
+
+		second_technician = self._make_role_user(
+			"service.technician.second@example.test", ("Service Technician",)
+		)
+		dispatcher = self._make_role_user(
+			"service.dispatcher.scheduling@example.test", ("Service Dispatcher",)
+		)
+
+		history = self._make_work_order("Familiarity history work order")
+		self._schedule(history, second_technician)
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{
+				"technician": second_technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		history.closeout_notes = "Completed prior visit."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		history.status = "Closed"
+		history.save()
+
+		frappe.set_user("Administrator")
+		target = self._make_work_order("Scheduling target work order")
+
+		frappe.set_user(dispatcher)
+		target.reload()
+		with self.assertRaises(frappe.ValidationError):
+			suggest_technicians(target.name)
+
+		frappe.set_user("Administrator")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		busy = self._make_work_order("Overlapping busy work order")
+		self._schedule(busy, self.technician)
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		self.assertLessEqual(len(suggestions["candidates"]), 5)
+		candidate_names = [row["technician"] for row in suggestions["candidates"]]
+		self.assertIn(second_technician, candidate_names)
+		self.assertNotIn(self.technician, candidate_names)
+		self.assertIn(
+			{"technician": self.technician, "reason": "overlapping_scheduled_work"},
+			suggestions["excluded"],
+		)
+		top = suggestions["candidates"][0]
+		self.assertEqual(top["technician"], second_technician)
+		self.assertEqual(top["familiarity"], 1)
+		self.assertEqual(suggestions, suggest_technicians(target.name))
+
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			suggest_technicians(target.name)
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 
