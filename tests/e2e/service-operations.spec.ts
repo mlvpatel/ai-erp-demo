@@ -342,6 +342,63 @@ test("role-driven UI journey preserves stock idempotency and finance separation"
   }
 });
 
+test("concurrent AI draft requests converge on one cited proposal", async () => {
+  const technicianSession = await newSession(technician);
+  const approverSession = await newSession(aiApprover);
+  const concurrentManagerSessions = await Promise.all(concurrentManagers.map((user) => newSession(user)));
+  try {
+    const candidates = await matchingWorkOrders(technicianSession);
+    const target = candidates.find(
+      (record) =>
+        record.subject.startsWith("AI ERP E2E Proposal Concurrency") &&
+        record.status === "Closeout Submitted",
+    );
+    expect(target).toBeTruthy();
+    const workOrderName = target!.name;
+
+    const draftMethod = "ai_erp_service.ai_drafts.request_closeout_summary";
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, (_, index) =>
+        call(concurrentManagerSessions[index % concurrentManagerSessions.length], draftMethod, {
+          name: workOrderName,
+        }),
+      ),
+    );
+    const payloads = await Promise.all(responses.map(async (response) => await response.json()));
+    const failures = responses.flatMap((response, index) =>
+      response.ok()
+        ? []
+        : [
+            {
+              status: response.status(),
+              exception: payloads[index].exception || "unknown",
+            },
+          ],
+    );
+    expect(failures, JSON.stringify(failures)).toEqual([]);
+
+    const proposalNames = new Set(payloads.map((payload) => payload.message.name as string));
+    expect(proposalNames.size).toBe(1);
+    const proposalName = [...proposalNames][0];
+
+    const storedProposals = await getList(
+      approverSession,
+      "AI Proposal",
+      ["name", "proposal_status", "policy_outcome"],
+      [["reference_name", "=", workOrderName]],
+    );
+    expect(storedProposals).toEqual([
+      { name: proposalName, proposal_status: "Draft", policy_outcome: "Draft Only" },
+    ]);
+  } finally {
+    await Promise.all([
+      technicianSession.dispose(),
+      approverSession.dispose(),
+      ...concurrentManagerSessions.map((session) => session.dispose()),
+    ]);
+  }
+});
+
 test("configured industry demos expose draft shortages without posting", async ({ browser }) => {
   const distributionSession = await newSession(distributionUser);
   const manufacturingSession = await newSession(manufacturingUser);

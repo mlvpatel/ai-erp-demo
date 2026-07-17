@@ -39,16 +39,22 @@ def request_service_closeout_summary(reference_doctype, reference_name, request_
 	input_hash = content_hash(
 		{"work_order": request_payload["work_order"], "sources": request_payload["sources"]}
 	)
+	context_filters = {
+		"reference_doctype": reference_doctype,
+		"reference_name": reference_name,
+		"input_context_hash": input_hash,
+	}
 	_lock_reference(reference_doctype, reference_name)
-	if existing := frappe.db.get_value(
-		"AI Proposal",
-		{
-			"reference_doctype": reference_doctype,
-			"reference_name": reference_name,
-			"input_context_hash": input_hash,
-		},
-		"name",
-	):
+	try:
+		existing = frappe.db.get_value("AI Proposal", context_filters, "name", for_update=True)
+	except frappe.QueryDeadlockError:
+		# Snapshot isolation aborts this locking read only when a concurrent request
+		# committed the same context after this transaction's snapshot began, so the
+		# existing proposal becomes visible on a fresh snapshot without a provider call.
+		frappe.db.rollback()
+		_lock_reference(reference_doctype, reference_name)
+		existing = frappe.db.get_value("AI Proposal", context_filters, "name", for_update=True)
+	if existing:
 		return frappe.get_doc("AI Proposal", existing)
 
 	with _proposal_rate_limit():
