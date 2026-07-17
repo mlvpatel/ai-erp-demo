@@ -65,5 +65,64 @@ frappe.ui.form.on("Service Work Order", {
 				frappe.set_route("Form", "Sales Invoice", frm.doc.sales_invoice);
 			});
 		}
+
+		frm.add_custom_button(__("Evidence Replay"), async () => {
+			const response = await frappe.call({
+				method: "ai_erp_service.evidence.get_evidence_chain",
+				args: { name: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Assembling evidence chain..."),
+			});
+			show_evidence_replay(response.message);
+		});
 	},
 });
+
+function show_evidence_replay(chain) {
+	const escape = frappe.utils.escape_html;
+	const sections = chain.sections;
+	const completeness = chain.completeness;
+	const parts = sections.execution.parts || [];
+	const issued = parts.filter((row) => row.stock_entry).length;
+	const proposals = sections.ai_proposals || [];
+	const latest = proposals.length ? proposals[proposals.length - 1] : null;
+
+	const rows = [
+		[__("Evidence complete"), completeness.complete ? __("Yes") : __("No")],
+		[
+			__("Missing evidence"),
+			completeness.missing.length ? escape(completeness.missing.join(", ")) : __("None"),
+		],
+		[__("Open closure exceptions"), String(completeness.open_exceptions)],
+		[__("Parts issued"), `${issued} / ${parts.length}`],
+		[
+			__("AI proposal status"),
+			latest ? escape(`${latest.name}: ${latest.proposal_status}`) : __("None requested"),
+		],
+	];
+	if (sections.finance) {
+		rows.push([
+			__("Invoice handoff"),
+			sections.finance.sales_invoice
+				? escape(sections.finance.sales_invoice)
+				: sections.finance.invoice_ready
+					? __("Invoice Ready")
+					: __("Not ready"),
+		]);
+		rows.push([__("Projected margin percent"), String(sections.finance.projected_margin_percent)]);
+	}
+	rows.push([__("Chain hash"), escape(chain.chain_hash)]);
+
+	const body = rows
+		.map(([label, value]) => `<tr><th scope="row">${label}</th><td>${value}</td></tr>`)
+		.join("");
+	const dialog = new frappe.ui.Dialog({ title: __("Evidence Replay"), size: "large" });
+	dialog.$body.html(`<table class="table table-bordered"><tbody>${body}</tbody></table>`);
+	if (sections.finance && sections.finance.sales_invoice) {
+		dialog.set_primary_action(__("Open Draft Invoice"), () => {
+			dialog.hide();
+			frappe.set_route("Form", "Sales Invoice", sections.finance.sales_invoice);
+		});
+	}
+	dialog.show();
+}

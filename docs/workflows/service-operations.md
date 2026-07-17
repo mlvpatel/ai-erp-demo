@@ -45,6 +45,10 @@
   finance section exists only for manager and accounts roles, and missing
   evidence is listed explicitly instead of being omitted. Section hashes and a
   chain hash make two replays of the same visible state comparable.
+- The Evidence Replay button on the Service Work Order form renders that chain
+  in a compact dialog: completeness, missing evidence, open exceptions, parts
+  issued, AI proposal status, and, for manager and accounts roles only, the
+  invoice handoff state with a link to the draft Sales Invoice.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish

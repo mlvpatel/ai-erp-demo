@@ -399,6 +399,75 @@ test("concurrent AI draft requests converge on one cited proposal", async () => 
   }
 });
 
+test("evidence replay stays role-scoped across desktop and mobile viewports", async ({ browser }) => {
+  const technicianSession = await newSession(technician);
+  const financeSession = await newSession(finance);
+  const managerBrowser = await rolePage(browser, manager);
+  const technicianBrowser = await rolePage(browser, technician, { width: 390, height: 844 });
+  const financeBrowser = await rolePage(browser, finance);
+  try {
+    const candidates = await matchingWorkOrders(technicianSession);
+    const target = candidates.find(
+      (record) =>
+        record.subject.startsWith("AI ERP E2E Proposal Concurrency") &&
+        record.status === "Closeout Submitted",
+    );
+    expect(target).toBeTruthy();
+    const workOrderName = target!.name;
+
+    await openForm(managerBrowser.page, "service-work-order", workOrderName);
+    await clickAction(managerBrowser.page, "Evidence Replay");
+    const managerDialog = managerBrowser.page.locator(".modal:visible").last();
+    await expect(managerDialog).toContainText("Evidence complete");
+    await expect(managerDialog).toContainText("AI proposal status");
+    await expect(managerDialog).toContainText("Projected margin percent");
+    await expect(managerDialog).toContainText("Chain hash");
+    await managerBrowser.page.keyboard.press("Escape");
+    await expect(managerDialog).toBeHidden();
+
+    await openForm(technicianBrowser.page, "service-work-order", workOrderName);
+    await clickAction(technicianBrowser.page, "Evidence Replay");
+    const technicianDialog = technicianBrowser.page.locator(".modal:visible").last();
+    await expect(technicianDialog).toContainText("Evidence complete");
+    await expect(technicianDialog).toContainText("Parts issued");
+    await expect(technicianDialog).not.toContainText("Projected margin percent");
+    await expect(technicianDialog).not.toContainText("Invoice handoff");
+    await expect(technicianDialog.locator(".btn-modal-close")).toBeVisible();
+    await technicianDialog.locator(".btn-modal-close").click();
+    await expect(technicianDialog).toBeHidden();
+
+    const invoiced = await getList(
+      financeSession,
+      "Service Work Order",
+      ["name", "sales_invoice"],
+      [["sales_invoice", "is", "set"]],
+    );
+    expect(invoiced.length).toBeGreaterThan(0);
+    const invoicedWorkOrder = invoiced[0];
+
+    await openForm(financeBrowser.page, "service-work-order", invoicedWorkOrder.name);
+    await clickAction(financeBrowser.page, "Evidence Replay");
+    const financeDialog = financeBrowser.page.locator(".modal:visible").last();
+    await expect(financeDialog).toContainText("Invoice handoff");
+    await expect(financeDialog).toContainText(invoicedWorkOrder.sales_invoice);
+    await financeDialog.getByRole("button", { name: "Open Draft Invoice", exact: true }).click();
+    await expect
+      .poll(() => financeBrowser.page.evaluate(() => (window as any).cur_frm?.doctype || ""))
+      .toBe("Sales Invoice");
+    await expect
+      .poll(() => financeBrowser.page.evaluate(() => (window as any).cur_frm?.doc?.name || ""))
+      .toBe(invoicedWorkOrder.sales_invoice);
+  } finally {
+    await Promise.all([
+      technicianSession.dispose(),
+      financeSession.dispose(),
+      managerBrowser.context.close(),
+      technicianBrowser.context.close(),
+      financeBrowser.context.close(),
+    ]);
+  }
+});
+
 test("configured industry demos expose draft shortages without posting", async ({ browser }) => {
   const distributionSession = await newSession(distributionUser);
   const manufacturingSession = await newSession(manufacturingUser);
