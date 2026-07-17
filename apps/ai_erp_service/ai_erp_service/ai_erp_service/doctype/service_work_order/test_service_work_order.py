@@ -650,6 +650,80 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		)
 		self.assertLessEqual(history_citations, visible_to_manager)
 
+	def test_evidence_chain_is_role_scoped_hashed_and_explicit_about_gaps(self):
+		from ai_erp_service.evidence import get_evidence_chain
+
+		work_order = self._make_work_order("Evidence chain work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+
+		incomplete = get_evidence_chain(work_order.name)
+		self.assertFalse(incomplete["completeness"]["complete"])
+		self.assertIn("time_entries", incomplete["completeness"]["missing"])
+		self.assertNotIn("finance", incomplete["sections"])
+
+		frappe.set_user(self.finance_user)
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_chain(work_order.name)
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Verified repair and cleaned the work area."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		technician_chain = get_evidence_chain(work_order.name)
+		self.assertTrue(technician_chain["completeness"]["complete"])
+		self.assertNotIn("finance", technician_chain["sections"])
+		self.assertEqual(
+			technician_chain["sections"]["execution"]["closeout_notes"],
+			"Verified repair and cleaned the work area.",
+		)
+
+		frappe.set_user(self.manager)
+		work_order.reload()
+		work_order.status = "Closed"
+		work_order.save()
+		work_order.status = "Invoice Ready"
+		work_order.save()
+
+		manager_chain = get_evidence_chain(work_order.name)
+		self.assertIn("finance", manager_chain["sections"])
+		self.assertIn("projected_revenue", manager_chain["sections"]["finance"])
+		self.assertEqual(len(manager_chain["chain_hash"]), 64)
+		self.assertEqual(manager_chain["chain_hash"], get_evidence_chain(work_order.name)["chain_hash"])
+		self.assertNotEqual(manager_chain["chain_hash"], technician_chain["chain_hash"])
+		self.assertEqual(
+			set(manager_chain["section_hashes"]),
+			set(manager_chain["sections"]),
+		)
+
+		frappe.set_user(self.finance_user)
+		finance_chain = get_evidence_chain(work_order.name)
+		self.assertTrue(finance_chain["sections"]["finance"]["invoice_ready"])
+		self.assertIn("sales_invoice", finance_chain["sections"]["finance"])
+
+		frappe.set_user("Administrator")
+		approver = self._make_role_user(
+			"service.ai.approver.evidence@example.test", ("AI Proposal Approver",)
+		)
+		frappe.set_user(approver)
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_chain(work_order.name)
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

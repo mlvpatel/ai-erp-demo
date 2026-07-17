@@ -39,6 +39,12 @@
   Sales Invoice identifiers are stored on the Service Work Order.
 - AI Proposal approval or rejection is audit evidence only; deterministic
   manager actions create or link ERP transaction records.
+- The server method `ai_erp_service.evidence.get_evidence_chain` returns the
+  replayable request-to-invoice chain for one work order. Every section is
+  permission-scoped: related records go through standard list permissions, the
+  finance section exists only for manager and accounts roles, and missing
+  evidence is listed explicitly instead of being omitted. Section hashes and a
+  chain hash make two replays of the same visible state comparable.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish
