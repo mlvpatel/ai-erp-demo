@@ -2,9 +2,15 @@
 
 import frappe
 from ai_erp_core.proposals import content_hash
+from frappe import _
 from frappe.utils import flt
 
-from ai_erp_service.service_utils import FINANCE_ROLES, MANAGER_ROLES, has_any_role
+from ai_erp_service.service_utils import (
+	FINANCE_ROLES,
+	MANAGER_ROLES,
+	has_any_role,
+	require_any_role,
+)
 
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 
@@ -40,6 +46,49 @@ def get_evidence_chain(name):
 		"completeness": _completeness_section(work_order),
 		"section_hashes": section_hashes,
 		"chain_hash": content_hash(section_hashes),
+	}
+
+
+@frappe.whitelist()
+def get_evidence_packet(name):
+	"""Return a sanitized, manager-only export of the evidence chain.
+
+	The packet carries identifiers, hashes, statuses, and links only: no draft
+	text, prompts, provider responses, or attachment contents. Synthetic packet
+	output is technical evidence, never human acceptance evidence.
+	"""
+	require_any_role(MANAGER_ROLES, _("Only a service manager can export the evidence packet."))
+	chain = get_evidence_chain(name)
+	sections = chain["sections"]
+	citations = []
+	for proposal in sections["ai_proposals"]:
+		document = frappe.get_doc("AI Proposal", proposal["name"])
+		citations.extend(
+			{
+				"proposal": proposal["name"],
+				"source_doctype": row.source_doctype,
+				"source_name": row.source_name,
+				"source_field": row.source_field,
+				"content_hash": row.content_hash,
+			}
+			for row in document.get("sources") or []
+		)
+	return {
+		"schema_version": 1,
+		"generated_for": chain["generated_for"],
+		"work_order": sections["work_order"],
+		"proposals": sections["ai_proposals"],
+		"policy_decisions": sorted({row["policy_outcome"] for row in sections["ai_proposals"]}),
+		"citations": citations,
+		"stock_entries": sections["finance"]["stock_entries"],
+		"sales_invoice": sections["finance"]["sales_invoice"],
+		"unresolved_exceptions": [
+			row for row in sections["exceptions"] if row.get("status") == "Open"
+		],
+		"completeness": chain["completeness"],
+		"section_hashes": chain["section_hashes"],
+		"chain_hash": chain["chain_hash"],
+		"synthetic_note": "Synthetic export evidence; not human acceptance evidence.",
 	}
 
 

@@ -425,6 +425,11 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await managerBrowser.page.keyboard.press("Escape");
     await expect(managerDialog).toBeHidden();
 
+    const downloadEvent = managerBrowser.page.waitForEvent("download");
+    await clickAction(managerBrowser.page, "Evidence Packet");
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toBe(`evidence-packet-${workOrderName}.json`);
+
     await openForm(technicianBrowser.page, "service-work-order", workOrderName);
     await clickAction(technicianBrowser.page, "Evidence Replay");
     const technicianDialog = technicianBrowser.page.locator(".modal:visible").last();
@@ -435,6 +440,9 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await expect(technicianDialog.locator(".btn-modal-close")).toBeVisible();
     await technicianDialog.locator(".btn-modal-close").click();
     await expect(technicianDialog).toBeHidden();
+    await expect(
+      technicianBrowser.page.getByRole("button", { name: "Evidence Packet", exact: true }),
+    ).toHaveCount(0);
 
     const invoiced = await getList(
       financeSession,

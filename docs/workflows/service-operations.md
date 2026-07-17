@@ -49,6 +49,12 @@
   in a compact dialog: completeness, missing evidence, open exceptions, parts
   issued, AI proposal status, and, for manager and accounts roles only, the
   invoice handoff state with a link to the draft Sales Invoice.
+- The manager-only Evidence Packet button exports the chain as a sanitized
+  JSON file through `ai_erp_service.evidence.get_evidence_packet`: identifiers,
+  hashes, statuses, citation ids, stock and invoice links, and unresolved
+  exceptions only. It never contains draft text, prompts, provider responses,
+  or attachment contents, and a synthetic packet is technical evidence, not
+  human acceptance evidence.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish

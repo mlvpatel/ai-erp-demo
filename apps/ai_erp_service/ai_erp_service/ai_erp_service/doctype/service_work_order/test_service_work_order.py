@@ -724,6 +724,74 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			get_evidence_chain(work_order.name)
 
+	def test_evidence_packet_is_manager_only_and_carries_no_draft_content(self):
+		from ai_erp_service.evidence import get_evidence_packet
+
+		packet_manager = self._make_role_user(
+			"service.manager.packet@example.test",
+			("Service Manager", "AI Proposal Approver"),
+		)
+		work_order = self._make_work_order("Evidence packet work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Replaced the belt and verified alignment."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		draft_text = "Draft summary: belt replaced and alignment verified."
+
+		def control_plane_response(payload):
+			return {
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {
+					"decision": "draft_only",
+					"allowed_action": "none",
+					"reason": "Draft only; human review has no ERP side effect.",
+				},
+				"model": {
+					"provider": "test-control-plane",
+					"name": "test-closeout-model",
+					"prompt_version": "service-closeout-summary@v1",
+				},
+				"draft_content": draft_text,
+				"sources": payload["sources"],
+			}
+
+		with patch("ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response):
+			request_closeout_summary(work_order.name)
+
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_packet(work_order.name)
+
+		frappe.set_user(packet_manager)
+		packet = get_evidence_packet(work_order.name)
+		self.assertEqual(packet["policy_decisions"], ["Draft Only"])
+		self.assertIn("closeout_notes", {row["source_field"] for row in packet["citations"]})
+		self.assertEqual(packet["unresolved_exceptions"], [])
+		self.assertIn("stock_entries", packet)
+		self.assertIn("sales_invoice", packet)
+		self.assertEqual(len(packet["chain_hash"]), 64)
+
+		serialized = frappe.as_json(packet)
+		self.assertNotIn(draft_text, serialized)
+		self.assertNotIn("draft_content", serialized)
+		self.assertNotIn("prompt_version", serialized)
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

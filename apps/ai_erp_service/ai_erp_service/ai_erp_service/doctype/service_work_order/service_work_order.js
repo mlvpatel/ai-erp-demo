@@ -75,6 +75,25 @@ frappe.ui.form.on("Service Work Order", {
 			});
 			show_evidence_replay(response.message);
 		});
+
+		if (is_manager) {
+			frm.add_custom_button(__("Evidence Packet"), async () => {
+				const response = await frappe.call({
+					method: "ai_erp_service.evidence.get_evidence_packet",
+					args: { name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Exporting sanitized evidence packet..."),
+				});
+				const packet = JSON.stringify(response.message, null, 2);
+				const blob = new Blob([packet], { type: "application/json" });
+				const url = URL.createObjectURL(blob);
+				const anchor = document.createElement("a");
+				anchor.href = url;
+				anchor.download = `evidence-packet-${frm.doc.name}.json`;
+				anchor.click();
+				URL.revokeObjectURL(url);
+			});
+		}
 	},
 });
 
