@@ -77,6 +77,16 @@ effect: it always renders deterministically from the ranking facts (ADR-0009),
 human review records the decision, and neither the draft nor its approval can
 assign a technician.
 
+## Exception recovery drafts
+
+On a Cannot Close work order with an open closure exception, a service manager
+can request Draft Recovery Steps. The proposal maps the exception reason to a
+fixed recovery checklist, lists declared parts that are not yet issued, and
+cites permission-scoped prior work at the same asset or location. An
+uncategorized reason with no visible history produces a stated abstention. The
+draft cannot close the work order or resolve the exception; the manager owns
+the recovery action and records the outcome through review.
+
 ## Margin leakage categories
 
 The Service Profitability report classifies each work order with deterministic

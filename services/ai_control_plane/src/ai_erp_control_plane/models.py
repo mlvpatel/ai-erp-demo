@@ -139,3 +139,47 @@ class SchedulingProposalResponse(StrictModel):
 	model: ModelMetadata
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
+
+
+class RecoveryPart(StrictModel):
+	item: str = Field(min_length=1, max_length=256)
+	qty: float = Field(gt=0, le=100_000, allow_inf_nan=False)
+	issued: bool
+
+
+class ClosureExceptionSummary(StrictModel):
+	name: str = Field(min_length=1, max_length=256)
+	reason: str = Field(min_length=1, max_length=128)
+	status: str = Field(min_length=1, max_length=128)
+	due_date: str = Field(default="", max_length=64)
+
+
+class RecoveryWorkOrderSummary(StrictModel):
+	doctype: Literal["Service Work Order"]
+	name: str = Field(min_length=1, max_length=256)
+	subject: str = Field(min_length=1, max_length=256)
+	status: str = Field(min_length=1, max_length=128)
+	cannot_close_reason: str = Field(default="", max_length=128)
+	inspection_result: str = Field(default="", max_length=128)
+
+
+class ExceptionRecoveryRequest(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	tenant_site: str = Field(min_length=1, max_length=253)
+	requested_by: str = Field(min_length=1, max_length=256)
+	work_order: RecoveryWorkOrderSummary
+	exception: ClosureExceptionSummary
+	parts: list[RecoveryPart] = Field(default_factory=list, max_length=200)
+	related_history: list[RelatedWorkSummary] = Field(default_factory=list, max_length=5)
+	sources: list[SourceReference] = Field(min_length=1, max_length=50)
+
+
+class ExceptionRecoveryProposalResponse(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	proposal_type: Literal["exception_recovery"]
+	policy: Policy
+	model: ModelMetadata
+	draft_content: str = Field(min_length=1, max_length=8000)
+	sources: list[SourceReference] = Field(min_length=1)

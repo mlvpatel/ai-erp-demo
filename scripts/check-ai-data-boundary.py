@@ -13,7 +13,10 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
-SCHEDULING_MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary-scheduling.json"
+REGISTERED_MANIFESTS = (
+    (REPO_ROOT / "config" / "ai-data-boundary-scheduling.json", "scheduling_explanation"),
+    (REPO_ROOT / "config" / "ai-data-boundary-exception-recovery.json", "exception_recovery"),
+)
 
 
 def rel(path: Path) -> str:
@@ -296,26 +299,27 @@ def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> No
             fail(failures, f"AI data-boundary test phrase missing: {phrase}")
 
 
-def validate_scheduling_manifest(failures: list[str]) -> None:
-    """Validate the registered deterministic scheduling workflow (ADR-0009)."""
-    manifest = load_json(SCHEDULING_MANIFEST_PATH, failures)
+def validate_registered_manifest(path: Path, expected_workflow: str, failures: list[str]) -> None:
+    """Validate one registered deterministic workflow manifest (ADR-0009 pattern)."""
+    manifest = load_json(path, failures)
     if not manifest:
         return
+    label = rel(path)
     if manifest.get("schema_version") != 1:
-        fail(failures, "scheduling boundary schema_version must be 1")
-    if manifest.get("workflow") != "scheduling_explanation":
-        fail(failures, "scheduling boundary workflow must be scheduling_explanation")
-    if manifest.get("proposal_type") != "scheduling_explanation":
-        fail(failures, "scheduling boundary proposal_type must be scheduling_explanation")
+        fail(failures, f"{label}: schema_version must be 1")
+    if manifest.get("workflow") != expected_workflow:
+        fail(failures, f"{label}: workflow must be {expected_workflow}")
+    if manifest.get("proposal_type") != expected_workflow:
+        fail(failures, f"{label}: proposal_type must be {expected_workflow}")
     if manifest.get("provider_mode") != "deterministic":
-        fail(failures, "scheduling boundary provider_mode must stay deterministic per ADR-0009")
+        fail(failures, f"{label}: provider_mode must stay deterministic per ADR-0009")
     policy = manifest.get("required_policy")
     if not isinstance(policy, dict) or policy.get("decision") != "draft_only" or policy.get("allowed_action") != "none":
-        fail(failures, "scheduling boundary required_policy must be draft_only/none")
+        fail(failures, f"{label}: required_policy must be draft_only/none")
 
     allowed = manifest.get("allowed_request_fields")
     if not isinstance(allowed, list) or not allowed or any(not isinstance(item, str) for item in allowed):
-        fail(failures, "scheduling boundary allowed_request_fields must be a non-empty string list")
+        fail(failures, f"{label}: allowed_request_fields must be a non-empty string list")
         return
 
     models_path = manifest.get("control_plane_models")
@@ -330,7 +334,7 @@ def validate_scheduling_manifest(failures: list[str]) -> None:
                     f"{models_path}: {request_class} fields mismatch: expected={sorted(allowed)} actual={sorted(actual)}",
                 )
     else:
-        fail(failures, "scheduling boundary control_plane_models and request_class must be strings")
+        fail(failures, f"{label}: control_plane_models and request_class must be strings")
 
     builder = manifest.get("payload_builder")
     if isinstance(builder, dict) and isinstance(builder.get("path"), str) and isinstance(builder.get("function"), str):
@@ -340,19 +344,19 @@ def validate_scheduling_manifest(failures: list[str]) -> None:
             if function is None:
                 fail(failures, f"{builder['path']}: missing payload builder function {builder['function']}")
             elif returned_dict_keys(function) != set(allowed):
-                fail(failures, f"{builder['path']}: scheduling payload keys must match allowed_request_fields")
+                fail(failures, f"{builder['path']}: payload keys must match allowed_request_fields")
     else:
-        fail(failures, "scheduling boundary payload_builder must name a path and function")
+        fail(failures, f"{label}: payload_builder must name a path and function")
 
     contract_path = manifest.get("openapi_contract")
     route = manifest.get("route")
     if isinstance(contract_path, str) and isinstance(route, str):
         contract_text = read_text(REPO_ROOT / contract_path, failures)
-        for snippet in (route, "const: scheduling_explanation"):
+        for snippet in (route, f"const: {expected_workflow}"):
             if snippet not in contract_text:
-                fail(failures, f"{contract_path}: missing scheduling contract snippet {snippet!r}")
+                fail(failures, f"{contract_path}: missing contract snippet {snippet!r}")
     else:
-        fail(failures, "scheduling boundary openapi_contract and route must be strings")
+        fail(failures, f"{label}: openapi_contract and route must be strings")
 
 
 def main() -> int:
@@ -366,7 +370,8 @@ def main() -> int:
             validate_models(manifest, failures)
             validate_openapi(manifest, failures)
             validate_docs_and_tests(manifest, failures)
-    validate_scheduling_manifest(failures)
+    for registered_path, registered_workflow in REGISTERED_MANIFESTS:
+        validate_registered_manifest(registered_path, registered_workflow, failures)
 
     if failures:
         print("AI data-boundary check failed:", file=sys.stderr)

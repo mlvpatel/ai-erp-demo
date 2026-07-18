@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "workflow": "exception_recovery",
+  "proposal_type": "exception_recovery",
+  "adr": "docs/adr/0010-exception-recovery-proposal-type.md",
+  "payload_builder": {
+    "path": "apps/ai_erp_service/ai_erp_service/recovery.py",
+    "function": "_recovery_payload"
+  },
+  "control_plane_models": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+  "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+  "route": "/v1/proposals/exception-recovery",
+  "request_class": "ExceptionRecoveryRequest",
+  "allowed_request_fields": [
+    "schema_version",
+    "request_id",
+    "tenant_site",
+    "requested_by",
+    "work_order",
+    "exception",
+    "parts",
+    "related_history",
+    "sources"
+  ],
+  "required_policy": {
+    "decision": "draft_only",
+    "allowed_action": "none"
+  },
+  "provider_mode": "deterministic"
+}

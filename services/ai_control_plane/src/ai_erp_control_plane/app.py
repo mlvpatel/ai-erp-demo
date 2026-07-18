@@ -8,20 +8,22 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .models import (
+	ExceptionRecoveryProposalResponse,
+	ExceptionRecoveryRequest,
 	ProposalResponse,
 	SchedulingExplanationRequest,
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
 from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
-from .render import render_development_template, render_scheduling_template
+from .render import render_development_template, render_recovery_template, render_scheduling_template
 
 
 logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
-	version="1.3.0",
+	version="1.4.0",
 	description=(
 		"Site-scoped, draft-only AI proposal boundary. The control plane never has "
 		"credentials for an ERP database and never receives permission to post ERP transactions."
@@ -89,6 +91,22 @@ def readyz():
 )
 def draft_scheduling_explanation(request: SchedulingExplanationRequest):
 	return render_scheduling_template(request)
+
+
+@app.post(
+	"/v1/proposals/exception-recovery",
+	summary="Draft deterministic recovery steps for an open closure exception",
+	operation_id="draftExceptionRecovery",
+	response_model=ExceptionRecoveryProposalResponse,
+	response_description="A draft-only recovery proposal. It has no ERP side effect.",
+	responses={
+		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
+		422: {"description": "Invalid or unsupported request payload."},
+	},
+	dependencies=[Depends(require_service_key)],
+)
+def draft_exception_recovery(request: ExceptionRecoveryRequest):
+	return render_recovery_template(request)
 
 
 @app.post(

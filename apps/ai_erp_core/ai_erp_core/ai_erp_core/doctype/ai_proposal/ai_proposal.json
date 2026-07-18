@@ -44,7 +44,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Proposal Type",
-   "options": "Service Closeout Summary\nScheduling Explanation",
+   "options": "Service Closeout Summary\nScheduling Explanation\nException Recovery",
    "read_only": 1,
    "reqd": 1
   },

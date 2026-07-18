@@ -139,6 +139,68 @@
         "change payroll",
         "alter permissions"
       ]
+    },
+    {
+      "id": "exception_recovery",
+      "status": "implemented",
+      "provider_mode": "deterministic",
+      "route": "POST /v1/proposals/exception-recovery",
+      "proposal_type": "exception_recovery",
+      "policy": {
+        "decision": "draft_only",
+        "allowed_action": "none"
+      },
+      "adr": "docs/adr/0010-exception-recovery-proposal-type.md",
+      "data_boundary_manifest": "config/ai-data-boundary-exception-recovery.json",
+      "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+      "control_plane_handler": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
+        "function": "draft_exception_recovery"
+      },
+      "control_plane_renderer": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/render.py",
+        "function": "render_recovery_template"
+      },
+      "request_model": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+        "class": "ExceptionRecoveryRequest"
+      },
+      "payload_builder": {
+        "path": "apps/ai_erp_service/ai_erp_service/recovery.py",
+        "function": "_recovery_payload"
+      },
+      "frappe_requester": {
+        "path": "apps/ai_erp_service/ai_erp_service/recovery.py",
+        "function": "request_recovery_draft"
+      },
+      "proposal_storage": {
+        "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
+        "function": "request_exception_recovery"
+      },
+      "docs": [
+        "docs/adr/0010-exception-recovery-proposal-type.md",
+        "docs/workflows/service-operations.md",
+        "docs/security/ai-workflow-review.md"
+      ],
+      "tests": [
+        "services/ai_control_plane/tests/test_render.py",
+        "services/ai_control_plane/tests/test_app_security.py",
+        "tests/contract/test_ai_control_plane_openapi.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+      ],
+      "proof_commands": [
+        "python3 scripts/check-ai-data-boundary.py",
+        "scripts/dev.sh control-plane-test",
+        "scripts/dev.sh contract-test",
+        "scripts/dev.sh service-test"
+      ],
+      "forbidden_direct_actions": [
+        "close work order",
+        "resolve exception",
+        "submit invoice",
+        "post stock",
+        "alter permissions"
+      ]
     }
   ],
   "required_lifecycle_doc_phrases": [

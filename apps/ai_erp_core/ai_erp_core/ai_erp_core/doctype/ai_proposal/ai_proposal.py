@@ -29,7 +29,7 @@ IMMUTABLE_FIELDS = {
 	"provider_duration_ms",
 	"provider_redaction_count",
 }
-ALLOWED_PROPOSAL_TYPES = {"Service Closeout Summary", "Scheduling Explanation"}
+ALLOWED_PROPOSAL_TYPES = {"Service Closeout Summary", "Scheduling Explanation", "Exception Recovery"}
 FINAL_STATUSES = {"Approved", "Rejected"}
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 

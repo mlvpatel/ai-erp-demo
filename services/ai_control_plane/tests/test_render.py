@@ -4,8 +4,16 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from ai_erp_control_plane.models import SchedulingExplanationRequest, ServiceCloseoutSummaryRequest
-from ai_erp_control_plane.render import render_development_template, render_scheduling_template
+from ai_erp_control_plane.models import (
+	ExceptionRecoveryRequest,
+	SchedulingExplanationRequest,
+	ServiceCloseoutSummaryRequest,
+)
+from ai_erp_control_plane.render import (
+	render_development_template,
+	render_recovery_template,
+	render_scheduling_template,
+)
 
 
 def _hash(value):
@@ -154,6 +162,68 @@ class TestDevelopmentTemplate(unittest.TestCase):
 
 		with self.assertRaises(ValidationError):
 			SchedulingExplanationRequest.model_validate({**payload, "assign_to": "tech.a@example.test"})
+
+	def test_exception_recovery_maps_reasons_and_abstains_on_weak_evidence(self):
+		payload = {
+			"schema_version": 1,
+			"request_id": str(uuid4()),
+			"tenant_site": "demo.localhost",
+			"requested_by": "manager@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00003",
+				"subject": "Compressor will not restart",
+				"status": "Cannot Close",
+				"cannot_close_reason": "Parts unavailable",
+				"inspection_result": "Failed",
+			},
+			"exception": {
+				"name": "SVC-EXC-00001",
+				"reason": "Parts unavailable",
+				"status": "Open",
+				"due_date": "2026-07-21",
+			},
+			"parts": [{"item": "COMP-VALVE", "qty": 1, "issued": False}],
+			"related_history": [
+				{
+					"name": "SVC-WO-00001",
+					"subject": "Prior compressor repair",
+					"status": "Closed",
+					"closeout_notes": "Replaced valve and reset controller.",
+				}
+			],
+			"sources": [
+				{
+					"doctype": "Service Closure Exception",
+					"name": "SVC-EXC-00001",
+					"field": "reason",
+					"content_hash": _hash("Parts unavailable"),
+				}
+			],
+		}
+		request = ExceptionRecoveryRequest.model_validate(payload)
+
+		response = render_recovery_template(request)
+
+		self.assertEqual(response.proposal_type, "exception_recovery")
+		self.assertEqual(response.policy.allowed_action, "none")
+		self.assertEqual(response.sources, request.sources)
+		self.assertIn("Recommended next steps", response.draft_content)
+		self.assertIn("purchase or transfer request", response.draft_content)
+		self.assertIn("COMP-VALVE: 1", response.draft_content)
+		self.assertIn("SVC-WO-00001: Prior compressor repair", response.draft_content)
+		self.assertIn("cannot close the work order", response.draft_content)
+
+		weak = dict(payload)
+		weak["exception"] = dict(payload["exception"], reason="Other")
+		weak["work_order"] = dict(payload["work_order"], cannot_close_reason="Other")
+		weak["related_history"] = []
+		abstention = render_recovery_template(ExceptionRecoveryRequest.model_validate(weak))
+		self.assertIn("Abstention", abstention.draft_content)
+		self.assertIn("no recovery recommendation is made", abstention.draft_content)
+
+		with self.assertRaises(ValidationError):
+			ExceptionRecoveryRequest.model_validate({**payload, "close_exception": True})
 
 	def test_rejects_unsupported_erp_record_payload(self):
 		payload = _valid_request_payload()

@@ -90,6 +90,19 @@ frappe.ui.form.on("Service Work Order", {
 			});
 		}
 
+		if (is_manager && frm.doc.status === "Cannot Close") {
+			frm.add_custom_button(__("Draft Recovery Steps"), async () => {
+				const response = await frappe.call({
+					method: "ai_erp_service.recovery.request_recovery_draft",
+					args: { name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Drafting cited recovery steps..."),
+				});
+				frappe.show_alert({ message: __("Recovery draft created for human review."), indicator: "green" });
+				frappe.set_route("Form", "AI Proposal", response.message.name);
+			});
+		}
+
 		if (is_manager) {
 			frm.add_custom_button(__("Evidence Packet"), async () => {
 				const response = await frappe.call({

@@ -55,6 +55,18 @@ def request_scheduling_explanation(reference_doctype, reference_name, request_pa
 	)
 
 
+def request_exception_recovery(reference_doctype, reference_name, request_payload):
+	"""Request one draft exception-recovery proposal and persist its auditable record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/exception-recovery",
+		wire_proposal_type="exception_recovery",
+		ledger_proposal_type="Exception Recovery",
+	)
+
+
 def _request_proposal(
 	reference_doctype, reference_name, request_payload, route, wire_proposal_type, ledger_proposal_type
 ):

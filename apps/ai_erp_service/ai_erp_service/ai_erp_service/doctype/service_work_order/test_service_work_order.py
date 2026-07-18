@@ -960,6 +960,51 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			frappe.get_doc("AI Proposal", result["name"]).proposal_status, "Approved"
 		)
 
+	def test_recovery_draft_is_manager_only_cited_and_cannot_close_work(self):
+		from ai_erp_service.recovery import request_recovery_draft
+
+		recovery_manager = self._make_role_user(
+			"service.manager.recovery@example.test",
+			("Service Manager", "AI Proposal Approver"),
+		)
+		work_order = self._make_work_order("Blocked compressor work order")
+		self._schedule(work_order, self.technician)
+		work_order.closure_owner = recovery_manager
+		work_order.closure_due_date = today()
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.cannot_close_reason = "Parts unavailable"
+		work_order.status = "Cannot Close"
+		work_order.save()
+
+		with self.assertRaises(frappe.PermissionError):
+			request_recovery_draft(work_order.name)
+
+		frappe.set_user(recovery_manager)
+		result = request_recovery_draft(work_order.name)
+		retry = request_recovery_draft(work_order.name)
+		self.assertEqual(retry["name"], result["name"])
+
+		proposal = frappe.get_doc("AI Proposal", result["name"])
+		self.assertEqual(proposal.proposal_type, "Exception Recovery")
+		self.assertEqual(proposal.proposal_status, "Draft")
+		self.assertEqual(proposal.policy_outcome, "Draft Only")
+		source_fields = {source.source_field for source in proposal.sources}
+		self.assertIn("reason", source_fields)
+		self.assertIn("cannot_close", source_fields)
+		self.assertIn("purchase or transfer request", proposal.draft_content)
+		self.assertIn("cannot close the work order", proposal.draft_content)
+
+		proposal.review("Approved", "Recovery steps match the recorded exception.")
+		work_order.reload()
+		self.assertEqual(work_order.status, "Cannot Close")
+		exception = frappe.get_doc("Service Closure Exception", work_order.closure_exception)
+		self.assertEqual(exception.status, "Open")
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 
