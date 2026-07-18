@@ -6,6 +6,8 @@ from .models import (
 	ModelMetadata,
 	Policy,
 	ProposalResponse,
+	RepairMemoryProposalResponse,
+	RepairMemoryRequest,
 	SchedulingExplanationRequest,
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
@@ -206,6 +208,72 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 			provider="development-template",
 			name="deterministic-recovery-v1",
 			prompt_version="exception-recovery@v1",
+		),
+		draft_content="\n".join(lines),
+		sources=request.sources,
+	)
+
+
+INSPECTION_FOLLOW_UP_RESULTS = {"Failed", "Needs Follow-up"}
+
+
+def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryProposalResponse:
+	"""Reorganize cited prior work into repair memory; supplied facts only."""
+	work_order = request.work_order
+	lines = [
+		f"Draft repair memory — {work_order.subject}",
+		"",
+		f"Work order: {work_order.name} ({work_order.status})",
+	]
+	if not request.related_history:
+		lines.extend(
+			[
+				"",
+				"Abstention",
+				"No completed prior work at this asset or location is visible to the "
+				"requesting role, so no repair suggestion is made.",
+			]
+		)
+	else:
+		lines.extend(["", "Likely fix based on cited prior work"])
+		for entry in request.related_history:
+			lines.append(f"- {entry.name}: {entry.subject} ({entry.status})")
+			if entry.closeout_notes:
+				lines.append(f"  Prior fix notes: {entry.closeout_notes}")
+		part_counts: dict[str, int] = {}
+		for entry in request.related_history:
+			for part in entry.parts:
+				part_counts[part.item] = part_counts.get(part.item, 0) + 1
+		if part_counts:
+			lines.extend(["", "Parts likely required (occurrences in prior visits)"])
+			for item, count in sorted(part_counts.items()):
+				lines.append(f"- {item}: used in {count} prior visit(s)")
+		if any(entry.inspection_result in INSPECTION_FOLLOW_UP_RESULTS for entry in request.related_history):
+			lines.extend(
+				[
+					"",
+					"Missing diagnostic step",
+					"A prior visit ended with a failed or follow-up inspection; schedule the "
+					"outstanding diagnostic before repeating the repair.",
+				]
+			)
+	lines.extend(
+		[
+			"",
+			"Review required",
+			"This is a draft only. It cannot change the work order, stock, or billing; "
+			"human review records the decision.",
+		]
+	)
+	return RepairMemoryProposalResponse(
+		schema_version=1,
+		request_id=request.request_id,
+		proposal_type="repair_memory",
+		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
+		model=ModelMetadata(
+			provider="development-template",
+			name="deterministic-repair-memory-v1",
+			prompt_version="repair-memory@v1",
 		),
 		draft_content="\n".join(lines),
 		sources=request.sources,

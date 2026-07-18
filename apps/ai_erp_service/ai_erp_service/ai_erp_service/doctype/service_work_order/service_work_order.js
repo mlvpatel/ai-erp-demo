@@ -14,6 +14,19 @@ frappe.ui.form.on("Service Work Order", {
 		);
 		const has_unissued_parts = (frm.doc.parts || []).some((row) => !row.stock_entry);
 
+		if (["Scheduled", "In Progress"].includes(frm.doc.status)) {
+			frm.add_custom_button(__("Draft Repair Memory"), async () => {
+				const response = await frappe.call({
+					method: "ai_erp_service.repair_memory.request_repair_memory_draft",
+					args: { name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Collecting cited prior work..."),
+				});
+				frappe.show_alert({ message: __("Repair memory draft created for human review."), indicator: "green" });
+				frappe.set_route("Form", "AI Proposal", response.message.name);
+			});
+		}
+
 		if (["Closeout Submitted", "Closed"].includes(frm.doc.status)) {
 			frm.add_custom_button(__("Draft AI Closeout Summary"), async () => {
 				const response = await frappe.call({

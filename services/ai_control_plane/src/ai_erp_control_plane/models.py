@@ -183,3 +183,40 @@ class ExceptionRecoveryProposalResponse(StrictModel):
 	model: ModelMetadata
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
+
+
+class RepairHistoryEntry(StrictModel):
+	name: str = Field(min_length=1, max_length=256)
+	subject: str = Field(min_length=1, max_length=256)
+	status: str = Field(min_length=1, max_length=128)
+	inspection_result: str = Field(default="", max_length=128)
+	closeout_notes: str = Field(default="", max_length=4000)
+	parts: list[RecoveryPart] = Field(default_factory=list, max_length=200)
+
+
+class RepairMemoryWorkOrderSummary(StrictModel):
+	doctype: Literal["Service Work Order"]
+	name: str = Field(min_length=1, max_length=256)
+	subject: str = Field(min_length=1, max_length=256)
+	status: str = Field(min_length=1, max_length=128)
+	description: str = Field(default="", max_length=4000)
+
+
+class RepairMemoryRequest(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	tenant_site: str = Field(min_length=1, max_length=253)
+	requested_by: str = Field(min_length=1, max_length=256)
+	work_order: RepairMemoryWorkOrderSummary
+	related_history: list[RepairHistoryEntry] = Field(default_factory=list, max_length=5)
+	sources: list[SourceReference] = Field(min_length=1, max_length=50)
+
+
+class RepairMemoryProposalResponse(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	proposal_type: Literal["repair_memory"]
+	policy: Policy
+	model: ModelMetadata
+	draft_content: str = Field(min_length=1, max_length=8000)
+	sources: list[SourceReference] = Field(min_length=1)

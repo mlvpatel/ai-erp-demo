@@ -77,6 +77,17 @@ effect: it always renders deterministically from the ranking facts (ADR-0009),
 human review records the decision, and neither the draft nor its approval can
 assign a technician.
 
+## Repair memory drafts
+
+On scheduled or in-progress work, the assigned technician or a service manager
+can request Draft Repair Memory. The draft reorganizes cited, role-visible
+prior work at the same asset or location: prior closeout notes become the
+likely-fix section, parts used across prior visits are listed with occurrence
+counts, and a failed or follow-up inspection in the history becomes a
+missing-diagnostic warning. Only supplied cited facts can appear, so the draft
+cannot invent parts, and a requester with no visible history receives a stated
+abstention instead of a suggestion.
+
 ## Exception recovery drafts
 
 On a Cannot Close work order with an open closure exception, a service manager

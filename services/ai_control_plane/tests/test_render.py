@@ -6,12 +6,14 @@ from pydantic import ValidationError
 
 from ai_erp_control_plane.models import (
 	ExceptionRecoveryRequest,
+	RepairMemoryRequest,
 	SchedulingExplanationRequest,
 	ServiceCloseoutSummaryRequest,
 )
 from ai_erp_control_plane.render import (
 	render_development_template,
 	render_recovery_template,
+	render_repair_memory_template,
 	render_scheduling_template,
 )
 
@@ -224,6 +226,66 @@ class TestDevelopmentTemplate(unittest.TestCase):
 
 		with self.assertRaises(ValidationError):
 			ExceptionRecoveryRequest.model_validate({**payload, "close_exception": True})
+
+	def test_repair_memory_reuses_only_cited_history_and_abstains_without_it(self):
+		payload = {
+			"schema_version": 1,
+			"request_id": str(uuid4()),
+			"tenant_site": "demo.localhost",
+			"requested_by": "technician@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00004",
+				"subject": "Pump vibrates at startup",
+				"status": "In Progress",
+				"description": "Recurring vibration report.",
+			},
+			"related_history": [
+				{
+					"name": "SVC-WO-00001",
+					"subject": "Prior pump repair",
+					"status": "Closed",
+					"inspection_result": "Needs Follow-up",
+					"closeout_notes": "Tightened mount; vibration reduced but returned.",
+					"parts": [{"item": "MOUNT-KIT", "qty": 1, "issued": True}],
+				},
+				{
+					"name": "SVC-WO-00002",
+					"subject": "Second pump repair",
+					"status": "Closed",
+					"closeout_notes": "Replaced mount kit fully; no recurrence.",
+					"parts": [{"item": "MOUNT-KIT", "qty": 1, "issued": True}],
+				},
+			],
+			"sources": [
+				{
+					"doctype": "Service Work Order",
+					"name": "SVC-WO-00001",
+					"field": "history",
+					"content_hash": _hash("prior"),
+				}
+			],
+		}
+		request = RepairMemoryRequest.model_validate(payload)
+
+		response = render_repair_memory_template(request)
+
+		self.assertEqual(response.proposal_type, "repair_memory")
+		self.assertEqual(response.policy.allowed_action, "none")
+		self.assertIn("MOUNT-KIT: used in 2 prior visit(s)", response.draft_content)
+		self.assertIn("Replaced mount kit fully", response.draft_content)
+		self.assertIn("Missing diagnostic step", response.draft_content)
+		self.assertIn("cannot change the work order", response.draft_content)
+		self.assertNotIn("BEARING", response.draft_content)
+
+		empty = dict(payload)
+		empty["related_history"] = []
+		abstention = render_repair_memory_template(RepairMemoryRequest.model_validate(empty))
+		self.assertIn("Abstention", abstention.draft_content)
+		self.assertIn("no repair suggestion is made", abstention.draft_content)
+
+		with self.assertRaises(ValidationError):
+			RepairMemoryRequest.model_validate({**payload, "issue_parts": True})
 
 	def test_rejects_unsupported_erp_record_payload(self):
 		payload = _valid_request_payload()

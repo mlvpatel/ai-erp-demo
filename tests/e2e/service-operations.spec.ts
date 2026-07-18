@@ -432,8 +432,10 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await expect(managerDialog).toContainText("AI proposal status");
     await expect(managerDialog).toContainText("Projected margin percent");
     await expect(managerDialog).toContainText("Chain hash");
-    await managerDialog.locator(".btn-modal-close").focus();
-    await managerBrowser.page.keyboard.press("Enter");
+    const managerClose = managerDialog.locator(".btn-modal-close");
+    await managerClose.focus();
+    await expect(managerClose).toBeFocused();
+    await managerClose.click();
     await expect(managerDialog).toBeHidden();
 
     const downloadEvent = managerBrowser.page.waitForEvent("download");

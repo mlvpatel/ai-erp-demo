@@ -1005,6 +1005,90 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		exception = frappe.get_doc("Service Closure Exception", work_order.closure_exception)
 		self.assertEqual(exception.status, "Open")
 
+	def test_repair_memory_reuses_only_visible_history_and_abstains_otherwise(self):
+		from ai_erp_service.repair_memory import request_repair_memory_draft
+
+		historian = self._make_role_user(
+			"service.technician.historian@example.test", ("Service Technician",)
+		)
+		item, warehouse = self._make_stocked_item()
+		history = self._make_work_order("Historic mount replacement")
+		self._schedule(history, historian)
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{"technician": historian, "work_date": today(), "time_type": "Work", "hours": 1},
+		)
+		history.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		history.closeout_notes = "Replaced the mount kit; vibration resolved."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		frappe.set_user("Administrator")
+		issue_parts(history.name)
+		history.reload()
+		history.status = "Closed"
+		history.save()
+
+		other_customer = frappe.get_doc(
+			{"doctype": "Customer", "customer_name": "Unrelated Repair Customer"}
+		).insert(ignore_if_duplicate=True)
+		other_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Unrelated Repair Site",
+				"customer": other_customer.name,
+			}
+		).insert()
+		unrelated = frappe.get_doc(
+			{
+				"doctype": "Service Work Order",
+				"subject": "Unrelated site pump repair",
+				"customer": other_customer.name,
+				"service_location": other_location.name,
+				"status": "Draft",
+			}
+		).insert()
+
+		current = self._make_work_order("Recurring vibration diagnosis")
+		self._schedule(current, self.technician)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			request_repair_memory_draft(unrelated.name)
+
+		current.reload()
+		technician_result = request_repair_memory_draft(current.name)
+		technician_proposal = frappe.get_doc("AI Proposal", technician_result["name"])
+		self.assertIn("Abstention", technician_proposal.draft_content)
+		self.assertNotIn(item, technician_proposal.draft_content)
+
+		frappe.set_user(self.manager)
+		manager_result = request_repair_memory_draft(current.name)
+		manager_proposal = frappe.get_doc("AI Proposal", manager_result["name"])
+		self.assertEqual(manager_proposal.proposal_type, "Repair Memory")
+		self.assertEqual(manager_proposal.proposal_status, "Draft")
+		self.assertIn(history.name, manager_proposal.draft_content)
+		self.assertIn(f"{item}: used in 1 prior visit(s)", manager_proposal.draft_content)
+		self.assertNotIn("Unrelated site pump repair", manager_proposal.draft_content)
+		history_citations = {
+			source.source_name
+			for source in manager_proposal.sources
+			if source.source_field == "history"
+		}
+		self.assertEqual(history_citations, {history.name})
+
+		retry = request_repair_memory_draft(current.name)
+		self.assertEqual(retry["name"], manager_result["name"])
+		current.reload()
+		self.assertEqual(current.status, "Scheduled")
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

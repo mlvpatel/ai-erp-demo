@@ -67,6 +67,18 @@ def request_exception_recovery(reference_doctype, reference_name, request_payloa
 	)
 
 
+def request_repair_memory(reference_doctype, reference_name, request_payload):
+	"""Request one draft repair-memory proposal and persist its auditable record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/repair-memory",
+		wire_proposal_type="repair_memory",
+		ledger_proposal_type="Repair Memory",
+	)
+
+
 def _request_proposal(
 	reference_doctype, reference_name, request_payload, route, wire_proposal_type, ledger_proposal_type
 ):

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI ERP Control Plane API
-  version: 1.4.0
+  version: 1.5.0
   description: >-
     Site-scoped, draft-only AI proposal boundary. The control plane never has
     credentials for an ERP database and never receives permission to post ERP
@@ -90,6 +90,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExceptionRecoveryProposalResponse'
+        '401':
+          description: Missing or invalid service credential.
+        '422':
+          description: Invalid or unsupported request payload.
+  /v1/proposals/repair-memory:
+    post:
+      summary: Draft cited repair memory from prior completed work
+      operationId: draftRepairMemory
+      security:
+        - ControlPlaneServiceKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepairMemoryRequest'
+      responses:
+        '200':
+          description: A draft-only repair-memory proposal. It has no ERP side effect.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepairMemoryProposalResponse'
         '401':
           description: Missing or invalid service credential.
         '422':
@@ -597,6 +620,147 @@ components:
         proposal_type:
           type: string
           const: exception_recovery
+        policy:
+          type: object
+          additionalProperties: false
+          required: [decision, allowed_action, reason]
+          properties:
+            decision:
+              type: string
+              const: draft_only
+            allowed_action:
+              type: string
+              const: none
+            reason:
+              type: string
+        model:
+          type: object
+          additionalProperties: false
+          required: [provider, name, prompt_version]
+          properties:
+            provider:
+              type: string
+            name:
+              type: string
+            prompt_version:
+              type: string
+        draft_content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        sources:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SourceReference'
+    RepairHistoryEntry:
+      type: object
+      additionalProperties: false
+      required: [name, subject, status]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 256
+        status:
+          type: string
+          minLength: 1
+          maxLength: 128
+        inspection_result:
+          type: string
+          maxLength: 128
+        closeout_notes:
+          type: string
+          maxLength: 4000
+        parts:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/RecoveryPart'
+    RepairMemoryRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - request_id
+        - tenant_site
+        - requested_by
+        - work_order
+        - sources
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        request_id:
+          type: string
+          format: uuid
+        tenant_site:
+          type: string
+          minLength: 1
+          maxLength: 253
+        requested_by:
+          type: string
+          minLength: 1
+          maxLength: 256
+        work_order:
+          type: object
+          additionalProperties: false
+          required: [doctype, name, subject, status]
+          properties:
+            doctype:
+              type: string
+              const: Service Work Order
+            name:
+              type: string
+              minLength: 1
+              maxLength: 256
+            subject:
+              type: string
+              minLength: 1
+              maxLength: 256
+            status:
+              type: string
+              minLength: 1
+              maxLength: 128
+            description:
+              type: string
+              maxLength: 4000
+        related_history:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/RepairHistoryEntry'
+        sources:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SourceReference'
+    RepairMemoryProposalResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - request_id
+        - proposal_type
+        - policy
+        - model
+        - draft_content
+        - sources
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        request_id:
+          type: string
+          format: uuid
+        proposal_type:
+          type: string
+          const: repair_memory
         policy:
           type: object
           additionalProperties: false

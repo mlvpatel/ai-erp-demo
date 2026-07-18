@@ -11,19 +11,26 @@ from .models import (
 	ExceptionRecoveryProposalResponse,
 	ExceptionRecoveryRequest,
 	ProposalResponse,
+	RepairMemoryProposalResponse,
+	RepairMemoryRequest,
 	SchedulingExplanationRequest,
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
 from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
-from .render import render_development_template, render_recovery_template, render_scheduling_template
+from .render import (
+	render_development_template,
+	render_recovery_template,
+	render_repair_memory_template,
+	render_scheduling_template,
+)
 
 
 logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
-	version="1.4.0",
+	version="1.5.0",
 	description=(
 		"Site-scoped, draft-only AI proposal boundary. The control plane never has "
 		"credentials for an ERP database and never receives permission to post ERP transactions."
@@ -107,6 +114,22 @@ def draft_scheduling_explanation(request: SchedulingExplanationRequest):
 )
 def draft_exception_recovery(request: ExceptionRecoveryRequest):
 	return render_recovery_template(request)
+
+
+@app.post(
+	"/v1/proposals/repair-memory",
+	summary="Draft cited repair memory from prior completed work",
+	operation_id="draftRepairMemory",
+	response_model=RepairMemoryProposalResponse,
+	response_description="A draft-only repair-memory proposal. It has no ERP side effect.",
+	responses={
+		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
+		422: {"description": "Invalid or unsupported request payload."},
+	},
+	dependencies=[Depends(require_service_key)],
+)
+def draft_repair_memory(request: RepairMemoryRequest):
+	return render_repair_memory_template(request)
 
 
 @app.post(

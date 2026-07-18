@@ -16,6 +16,7 @@ MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
 REGISTERED_MANIFESTS = (
     (REPO_ROOT / "config" / "ai-data-boundary-scheduling.json", "scheduling_explanation"),
     (REPO_ROOT / "config" / "ai-data-boundary-exception-recovery.json", "exception_recovery"),
+    (REPO_ROOT / "config" / "ai-data-boundary-repair-memory.json", "repair_memory"),
 )
 
 
