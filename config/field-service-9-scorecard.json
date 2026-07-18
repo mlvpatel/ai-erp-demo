@@ -82,6 +82,7 @@
       "optimization_step": "Add cited AI recovery drafts and refusal cases for weak evidence.",
       "scalability_note": "Exception queues must remain filterable by owner, due date, customer, and technician at capacity.",
       "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/recovery.py",
         "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py",
         "docs/workflows/service-operations.md"
       ]
@@ -89,7 +90,7 @@
     {
       "id": "margin-leakage-guardian",
       "title": "Margin leakage guardian",
-      "implementation_state": "planned",
+      "implementation_state": "partly_implemented",
       "current_score": 5.5,
       "target_score": 9.0,
       "role_owner": "Accounts Manager",
@@ -102,6 +103,7 @@
       "optimization_step": "Add leakage categories for missing billable time, part variance, discount risk, and repeated visit patterns.",
       "scalability_note": "Profitability reports must use indexed filters and avoid unrestricted cross-tenant search.",
       "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/margin_risk.py",
         "config/authorization-matrix.json",
         "config/transaction-safety.json",
         "docs/workflows/service-operations.md"
@@ -110,7 +112,7 @@
     {
       "id": "provenance-based-repair-memory",
       "title": "Provenance-based repair memory",
-      "implementation_state": "planned",
+      "implementation_state": "partly_implemented",
       "current_score": 4.0,
       "target_score": 9.0,
       "role_owner": "AI Approver",
@@ -123,6 +125,7 @@
       "optimization_step": "Add repair-memory eval cases from synthetic service histories.",
       "scalability_note": "Retrieval must be bounded by tenant, role, source type, time range, and result count.",
       "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/repair_memory.py",
         "config/ai-data-boundary.json",
         "config/ai-workflow-registry.json",
         "services/ai_control_plane/tests/test_render.py"
@@ -152,7 +155,7 @@
     {
       "id": "bounded-scheduling-optimizer",
       "title": "Bounded scheduling optimizer",
-      "implementation_state": "planned",
+      "implementation_state": "partly_implemented",
       "current_score": 3.5,
       "target_score": 9.0,
       "role_owner": "Dispatcher",
@@ -165,6 +168,7 @@
       "optimization_step": "Start with deterministic scoring before adding AI explanations.",
       "scalability_note": "Scheduling search must stay bounded by date window, territory, role, and candidate count.",
       "evidence_paths": [
+        "apps/ai_erp_service/ai_erp_service/scheduling.py",
         "docs/product/mvp-scope.md",
         "docs/workflows/service-operations.md"
       ]
@@ -172,7 +176,7 @@
     {
       "id": "mobile-field-execution",
       "title": "Mobile field execution",
-      "implementation_state": "planned",
+      "implementation_state": "partly_implemented",
       "current_score": 5.0,
       "target_score": 9.0,
       "role_owner": "Technician",

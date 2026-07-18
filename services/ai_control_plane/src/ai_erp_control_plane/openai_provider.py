@@ -112,6 +112,15 @@ def _minimized_model_input(request: ServiceCloseoutSummaryRequest) -> tuple[dict
 			for row in work_order.time_entries
 		],
 		"parts": [{"item": clean(row.item), "qty": row.qty, "issued": row.issued} for row in work_order.parts],
+		"related_history": [
+			{
+				"subject": clean(entry.subject),
+				"status": entry.status,
+				"inspection_result": clean(entry.inspection_result),
+				"closeout_notes": clean(entry.closeout_notes),
+			}
+			for entry in work_order.related_history
+		],
 	}
 	return payload, redaction_count
 

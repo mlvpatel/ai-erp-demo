@@ -44,6 +44,14 @@ allow-listed subject, description, closeout notes, typed time, and typed parts
 to the stateless control plane. It never sends attachment contents, customer
 contacts, addresses, credentials, or stock/accounting data.
 
+The request may also carry up to five completed work orders for the same asset
+or location as cited historical context. This retrieval runs through standard
+Frappe list permissions for the requesting user, so a technician only ever
+contributes history from work orders assigned to them, historical entries carry
+only the same allow-listed operational fields, and every entry is cited as a
+source on the stored proposal. When no visible history exists the request
+carries none instead of inventing any.
+
 This AI workflow is draft-only and requires human review before anyone uses the
 text in an operational process.
 

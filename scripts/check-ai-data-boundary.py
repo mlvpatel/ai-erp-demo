@@ -13,6 +13,11 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
+REGISTERED_MANIFESTS = (
+    (REPO_ROOT / "config" / "ai-data-boundary-scheduling.json", "scheduling_explanation"),
+    (REPO_ROOT / "config" / "ai-data-boundary-exception-recovery.json", "exception_recovery"),
+    (REPO_ROOT / "config" / "ai-data-boundary-repair-memory.json", "repair_memory"),
+)
 
 
 def rel(path: Path) -> str:
@@ -143,7 +148,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     if not isinstance(allowed_fields, dict):
         fail(failures, "allowed_fields must be an object")
         return
-    for key in ("request", "work_order", "time_entry", "part_usage", "source_reference", "source_fields"):
+    for key in ("request", "work_order", "time_entry", "part_usage", "related_work", "source_reference", "source_fields"):
         value = allowed_fields.get(key)
         if not isinstance(value, list) or not value or any(not isinstance(item, str) for item in value):
             fail(failures, f"allowed_fields.{key} must be a non-empty list of strings")
@@ -181,6 +186,7 @@ def validate_payload_builder(manifest: dict[str, Any], failures: list[str]) -> N
         "work_order": assigned_dict_keys(function, "work_order_payload"),
         "time_entry": assigned_dict_keys(function, "time_entries"),
         "part_usage": assigned_dict_keys(function, "parts"),
+        "related_work": assigned_dict_keys(function, "related_history"),
     }
     for name, actual in checks.items():
         expected = set(allowed[name])
@@ -226,6 +232,7 @@ def validate_models(manifest: dict[str, Any], failures: list[str]) -> None:
         "ServiceWorkOrder": "work_order",
         "TimeEntry": "time_entry",
         "PartUsage": "part_usage",
+        "RelatedWorkSummary": "related_work",
         "SourceReference": "source_reference",
     }
     for class_name, key in class_map.items():
@@ -293,6 +300,66 @@ def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> No
             fail(failures, f"AI data-boundary test phrase missing: {phrase}")
 
 
+def validate_registered_manifest(path: Path, expected_workflow: str, failures: list[str]) -> None:
+    """Validate one registered deterministic workflow manifest (ADR-0009 pattern)."""
+    manifest = load_json(path, failures)
+    if not manifest:
+        return
+    label = rel(path)
+    if manifest.get("schema_version") != 1:
+        fail(failures, f"{label}: schema_version must be 1")
+    if manifest.get("workflow") != expected_workflow:
+        fail(failures, f"{label}: workflow must be {expected_workflow}")
+    if manifest.get("proposal_type") != expected_workflow:
+        fail(failures, f"{label}: proposal_type must be {expected_workflow}")
+    if manifest.get("provider_mode") != "deterministic":
+        fail(failures, f"{label}: provider_mode must stay deterministic per ADR-0009")
+    policy = manifest.get("required_policy")
+    if not isinstance(policy, dict) or policy.get("decision") != "draft_only" or policy.get("allowed_action") != "none":
+        fail(failures, f"{label}: required_policy must be draft_only/none")
+
+    allowed = manifest.get("allowed_request_fields")
+    if not isinstance(allowed, list) or not allowed or any(not isinstance(item, str) for item in allowed):
+        fail(failures, f"{label}: allowed_request_fields must be a non-empty string list")
+        return
+
+    models_path = manifest.get("control_plane_models")
+    request_class = manifest.get("request_class")
+    if isinstance(models_path, str) and isinstance(request_class, str):
+        module = parse_python(REPO_ROOT / models_path, failures)
+        if module is not None:
+            actual = class_fields(module, request_class)
+            if actual != set(allowed):
+                fail(
+                    failures,
+                    f"{models_path}: {request_class} fields mismatch: expected={sorted(allowed)} actual={sorted(actual)}",
+                )
+    else:
+        fail(failures, f"{label}: control_plane_models and request_class must be strings")
+
+    builder = manifest.get("payload_builder")
+    if isinstance(builder, dict) and isinstance(builder.get("path"), str) and isinstance(builder.get("function"), str):
+        module = parse_python(REPO_ROOT / builder["path"], failures)
+        if module is not None:
+            function = find_function(module, builder["function"])
+            if function is None:
+                fail(failures, f"{builder['path']}: missing payload builder function {builder['function']}")
+            elif returned_dict_keys(function) != set(allowed):
+                fail(failures, f"{builder['path']}: payload keys must match allowed_request_fields")
+    else:
+        fail(failures, f"{label}: payload_builder must name a path and function")
+
+    contract_path = manifest.get("openapi_contract")
+    route = manifest.get("route")
+    if isinstance(contract_path, str) and isinstance(route, str):
+        contract_text = read_text(REPO_ROOT / contract_path, failures)
+        for snippet in (route, f"const: {expected_workflow}"):
+            if snippet not in contract_text:
+                fail(failures, f"{contract_path}: missing contract snippet {snippet!r}")
+    else:
+        fail(failures, f"{label}: openapi_contract and route must be strings")
+
+
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -304,6 +371,8 @@ def main() -> int:
             validate_models(manifest, failures)
             validate_openapi(manifest, failures)
             validate_docs_and_tests(manifest, failures)
+    for registered_path, registered_workflow in REGISTERED_MANIFESTS:
+        validate_registered_manifest(registered_path, registered_workflow, failures)
 
     if failures:
         print("AI data-boundary check failed:", file=sys.stderr)

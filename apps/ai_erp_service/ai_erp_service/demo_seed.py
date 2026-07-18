@@ -30,6 +30,7 @@ LOCAL_SETUP_ALLOW_ENV = "AI_ERP_LOCAL_SETUP_ALLOW"
 DEMO_COMPANY = "AI ERP Synthetic Demo Company"
 E2E_OTHER_SUBJECT = "AI ERP E2E Assignment"
 E2E_FULL_WORKFLOW_PREFIX = "AI ERP E2E Full Workflow"
+E2E_PROPOSAL_CONCURRENCY_PREFIX = "AI ERP E2E Proposal Concurrency"
 
 
 def initialize_local_demo_site():
@@ -196,6 +197,7 @@ def prepare_e2e_demo():
 	update_password(DEMO_MANUFACTURING_USER, password, logout_all_sessions=True)
 	other = _ensure_e2e_other_work_order(result)
 	full_workflow = _make_e2e_full_workflow_order(result)
+	proposal_concurrency = _make_e2e_proposal_concurrency_order(result)
 	frappe.db.commit()
 	return {
 		"technician_user": DEMO_TECHNICIAN,
@@ -212,6 +214,7 @@ def prepare_e2e_demo():
 		"assigned_work_order": result["service_work_order"],
 		"unassigned_work_order": other,
 		"full_workflow_work_order": full_workflow,
+		"proposal_concurrency_work_order": proposal_concurrency,
 		"synthetic_only": True,
 	}
 
@@ -274,6 +277,42 @@ def _make_e2e_full_workflow_order(seed):
 		},
 	)
 	document.status = "Scheduled"
+	document.save()
+	return document.name
+
+
+def _make_e2e_proposal_concurrency_order(seed):
+	"""Create a closeout-submitted record so concurrent draft requests stay replayable."""
+	start = now_datetime()
+	document = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": f"{E2E_PROPOSAL_CONCURRENCY_PREFIX} {frappe.generate_hash(length=8)}",
+			"customer": seed["customer"],
+			"service_location": seed["service_location"],
+			"description": "Synthetic concurrency fixture; no customer data.",
+			"status": "Draft",
+		}
+	).insert()
+	document.assigned_technician = DEMO_TECHNICIAN
+	document.scheduled_start = start
+	document.scheduled_end = add_to_date(start, hours=1)
+	document.status = "Scheduled"
+	document.save()
+	document.status = "In Progress"
+	document.save()
+	document.append(
+		"time_entries",
+		{
+			"technician": DEMO_TECHNICIAN,
+			"work_date": now_datetime().date(),
+			"time_type": "Work",
+			"hours": 1,
+		},
+	)
+	document.closeout_notes = "Synthetic concurrency fixture closeout."
+	document.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
+	document.status = "Closeout Submitted"
 	document.save()
 	return document.name
 

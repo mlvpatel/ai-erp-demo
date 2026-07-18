@@ -36,7 +36,15 @@
       "description",
       "closeout_notes",
       "time_entries",
-      "parts"
+      "parts",
+      "related_history"
+    ],
+    "related_work": [
+      "name",
+      "subject",
+      "status",
+      "inspection_result",
+      "closeout_notes"
     ],
     "time_entry": [
       "technician",
@@ -61,7 +69,8 @@
       "closeout_notes",
       "description",
       "entry",
-      "usage"
+      "usage",
+      "history"
     ]
   },
   "required_policy": {
