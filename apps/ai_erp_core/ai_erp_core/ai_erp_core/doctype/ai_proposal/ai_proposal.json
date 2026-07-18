@@ -26,12 +26,12 @@
   "model_section",
   "model_provider",
   "model_name",
-    "prompt_version",
-	"provider_response_id_hash",
-	"provider_input_tokens",
-	"provider_output_tokens",
-	"provider_duration_ms",
-	"provider_redaction_count",
+  "prompt_version",
+  "provider_response_id_hash",
+  "provider_input_tokens",
+  "provider_output_tokens",
+  "provider_duration_ms",
+  "provider_redaction_count",
   "review_section",
   "reviewed_by",
   "reviewed_at",
@@ -44,7 +44,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Proposal Type",
-   "options": "Service Closeout Summary",
+   "options": "Service Closeout Summary\nScheduling Explanation",
    "read_only": 1,
    "reqd": 1
   },
@@ -175,47 +175,47 @@
    "read_only": 1,
    "reqd": 1
   },
-    {
-      "fieldname": "prompt_version",
+  {
+   "fieldname": "prompt_version",
    "fieldtype": "Data",
    "label": "Prompt Version",
    "read_only": 1,
-      "reqd": 1
-    },
-	{
-	  "fieldname": "provider_response_id_hash",
-	  "fieldtype": "Data",
-	  "label": "Provider Response ID Hash",
-	  "read_only": 1
-	},
-	{
-	  "fieldname": "provider_input_tokens",
-	  "fieldtype": "Int",
-	  "label": "Provider Input Tokens",
-	  "non_negative": 1,
-	  "read_only": 1
-	},
-	{
-	  "fieldname": "provider_output_tokens",
-	  "fieldtype": "Int",
-	  "label": "Provider Output Tokens",
-	  "non_negative": 1,
-	  "read_only": 1
-	},
-	{
-	  "fieldname": "provider_duration_ms",
-	  "fieldtype": "Int",
-	  "label": "Provider Duration (ms)",
-	  "non_negative": 1,
-	  "read_only": 1
-	},
-	{
-	  "fieldname": "provider_redaction_count",
-	  "fieldtype": "Int",
-	  "label": "Provider Redaction Count",
-	  "non_negative": 1,
-	  "read_only": 1
-	},
+   "reqd": 1
+  },
+  {
+   "fieldname": "provider_response_id_hash",
+   "fieldtype": "Data",
+   "label": "Provider Response ID Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_input_tokens",
+   "fieldtype": "Int",
+   "label": "Provider Input Tokens",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_output_tokens",
+   "fieldtype": "Int",
+   "label": "Provider Output Tokens",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_duration_ms",
+   "fieldtype": "Int",
+   "label": "Provider Duration (ms)",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_redaction_count",
+   "fieldtype": "Int",
+   "label": "Provider Redaction Count",
+   "non_negative": 1,
+   "read_only": 1
+  },
   {
    "fieldname": "review_section",
    "fieldtype": "Section Break",

@@ -96,3 +96,46 @@ class OpenAIOutput(StrictModel):
 	"""The only model-authored field accepted from the provider."""
 
 	draft_content: str = Field(min_length=1, max_length=8000)
+
+
+class SchedulingCandidate(StrictModel):
+	technician: str = Field(min_length=1, max_length=256)
+	score: int
+	workload: int = Field(ge=0)
+	familiarity: int = Field(ge=0)
+	reasons: list[str] = Field(max_length=10)
+
+
+class SchedulingExclusion(StrictModel):
+	technician: str = Field(min_length=1, max_length=256)
+	reason: str = Field(min_length=1, max_length=128)
+
+
+class SchedulingWorkOrderSummary(StrictModel):
+	doctype: Literal["Service Work Order"]
+	name: str = Field(min_length=1, max_length=256)
+	subject: str = Field(min_length=1, max_length=256)
+	status: str = Field(min_length=1, max_length=128)
+	service_priority: str = Field(default="", max_length=128)
+	sla_due_at: str = Field(default="", max_length=64)
+
+
+class SchedulingExplanationRequest(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	tenant_site: str = Field(min_length=1, max_length=253)
+	requested_by: str = Field(min_length=1, max_length=256)
+	work_order: SchedulingWorkOrderSummary
+	candidates: list[SchedulingCandidate] = Field(max_length=5)
+	excluded: list[SchedulingExclusion] = Field(default_factory=list, max_length=50)
+	sources: list[SourceReference] = Field(min_length=1, max_length=50)
+
+
+class SchedulingProposalResponse(StrictModel):
+	schema_version: Literal[1]
+	request_id: UUID
+	proposal_type: Literal["scheduling_explanation"]
+	policy: Policy
+	model: ModelMetadata
+	draft_content: str = Field(min_length=1, max_length=8000)
+	sources: list[SourceReference] = Field(min_length=1)

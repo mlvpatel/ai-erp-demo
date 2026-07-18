@@ -1,6 +1,13 @@
-"""Development-only deterministic renderer for the governed demo path."""
+"""Deterministic renderers for the governed proposal routes."""
 
-from .models import ModelMetadata, Policy, ProposalResponse, ServiceCloseoutSummaryRequest
+from .models import (
+	ModelMetadata,
+	Policy,
+	ProposalResponse,
+	SchedulingExplanationRequest,
+	SchedulingProposalResponse,
+	ServiceCloseoutSummaryRequest,
+)
 
 
 POLICY_REASON = "This response is a cited draft only; a human review records no ERP action."
@@ -56,6 +63,60 @@ def render_development_template(request: ServiceCloseoutSummaryRequest) -> Propo
 			provider="development-template",
 			name="deterministic-closeout-v1",
 			prompt_version="service-closeout-summary@v1",
+		),
+		draft_content="\n".join(lines),
+		sources=request.sources,
+	)
+
+
+def render_scheduling_template(request: SchedulingExplanationRequest) -> SchedulingProposalResponse:
+	"""Explain supplied deterministic ranking facts without inference or assignment authority."""
+	work_order = request.work_order
+	lines = [
+		f"Draft scheduling explanation — {work_order.subject}",
+		"",
+		f"Work order: {work_order.name}",
+		f"Status: {work_order.status}",
+		f"Priority: {work_order.service_priority or 'Not set'}",
+		f"SLA due: {work_order.sla_due_at or 'Not set'}",
+		"",
+		"Ranked candidates (score = 2 x completed work here - open workload)",
+	]
+	for position, candidate in enumerate(request.candidates, 1):
+		lines.append(
+			f"{position}. {candidate.technician}: score {candidate.score} "
+			f"(open workload {candidate.workload}, completed here {candidate.familiarity})"
+		)
+	if not request.candidates:
+		lines.append("No available candidate passed the availability filter.")
+	elif all(candidate.familiarity == 0 for candidate in request.candidates):
+		lines.extend(
+			[
+				"",
+				"Evidence note",
+				"No candidate has completed prior work at this asset or location; the ranking rests on open workload alone.",
+			]
+		)
+	if request.excluded:
+		lines.extend(["", "Excluded"])
+		for exclusion in request.excluded:
+			lines.append(f"- {exclusion.technician}: {exclusion.reason}")
+	lines.extend(
+		[
+			"",
+			"Review required",
+			"This explanation is a draft only. It cannot assign a technician; the dispatcher assigns through the saved form.",
+		]
+	)
+	return SchedulingProposalResponse(
+		schema_version=1,
+		request_id=request.request_id,
+		proposal_type="scheduling_explanation",
+		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
+		model=ModelMetadata(
+			provider="development-template",
+			name="deterministic-scheduling-v1",
+			prompt_version="scheduling-explanation@v1",
 		),
 		draft_content="\n".join(lines),
 		sources=request.sources,

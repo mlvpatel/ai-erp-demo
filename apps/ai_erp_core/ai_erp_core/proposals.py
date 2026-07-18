@@ -32,7 +32,32 @@ def content_hash(value):
 
 
 def request_service_closeout_summary(reference_doctype, reference_name, request_payload):
-	"""Request one allow-listed draft and persist its auditable proposal record."""
+	"""Request one allow-listed closeout draft and persist its auditable proposal record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route=CONTROL_PLANE_PATH,
+		wire_proposal_type=PROPOSAL_TYPE,
+		ledger_proposal_type="Service Closeout Summary",
+	)
+
+
+def request_scheduling_explanation(reference_doctype, reference_name, request_payload):
+	"""Request one draft scheduling explanation and persist its auditable proposal record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/scheduling-explanation",
+		wire_proposal_type="scheduling_explanation",
+		ledger_proposal_type="Scheduling Explanation",
+	)
+
+
+def _request_proposal(
+	reference_doctype, reference_name, request_payload, route, wire_proposal_type, ledger_proposal_type
+):
 	request_id = request_payload["request_id"]
 	if existing := frappe.db.exists("AI Proposal", {"control_plane_request_id": request_id}):
 		return frappe.get_doc("AI Proposal", existing)
@@ -58,13 +83,13 @@ def request_service_closeout_summary(reference_doctype, reference_name, request_
 		return frappe.get_doc("AI Proposal", existing)
 
 	with _proposal_rate_limit():
-		response = _post_to_control_plane(request_payload)
-	_validate_response(response, request_payload)
+		response = _post_to_control_plane(request_payload, route)
+	_validate_response(response, request_payload, wire_proposal_type)
 
 	proposal = frappe.get_doc(
 		{
 			"doctype": "AI Proposal",
-			"proposal_type": "Service Closeout Summary",
+			"proposal_type": ledger_proposal_type,
 			"proposal_status": "Draft",
 			"policy_outcome": "Draft Only",
 			"policy_reason": response["policy"]["reason"],
@@ -148,7 +173,7 @@ def _release_concurrent_slot(key):
 		frappe.log_error(title="AI proposal concurrency slot release failed")
 
 
-def _post_to_control_plane(request_payload):
+def _post_to_control_plane(request_payload, route=CONTROL_PLANE_PATH):
 	base_url = os.environ.get("AI_CONTROL_PLANE_URL", "").rstrip("/")
 	service_key = os.environ.get("AI_CONTROL_PLANE_SHARED_SECRET", "")
 	if not base_url or not service_key:
@@ -156,7 +181,7 @@ def _post_to_control_plane(request_payload):
 
 	try:
 		response = requests.post(
-			f"{base_url}{CONTROL_PLANE_PATH}",
+			f"{base_url}{route}",
 			json=request_payload,
 			headers={"Authorization": f"Bearer {service_key}"},
 			timeout=12,
@@ -171,12 +196,12 @@ def _post_to_control_plane(request_payload):
 		frappe.throw(_("The AI control plane returned an invalid response. No proposal was created."))
 
 
-def _validate_response(response, request_payload):
+def _validate_response(response, request_payload, expected_proposal_type=PROPOSAL_TYPE):
 	if not isinstance(response, dict):
 		frappe.throw(_("The AI control plane response must be an object."))
 	if response.get("schema_version") != 1 or response.get("request_id") != request_payload["request_id"]:
 		frappe.throw(_("The AI control plane response does not match its request."))
-	if response.get("proposal_type") != PROPOSAL_TYPE:
+	if response.get("proposal_type") != expected_proposal_type:
 		frappe.throw(_("The AI control plane returned a proposal outside the policy allowlist."))
 
 	policy = response.get("policy") or {}

@@ -4,8 +4,8 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
-from ai_erp_control_plane.render import render_development_template
+from ai_erp_control_plane.models import SchedulingExplanationRequest, ServiceCloseoutSummaryRequest
+from ai_erp_control_plane.render import render_development_template, render_scheduling_template
 
 
 def _hash(value):
@@ -93,6 +93,67 @@ class TestDevelopmentTemplate(unittest.TestCase):
 		bounded["work_order"]["related_history"] = [history_entry] * 6
 		with self.assertRaises(ValidationError):
 			ServiceCloseoutSummaryRequest.model_validate(bounded)
+
+	def test_scheduling_explanation_is_deterministic_cited_and_cannot_assign(self):
+		payload = {
+			"schema_version": 1,
+			"request_id": str(uuid4()),
+			"tenant_site": "demo.localhost",
+			"requested_by": "dispatcher@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00002",
+				"subject": "Quarterly pump service",
+				"status": "Draft",
+				"service_priority": "High",
+				"sla_due_at": "2026-07-20 12:00:00",
+			},
+			"candidates": [
+				{
+					"technician": "tech.a@example.test",
+					"score": 2,
+					"workload": 0,
+					"familiarity": 1,
+					"reasons": ["open_workload:0", "completed_here:1"],
+				},
+				{
+					"technician": "tech.b@example.test",
+					"score": -1,
+					"workload": 1,
+					"familiarity": 0,
+					"reasons": ["open_workload:1", "completed_here:0"],
+				},
+			],
+			"excluded": [{"technician": "tech.c@example.test", "reason": "overlapping_scheduled_work"}],
+			"sources": [
+				{
+					"doctype": "Service Work Order",
+					"name": "SVC-WO-00002",
+					"field": "scheduling",
+					"content_hash": _hash("ranking"),
+				}
+			],
+		}
+		request = SchedulingExplanationRequest.model_validate(payload)
+
+		response = render_scheduling_template(request)
+
+		self.assertEqual(response.proposal_type, "scheduling_explanation")
+		self.assertEqual(response.policy.decision, "draft_only")
+		self.assertEqual(response.policy.allowed_action, "none")
+		self.assertEqual(response.sources, request.sources)
+		self.assertIn("1. tech.a@example.test: score 2", response.draft_content)
+		self.assertIn("tech.c@example.test: overlapping_scheduled_work", response.draft_content)
+		self.assertIn("cannot assign a technician", response.draft_content)
+		self.assertEqual(response.draft_content, render_scheduling_template(request).draft_content)
+
+		no_evidence = dict(payload)
+		no_evidence["candidates"] = [dict(payload["candidates"][1], score=0, workload=0)]
+		weak = render_scheduling_template(SchedulingExplanationRequest.model_validate(no_evidence))
+		self.assertIn("ranking rests on open workload alone", weak.draft_content)
+
+		with self.assertRaises(ValidationError):
+			SchedulingExplanationRequest.model_validate({**payload, "assign_to": "tech.a@example.test"})
 
 	def test_rejects_unsupported_erp_record_payload(self):
 		payload = _valid_request_payload()

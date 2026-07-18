@@ -71,6 +71,12 @@ guessing availability. Suggestions never assign anyone: the dispatcher applies
 a suggestion into the form and the normal permission-checked save performs the
 assignment.
 
+A dispatcher can also request a draft explanation of the current ranking. The
+explanation is stored as a cited, draft-only AI Proposal with no ERP side
+effect: it always renders deterministically from the ranking facts (ADR-0009),
+human review records the decision, and neither the draft nor its approval can
+assign a technician.
+
 ## Margin leakage categories
 
 The Service Profitability report classifies each work order with deterministic

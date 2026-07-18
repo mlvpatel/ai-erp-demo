@@ -1,8 +1,12 @@
 """Deterministic, propose-only technician scheduling suggestions."""
 
+from uuid import uuid4
+
 import frappe
+from ai_erp_core.proposals import request_scheduling_explanation as store_scheduling_explanation
 from frappe import _
 
+from ai_erp_service.ai_drafts import _source
 from ai_erp_service.service_utils import DISPATCHER_ROLES, require_any_role
 
 CANDIDATE_LIMIT = 5
@@ -127,3 +131,68 @@ def _completed_familiarity(work_order, technicians):
 	for row in rows:
 		familiarity[row.assigned_technician] = familiarity.get(row.assigned_technician, 0) + 1
 	return familiarity
+
+
+@frappe.whitelist()
+def request_scheduling_explanation(name):
+	"""Create one cited, draft-only explanation of the current deterministic ranking."""
+	require_any_role(
+		DISPATCHER_ROLES, _("Only a dispatcher or manager can request a scheduling explanation.")
+	)
+	suggestions = suggest_technicians(name)
+	work_order = frappe.get_doc("Service Work Order", name)
+	payload = _scheduling_explanation_payload(work_order, suggestions)
+	proposal = store_scheduling_explanation(work_order.doctype, work_order.name, payload)
+	return {"name": proposal.name, "draft_content": proposal.draft_content}
+
+
+def _scheduling_explanation_payload(work_order, suggestions):
+	"""Send only ranking facts; customer, location, and contact data stay out."""
+	work_order_summary = {
+		"doctype": work_order.doctype,
+		"name": work_order.name,
+		"subject": work_order.subject,
+		"status": work_order.status,
+		"service_priority": work_order.service_priority or "",
+		"sla_due_at": str(work_order.sla_due_at or ""),
+	}
+	candidates = suggestions["candidates"]
+	excluded = suggestions["excluded"]
+	sources = [
+		_source(
+			work_order.doctype,
+			work_order.name,
+			"priority",
+			{
+				"service_priority": work_order_summary["service_priority"],
+				"sla_due_at": work_order_summary["sla_due_at"],
+			},
+		),
+		_source(
+			work_order.doctype,
+			work_order.name,
+			"schedule",
+			{
+				"scheduled_start": suggestions["scheduled_start"],
+				"scheduled_end": suggestions["scheduled_end"],
+			},
+		),
+		_source(
+			work_order.doctype,
+			work_order.name,
+			"ranking",
+			{"candidates": candidates, "excluded": excluded},
+		),
+	]
+	for candidate in candidates:
+		sources.append(_source("User", candidate["technician"], "workload", candidate))
+	return {
+		"schema_version": 1,
+		"request_id": str(uuid4()),
+		"tenant_site": frappe.local.site,
+		"requested_by": frappe.session.user,
+		"work_order": work_order_summary,
+		"candidates": candidates,
+		"excluded": excluded,
+		"sources": sources,
+	}

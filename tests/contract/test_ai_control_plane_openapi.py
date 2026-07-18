@@ -13,11 +13,13 @@ CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi" / "ai-control-plane-v1.yaml"
 HEALTH_PATH = "/healthz"
 READY_PATH = "/readyz"
 SERVICE_CLOSEOUT_PATH = "/v1/proposals/service-closeout-summary"
+SCHEDULING_PATH = "/v1/proposals/scheduling-explanation"
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 EXPECTED_RESPONSES = {
 	(HEALTH_PATH, "get"): frozenset({"200"}),
 	(READY_PATH, "get"): frozenset({"200", "503"}),
 	(SERVICE_CLOSEOUT_PATH, "post"): frozenset({"200", "401", "422", "503"}),
+	(SCHEDULING_PATH, "post"): frozenset({"200", "401", "422"}),
 }
 
 
@@ -37,15 +39,18 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		self.assert_contract_contains(
 			"openapi: 3.1.0",
 			"title: AI ERP Control Plane API",
-			"version: 1.2.0",
+			"version: 1.3.0",
 			f"  {SERVICE_CLOSEOUT_PATH}:",
+			f"  {SCHEDULING_PATH}:",
 			"operationId: draftServiceCloseoutSummary",
+			"operationId: draftSchedulingExplanation",
+			"const: scheduling_explanation",
 			"ControlPlaneServiceKey: []",
 		)
 
 		self.assertEqual(self.openapi["openapi"], "3.1.0")
 		self.assertEqual(self.openapi["info"]["title"], "AI ERP Control Plane API")
-		self.assertEqual(self.openapi["info"]["version"], "1.2.0")
+		self.assertEqual(self.openapi["info"]["version"], "1.3.0")
 
 		operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertEqual(operation["operationId"], "draftServiceCloseoutSummary")

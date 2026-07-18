@@ -7,16 +7,21 @@ import os
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .models import ProposalResponse, ServiceCloseoutSummaryRequest
+from .models import (
+	ProposalResponse,
+	SchedulingExplanationRequest,
+	SchedulingProposalResponse,
+	ServiceCloseoutSummaryRequest,
+)
 from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
-from .render import render_development_template
+from .render import render_development_template, render_scheduling_template
 
 
 logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
 	title="AI ERP Control Plane API",
-	version="1.2.0",
+	version="1.3.0",
 	description=(
 		"Site-scoped, draft-only AI proposal boundary. The control plane never has "
 		"credentials for an ERP database and never receives permission to post ERP transactions."
@@ -68,6 +73,22 @@ def readyz():
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 			detail="approved model provider is unavailable",
 		)
+
+
+@app.post(
+	"/v1/proposals/scheduling-explanation",
+	summary="Draft a deterministic scheduling-suggestion explanation",
+	operation_id="draftSchedulingExplanation",
+	response_model=SchedulingProposalResponse,
+	response_description="A draft-only explanation. It has no ERP side effect.",
+	responses={
+		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
+		422: {"description": "Invalid or unsupported request payload."},
+	},
+	dependencies=[Depends(require_service_key)],
+)
+def draft_scheduling_explanation(request: SchedulingExplanationRequest):
+	return render_scheduling_template(request)
 
 
 @app.post(

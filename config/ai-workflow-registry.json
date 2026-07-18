@@ -77,6 +77,68 @@
         "alter permissions",
         "submit compliance filing"
       ]
+    },
+    {
+      "id": "scheduling_explanation",
+      "status": "implemented",
+      "provider_mode": "deterministic",
+      "route": "POST /v1/proposals/scheduling-explanation",
+      "proposal_type": "scheduling_explanation",
+      "policy": {
+        "decision": "draft_only",
+        "allowed_action": "none"
+      },
+      "adr": "docs/adr/0009-scheduling-explanation-proposal-type.md",
+      "data_boundary_manifest": "config/ai-data-boundary-scheduling.json",
+      "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+      "control_plane_handler": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
+        "function": "draft_scheduling_explanation"
+      },
+      "control_plane_renderer": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/render.py",
+        "function": "render_scheduling_template"
+      },
+      "request_model": {
+        "path": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+        "class": "SchedulingExplanationRequest"
+      },
+      "payload_builder": {
+        "path": "apps/ai_erp_service/ai_erp_service/scheduling.py",
+        "function": "_scheduling_explanation_payload"
+      },
+      "frappe_requester": {
+        "path": "apps/ai_erp_service/ai_erp_service/scheduling.py",
+        "function": "request_scheduling_explanation"
+      },
+      "proposal_storage": {
+        "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
+        "function": "request_scheduling_explanation"
+      },
+      "docs": [
+        "docs/adr/0009-scheduling-explanation-proposal-type.md",
+        "docs/workflows/service-operations.md",
+        "docs/security/ai-workflow-review.md"
+      ],
+      "tests": [
+        "services/ai_control_plane/tests/test_render.py",
+        "services/ai_control_plane/tests/test_app_security.py",
+        "tests/contract/test_ai_control_plane_openapi.py",
+        "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/test_service_work_order.py"
+      ],
+      "proof_commands": [
+        "python3 scripts/check-ai-data-boundary.py",
+        "scripts/dev.sh control-plane-test",
+        "scripts/dev.sh contract-test",
+        "scripts/dev.sh service-test"
+      ],
+      "forbidden_direct_actions": [
+        "assign technician",
+        "submit invoice",
+        "post stock",
+        "change payroll",
+        "alter permissions"
+      ]
     }
   ],
   "required_lifecycle_doc_phrases": [

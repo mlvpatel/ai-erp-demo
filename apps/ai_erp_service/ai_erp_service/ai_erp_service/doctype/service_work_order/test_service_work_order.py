@@ -488,7 +488,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		work_order.status = "Closeout Submitted"
 		work_order.save()
 
-		def control_plane_response(payload):
+		def control_plane_response(payload, route=None):
 			return {
 				"schema_version": 1,
 				"request_id": payload["request_id"],
@@ -597,7 +597,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		current.status = "Closeout Submitted"
 		current.save()
 
-		def control_plane_response(payload):
+		def control_plane_response(payload, route=None):
 			return {
 				"schema_version": 1,
 				"request_id": payload["request_id"],
@@ -753,7 +753,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 
 		draft_text = "Draft summary: belt replaced and alignment verified."
 
-		def control_plane_response(payload):
+		def control_plane_response(payload, route=None):
 			return {
 				"schema_version": 1,
 				"request_id": payload["request_id"],
@@ -917,6 +917,48 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user(self.technician)
 		with self.assertRaises(frappe.PermissionError):
 			suggest_technicians(target.name)
+
+	def test_scheduling_explanation_is_draft_only_cited_and_cannot_assign(self):
+		from ai_erp_service.scheduling import request_scheduling_explanation
+
+		dispatcher = self._make_role_user(
+			"service.dispatcher.explanation@example.test",
+			("Service Dispatcher", "AI Proposal Approver"),
+		)
+		target = self._make_work_order("Scheduling explanation work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			request_scheduling_explanation(target.name)
+
+		frappe.set_user(dispatcher)
+		result = request_scheduling_explanation(target.name)
+		retry = request_scheduling_explanation(target.name)
+		self.assertEqual(retry["name"], result["name"])
+
+		proposal = frappe.get_doc("AI Proposal", result["name"])
+		self.assertEqual(proposal.proposal_type, "Scheduling Explanation")
+		self.assertEqual(proposal.proposal_status, "Draft")
+		self.assertEqual(proposal.policy_outcome, "Draft Only")
+		self.assertEqual(proposal.model_provider, "development-template")
+		source_fields = {source.source_field for source in proposal.sources}
+		self.assertIn("ranking", source_fields)
+		self.assertIn("priority", source_fields)
+		self.assertIn("cannot assign a technician", proposal.draft_content)
+
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+		proposal.review("Approved", "Ranking matches recorded workload evidence.")
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+		self.assertEqual(
+			frappe.get_doc("AI Proposal", result["name"]).proposal_status, "Approved"
+		)
 
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
