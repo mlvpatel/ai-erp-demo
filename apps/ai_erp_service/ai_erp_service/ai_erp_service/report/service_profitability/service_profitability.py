@@ -3,6 +3,7 @@
 import frappe
 from frappe import _
 
+from ai_erp_service.margin_risk import annotate_margin_risks
 from ai_erp_service.service_utils import MANAGER_ROLES, require_any_role
 
 
@@ -29,11 +30,17 @@ def execute(filters=None):
 			"invoice_ready",
 			"closure_exception",
 			"sales_invoice",
+			"hourly_rate",
+			"warranty_status",
+			"inspection_result",
+			"service_asset",
+			"service_location",
+			"creation",
 		],
 		order_by="modified desc",
 		limit=500,
 	)
-	return _columns(), rows
+	return _columns(), annotate_margin_risks(rows)
 
 
 def _columns():
@@ -59,4 +66,5 @@ def _columns():
 			"width": 160,
 		},
 		{"fieldname": "sales_invoice", "label": _("Draft Sales Invoice"), "fieldtype": "Link", "options": "Sales Invoice", "width": 160},
+		{"fieldname": "margin_risks", "label": _("Margin Risks"), "fieldtype": "Data", "width": 260},
 	]

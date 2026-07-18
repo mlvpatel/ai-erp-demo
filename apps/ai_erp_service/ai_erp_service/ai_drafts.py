@@ -7,6 +7,7 @@ from ai_erp_core.proposals import content_hash, request_service_closeout_summary
 from frappe import _
 from frappe.utils import flt
 
+from ai_erp_service.retrieval import related_work_history
 from ai_erp_service.service_utils import MANAGER_ROLES, has_any_role
 
 ELIGIBLE_STATUSES = {"Closeout Submitted", "Closed"}
@@ -47,6 +48,16 @@ def _closeout_summary_payload(work_order):
 		}
 		for row in work_order.get("parts") or []
 	]
+	related_history = [
+		{
+			"name": row.name,
+			"subject": row.subject,
+			"status": row.status,
+			"inspection_result": row.inspection_result or "",
+			"closeout_notes": row.closeout_notes or "",
+		}
+		for row in related_work_history(work_order)
+	]
 	work_order_payload = {
 		"doctype": work_order.doctype,
 		"name": work_order.name,
@@ -56,6 +67,7 @@ def _closeout_summary_payload(work_order):
 		"closeout_notes": work_order.closeout_notes or "",
 		"time_entries": time_entries,
 		"parts": parts,
+		"related_history": related_history,
 	}
 	return {
 		"schema_version": 1,
@@ -79,6 +91,8 @@ def _source_references(work_order, work_order_payload):
 		sources.append(_source(row.doctype, row.name, "entry", payload))
 	for row, payload in zip(work_order.get("parts") or [], work_order_payload["parts"], strict=True):
 		sources.append(_source(row.doctype, row.name, "usage", payload))
+	for entry in work_order_payload["related_history"]:
+		sources.append(_source(work_order.doctype, entry["name"], "history", entry))
 	return sources
 
 

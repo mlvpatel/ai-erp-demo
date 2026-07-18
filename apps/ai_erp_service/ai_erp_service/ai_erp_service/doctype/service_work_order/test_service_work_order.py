@@ -488,7 +488,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		work_order.status = "Closeout Submitted"
 		work_order.save()
 
-		def control_plane_response(payload):
+		def control_plane_response(payload, route=None):
 			return {
 				"schema_version": 1,
 				"request_id": payload["request_id"],
@@ -548,6 +548,546 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(work_order.closeout_notes, "Tightened the mount and confirmed normal operation.")
 		self.assertEqual(frappe.db.count("Sales Invoice"), invoices_before)
 		self.assertEqual(frappe.db.count("Stock Entry"), stock_entries_before)
+
+	def test_closeout_draft_history_retrieval_is_permission_scoped_and_cited(self):
+		other_technician = self._make_role_user(
+			"service.technician.history@example.test", ("Service Technician",)
+		)
+		history = self._make_work_order("Historical pump repair")
+		self._schedule(history, other_technician)
+		frappe.set_user(other_technician)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{
+				"technician": other_technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 2,
+			},
+		)
+		history.closeout_notes = "Cleared debris and replaced the worn seal."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "Closed"
+		history.save()
+
+		current = self._make_work_order("Repeat pump vibration")
+		self._schedule(current, self.technician)
+		frappe.set_user(self.technician)
+		current.reload()
+		current.status = "In Progress"
+		current.save()
+		current.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		current.closeout_notes = "Re-tightened the mount."
+		current.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		current.status = "Closeout Submitted"
+		current.save()
+
+		def control_plane_response(payload, route=None):
+			return {
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {
+					"decision": "draft_only",
+					"allowed_action": "none",
+					"reason": "Draft only; human review has no ERP side effect.",
+				},
+				"model": {
+					"provider": "test-control-plane",
+					"name": "test-closeout-model",
+					"prompt_version": "service-closeout-summary@v1",
+				},
+				"draft_content": "Draft closeout with cited history.",
+				"sources": payload["sources"],
+			}
+
+		with patch(
+			"ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response
+		) as control_plane:
+			request_closeout_summary(current.name)
+		technician_payload = control_plane.call_args[0][0]
+		self.assertEqual(technician_payload["work_order"]["related_history"], [])
+		self.assertNotIn(
+			"history", {source["field"] for source in technician_payload["sources"]}
+		)
+
+		frappe.set_user(self.manager)
+		with patch(
+			"ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response
+		) as control_plane:
+			request_closeout_summary(current.name)
+		manager_payload = control_plane.call_args[0][0]
+		entries = manager_payload["work_order"]["related_history"]
+		entry = next(row for row in entries if row["name"] == history.name)
+		self.assertEqual(
+			set(entry), {"name", "subject", "status", "inspection_result", "closeout_notes"}
+		)
+		self.assertEqual(entry["closeout_notes"], "Cleared debris and replaced the worn seal.")
+
+		history_citations = {
+			source["name"]
+			for source in manager_payload["sources"]
+			if source["field"] == "history"
+		}
+		self.assertIn(history.name, history_citations)
+		visible_to_manager = set(
+			frappe.get_list("Service Work Order", pluck="name", limit_page_length=0)
+		)
+		self.assertLessEqual(history_citations, visible_to_manager)
+
+	def test_evidence_chain_is_role_scoped_hashed_and_explicit_about_gaps(self):
+		from ai_erp_service.evidence import get_evidence_chain
+
+		work_order = self._make_work_order("Evidence chain work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+
+		incomplete = get_evidence_chain(work_order.name)
+		self.assertFalse(incomplete["completeness"]["complete"])
+		self.assertIn("time_entries", incomplete["completeness"]["missing"])
+		self.assertNotIn("finance", incomplete["sections"])
+
+		frappe.set_user(self.finance_user)
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_chain(work_order.name)
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Verified repair and cleaned the work area."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		technician_chain = get_evidence_chain(work_order.name)
+		self.assertTrue(technician_chain["completeness"]["complete"])
+		self.assertNotIn("finance", technician_chain["sections"])
+		self.assertEqual(
+			technician_chain["sections"]["execution"]["closeout_notes"],
+			"Verified repair and cleaned the work area.",
+		)
+
+		frappe.set_user(self.manager)
+		work_order.reload()
+		work_order.status = "Closed"
+		work_order.save()
+		work_order.status = "Invoice Ready"
+		work_order.save()
+
+		manager_chain = get_evidence_chain(work_order.name)
+		self.assertIn("finance", manager_chain["sections"])
+		self.assertIn("projected_revenue", manager_chain["sections"]["finance"])
+		self.assertEqual(len(manager_chain["chain_hash"]), 64)
+		self.assertEqual(manager_chain["chain_hash"], get_evidence_chain(work_order.name)["chain_hash"])
+		self.assertNotEqual(manager_chain["chain_hash"], technician_chain["chain_hash"])
+		self.assertEqual(
+			set(manager_chain["section_hashes"]),
+			set(manager_chain["sections"]),
+		)
+
+		frappe.set_user(self.finance_user)
+		finance_chain = get_evidence_chain(work_order.name)
+		self.assertTrue(finance_chain["sections"]["finance"]["invoice_ready"])
+		self.assertIn("sales_invoice", finance_chain["sections"]["finance"])
+
+		frappe.set_user("Administrator")
+		approver = self._make_role_user(
+			"service.ai.approver.evidence@example.test", ("AI Proposal Approver",)
+		)
+		frappe.set_user(approver)
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_chain(work_order.name)
+
+	def test_evidence_packet_is_manager_only_and_carries_no_draft_content(self):
+		from ai_erp_service.evidence import get_evidence_packet
+
+		packet_manager = self._make_role_user(
+			"service.manager.packet@example.test",
+			("Service Manager", "AI Proposal Approver"),
+		)
+		work_order = self._make_work_order("Evidence packet work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Replaced the belt and verified alignment."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		draft_text = "Draft summary: belt replaced and alignment verified."
+
+		def control_plane_response(payload, route=None):
+			return {
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {
+					"decision": "draft_only",
+					"allowed_action": "none",
+					"reason": "Draft only; human review has no ERP side effect.",
+				},
+				"model": {
+					"provider": "test-control-plane",
+					"name": "test-closeout-model",
+					"prompt_version": "service-closeout-summary@v1",
+				},
+				"draft_content": draft_text,
+				"sources": payload["sources"],
+			}
+
+		with patch("ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response):
+			request_closeout_summary(work_order.name)
+
+		with self.assertRaises(frappe.PermissionError):
+			get_evidence_packet(work_order.name)
+
+		frappe.set_user(packet_manager)
+		packet = get_evidence_packet(work_order.name)
+		self.assertEqual(packet["policy_decisions"], ["Draft Only"])
+		self.assertIn("closeout_notes", {row["source_field"] for row in packet["citations"]})
+		self.assertEqual(packet["unresolved_exceptions"], [])
+		self.assertIn("stock_entries", packet)
+		self.assertIn("sales_invoice", packet)
+		self.assertEqual(len(packet["chain_hash"]), 64)
+
+		serialized = frappe.as_json(packet)
+		self.assertNotIn(draft_text, serialized)
+		self.assertNotIn("draft_content", serialized)
+		self.assertNotIn("prompt_version", serialized)
+
+	def test_profitability_report_classifies_margin_leakage_deterministically(self):
+		first = self._make_work_order("Margin risk first visit")
+		self._schedule(first, self.technician)
+		frappe.set_user(self.technician)
+		first.reload()
+		first.status = "In Progress"
+		first.save()
+		first.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		first.inspection_result = "Failed"
+		first.inspection_notes = "Alignment drifts beyond tolerance after warm-up."
+		first.closeout_notes = "Repair attempted; alignment still drifts."
+		first.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		first.status = "Closeout Submitted"
+		first.save()
+
+		frappe.set_user("Administrator")
+		second = self._make_work_order("Margin risk repeat visit")
+		self._schedule(second, self.technician)
+		frappe.get_doc(
+			{
+				"doctype": "Service Closure Exception",
+				"work_order": first.name,
+				"reason": "Parts unavailable",
+				"exception_owner": self.manager,
+				"due_date": today(),
+				"status": "Open",
+			}
+		).insert(ignore_permissions=True)
+
+		frappe.set_user(self.manager)
+		columns, rows = profitability_report({})
+		self.assertIn("margin_risks", {column["fieldname"] for column in columns})
+		by_name = {row.name: row for row in rows}
+		first_risks = by_name[first.name].margin_risks
+		for expected_risk in (
+			"zero_rate_labor",
+			"warranty_risk",
+			"failed_inspection",
+			"unresolved_exception",
+			"repeat_visit_risk",
+		):
+			self.assertIn(expected_risk, first_risks)
+		self.assertNotIn("missing_billable_time", first_risks)
+		self.assertNotIn("part_cost_above_bill_rate", first_risks)
+		self.assertIn("repeat_visit_risk", by_name[second.name].margin_risks)
+
+	def test_scheduling_suggestions_are_deterministic_bounded_and_propose_only(self):
+		from ai_erp_service.scheduling import suggest_technicians
+
+		second_technician = self._make_role_user(
+			"service.technician.second@example.test", ("Service Technician",)
+		)
+		dispatcher = self._make_role_user(
+			"service.dispatcher.scheduling@example.test", ("Service Dispatcher",)
+		)
+
+		history = self._make_work_order("Familiarity history work order")
+		self._schedule(history, second_technician)
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{
+				"technician": second_technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		history.closeout_notes = "Completed prior visit."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		history.status = "Closed"
+		history.save()
+
+		frappe.set_user("Administrator")
+		target = self._make_work_order("Scheduling target work order")
+
+		frappe.set_user(dispatcher)
+		target.reload()
+		with self.assertRaises(frappe.ValidationError):
+			suggest_technicians(target.name)
+
+		frappe.set_user("Administrator")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		busy = self._make_work_order("Overlapping busy work order")
+		self._schedule(busy, self.technician)
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		self.assertLessEqual(len(suggestions["candidates"]), 5)
+		candidate_names = [row["technician"] for row in suggestions["candidates"]]
+		self.assertIn(second_technician, candidate_names)
+		self.assertNotIn(self.technician, candidate_names)
+		self.assertIn(
+			{"technician": self.technician, "reason": "overlapping_scheduled_work"},
+			suggestions["excluded"],
+		)
+		top = suggestions["candidates"][0]
+		self.assertEqual(top["technician"], second_technician)
+		self.assertEqual(top["familiarity"], 1)
+		self.assertEqual(suggestions, suggest_technicians(target.name))
+
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			suggest_technicians(target.name)
+
+	def test_scheduling_explanation_is_draft_only_cited_and_cannot_assign(self):
+		from ai_erp_service.scheduling import request_scheduling_explanation
+
+		dispatcher = self._make_role_user(
+			"service.dispatcher.explanation@example.test",
+			("Service Dispatcher", "AI Proposal Approver"),
+		)
+		target = self._make_work_order("Scheduling explanation work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			request_scheduling_explanation(target.name)
+
+		frappe.set_user(dispatcher)
+		result = request_scheduling_explanation(target.name)
+		retry = request_scheduling_explanation(target.name)
+		self.assertEqual(retry["name"], result["name"])
+
+		proposal = frappe.get_doc("AI Proposal", result["name"])
+		self.assertEqual(proposal.proposal_type, "Scheduling Explanation")
+		self.assertEqual(proposal.proposal_status, "Draft")
+		self.assertEqual(proposal.policy_outcome, "Draft Only")
+		self.assertEqual(proposal.model_provider, "development-template")
+		source_fields = {source.source_field for source in proposal.sources}
+		self.assertIn("ranking", source_fields)
+		self.assertIn("priority", source_fields)
+		self.assertIn("cannot assign a technician", proposal.draft_content)
+
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+		proposal.review("Approved", "Ranking matches recorded workload evidence.")
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+		self.assertEqual(
+			frappe.get_doc("AI Proposal", result["name"]).proposal_status, "Approved"
+		)
+
+	def test_recovery_draft_is_manager_only_cited_and_cannot_close_work(self):
+		from ai_erp_service.recovery import request_recovery_draft
+
+		recovery_manager = self._make_role_user(
+			"service.manager.recovery@example.test",
+			("Service Manager", "AI Proposal Approver"),
+		)
+		work_order = self._make_work_order("Blocked compressor work order")
+		self._schedule(work_order, self.technician)
+		work_order.closure_owner = recovery_manager
+		work_order.closure_due_date = today()
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.cannot_close_reason = "Parts unavailable"
+		work_order.status = "Cannot Close"
+		work_order.save()
+
+		with self.assertRaises(frappe.PermissionError):
+			request_recovery_draft(work_order.name)
+
+		frappe.set_user(recovery_manager)
+		result = request_recovery_draft(work_order.name)
+		retry = request_recovery_draft(work_order.name)
+		self.assertEqual(retry["name"], result["name"])
+
+		proposal = frappe.get_doc("AI Proposal", result["name"])
+		self.assertEqual(proposal.proposal_type, "Exception Recovery")
+		self.assertEqual(proposal.proposal_status, "Draft")
+		self.assertEqual(proposal.policy_outcome, "Draft Only")
+		source_fields = {source.source_field for source in proposal.sources}
+		self.assertIn("reason", source_fields)
+		self.assertIn("cannot_close", source_fields)
+		self.assertIn("purchase or transfer request", proposal.draft_content)
+		self.assertIn("cannot close the work order", proposal.draft_content)
+
+		proposal.review("Approved", "Recovery steps match the recorded exception.")
+		work_order.reload()
+		self.assertEqual(work_order.status, "Cannot Close")
+		exception = frappe.get_doc("Service Closure Exception", work_order.closure_exception)
+		self.assertEqual(exception.status, "Open")
+
+	def test_repair_memory_reuses_only_visible_history_and_abstains_otherwise(self):
+		from ai_erp_service.repair_memory import request_repair_memory_draft
+
+		historian = self._make_role_user(
+			"service.technician.historian@example.test", ("Service Technician",)
+		)
+		item, warehouse = self._make_stocked_item()
+		history = self._make_work_order("Historic mount replacement")
+		self._schedule(history, historian)
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{"technician": historian, "work_date": today(), "time_type": "Work", "hours": 1},
+		)
+		history.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		history.closeout_notes = "Replaced the mount kit; vibration resolved."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		frappe.set_user("Administrator")
+		issue_parts(history.name)
+		history.reload()
+		history.status = "Closed"
+		history.save()
+
+		other_customer = frappe.get_doc(
+			{"doctype": "Customer", "customer_name": "Unrelated Repair Customer"}
+		).insert(ignore_if_duplicate=True)
+		other_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Unrelated Repair Site",
+				"customer": other_customer.name,
+			}
+		).insert()
+		unrelated = frappe.get_doc(
+			{
+				"doctype": "Service Work Order",
+				"subject": "Unrelated site pump repair",
+				"customer": other_customer.name,
+				"service_location": other_location.name,
+				"status": "Draft",
+			}
+		).insert()
+
+		current = self._make_work_order("Recurring vibration diagnosis")
+		self._schedule(current, self.technician)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			request_repair_memory_draft(unrelated.name)
+
+		current.reload()
+		technician_result = request_repair_memory_draft(current.name)
+		technician_proposal = frappe.get_doc("AI Proposal", technician_result["name"])
+		self.assertIn("Abstention", technician_proposal.draft_content)
+		self.assertNotIn(item, technician_proposal.draft_content)
+
+		frappe.set_user(self.manager)
+		manager_result = request_repair_memory_draft(current.name)
+		manager_proposal = frappe.get_doc("AI Proposal", manager_result["name"])
+		self.assertEqual(manager_proposal.proposal_type, "Repair Memory")
+		self.assertEqual(manager_proposal.proposal_status, "Draft")
+		self.assertIn(history.name, manager_proposal.draft_content)
+		self.assertIn(f"{item}: used in 1 prior visit(s)", manager_proposal.draft_content)
+		self.assertNotIn("Unrelated site pump repair", manager_proposal.draft_content)
+		history_citations = {
+			source.source_name
+			for source in manager_proposal.sources
+			if source.source_field == "history"
+		}
+		self.assertEqual(history_citations, {history.name})
+
+		retry = request_repair_memory_draft(current.name)
+		self.assertEqual(retry["name"], manager_result["name"])
+		current.reload()
+		self.assertEqual(current.status, "Scheduled")
 
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")

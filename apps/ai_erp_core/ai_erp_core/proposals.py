@@ -32,33 +32,88 @@ def content_hash(value):
 
 
 def request_service_closeout_summary(reference_doctype, reference_name, request_payload):
-	"""Request one allow-listed draft and persist its auditable proposal record."""
+	"""Request one allow-listed closeout draft and persist its auditable proposal record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route=CONTROL_PLANE_PATH,
+		wire_proposal_type=PROPOSAL_TYPE,
+		ledger_proposal_type="Service Closeout Summary",
+	)
+
+
+def request_scheduling_explanation(reference_doctype, reference_name, request_payload):
+	"""Request one draft scheduling explanation and persist its auditable proposal record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/scheduling-explanation",
+		wire_proposal_type="scheduling_explanation",
+		ledger_proposal_type="Scheduling Explanation",
+	)
+
+
+def request_exception_recovery(reference_doctype, reference_name, request_payload):
+	"""Request one draft exception-recovery proposal and persist its auditable record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/exception-recovery",
+		wire_proposal_type="exception_recovery",
+		ledger_proposal_type="Exception Recovery",
+	)
+
+
+def request_repair_memory(reference_doctype, reference_name, request_payload):
+	"""Request one draft repair-memory proposal and persist its auditable record."""
+	return _request_proposal(
+		reference_doctype,
+		reference_name,
+		request_payload,
+		route="/v1/proposals/repair-memory",
+		wire_proposal_type="repair_memory",
+		ledger_proposal_type="Repair Memory",
+	)
+
+
+def _request_proposal(
+	reference_doctype, reference_name, request_payload, route, wire_proposal_type, ledger_proposal_type
+):
 	request_id = request_payload["request_id"]
 	if existing := frappe.db.exists("AI Proposal", {"control_plane_request_id": request_id}):
 		return frappe.get_doc("AI Proposal", existing)
 	input_hash = content_hash(
 		{"work_order": request_payload["work_order"], "sources": request_payload["sources"]}
 	)
+	context_filters = {
+		"reference_doctype": reference_doctype,
+		"reference_name": reference_name,
+		"input_context_hash": input_hash,
+	}
 	_lock_reference(reference_doctype, reference_name)
-	if existing := frappe.db.get_value(
-		"AI Proposal",
-		{
-			"reference_doctype": reference_doctype,
-			"reference_name": reference_name,
-			"input_context_hash": input_hash,
-		},
-		"name",
-	):
+	try:
+		existing = frappe.db.get_value("AI Proposal", context_filters, "name", for_update=True)
+	except frappe.QueryDeadlockError:
+		# Snapshot isolation aborts this locking read only when a concurrent request
+		# committed the same context after this transaction's snapshot began, so the
+		# existing proposal becomes visible on a fresh snapshot without a provider call.
+		frappe.db.rollback()
+		_lock_reference(reference_doctype, reference_name)
+		existing = frappe.db.get_value("AI Proposal", context_filters, "name", for_update=True)
+	if existing:
 		return frappe.get_doc("AI Proposal", existing)
 
 	with _proposal_rate_limit():
-		response = _post_to_control_plane(request_payload)
-	_validate_response(response, request_payload)
+		response = _post_to_control_plane(request_payload, route)
+	_validate_response(response, request_payload, wire_proposal_type)
 
 	proposal = frappe.get_doc(
 		{
 			"doctype": "AI Proposal",
-			"proposal_type": "Service Closeout Summary",
+			"proposal_type": ledger_proposal_type,
 			"proposal_status": "Draft",
 			"policy_outcome": "Draft Only",
 			"policy_reason": response["policy"]["reason"],
@@ -142,7 +197,7 @@ def _release_concurrent_slot(key):
 		frappe.log_error(title="AI proposal concurrency slot release failed")
 
 
-def _post_to_control_plane(request_payload):
+def _post_to_control_plane(request_payload, route=CONTROL_PLANE_PATH):
 	base_url = os.environ.get("AI_CONTROL_PLANE_URL", "").rstrip("/")
 	service_key = os.environ.get("AI_CONTROL_PLANE_SHARED_SECRET", "")
 	if not base_url or not service_key:
@@ -150,7 +205,7 @@ def _post_to_control_plane(request_payload):
 
 	try:
 		response = requests.post(
-			f"{base_url}{CONTROL_PLANE_PATH}",
+			f"{base_url}{route}",
 			json=request_payload,
 			headers={"Authorization": f"Bearer {service_key}"},
 			timeout=12,
@@ -165,12 +220,12 @@ def _post_to_control_plane(request_payload):
 		frappe.throw(_("The AI control plane returned an invalid response. No proposal was created."))
 
 
-def _validate_response(response, request_payload):
+def _validate_response(response, request_payload, expected_proposal_type=PROPOSAL_TYPE):
 	if not isinstance(response, dict):
 		frappe.throw(_("The AI control plane response must be an object."))
 	if response.get("schema_version") != 1 or response.get("request_id") != request_payload["request_id"]:
 		frappe.throw(_("The AI control plane response does not match its request."))
-	if response.get("proposal_type") != PROPOSAL_TYPE:
+	if response.get("proposal_type") != expected_proposal_type:
 		frappe.throw(_("The AI control plane returned a proposal outside the policy allowlist."))
 
 	policy = response.get("policy") or {}

@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import httpx
 
-from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
+from ai_erp_control_plane.models import RelatedWorkSummary, ServiceCloseoutSummaryRequest
 from ai_erp_control_plane.openai_provider import (
 	DEFAULT_MODEL,
 	MAX_AUTOMATIC_RETRIES,
@@ -225,6 +225,38 @@ class TestOpenAIProvider(unittest.TestCase):
 		for sensitive in ("alice@example.test", "+1 (415) 555-0100", "synthetic-value-1234"):
 			self.assertNotIn(sensitive, captured["body"])
 		self.assertGreaterEqual(response.audit.redaction_count, 3)
+
+	def test_related_history_is_minimized_and_redacted_before_provider_call(self):
+		request = _request()
+		request.work_order.related_history = [
+			RelatedWorkSummary(
+				name="PRIVATE-WO-HIST-1",
+				subject="Prior pump repair",
+				status="Closed",
+				inspection_result="Passed",
+				closeout_notes="Replaced the seal; owner is alice@example.test.",
+			)
+		]
+		captured = {}
+
+		def handler(http_request):
+			captured["body"] = http_request.content.decode()
+			return httpx.Response(200, json=_provider_payload())
+
+		client = httpx.Client(transport=httpx.MockTransport(handler))
+		with patch.dict(os.environ, _environment(), clear=True):
+			response = render_openai(request, client=client)
+		client.close()
+
+		model_input = json.loads(json.loads(captured["body"])["input"])
+		self.assertEqual(
+			set(model_input["related_history"][0]),
+			{"subject", "status", "inspection_result", "closeout_notes"},
+		)
+		self.assertNotIn("PRIVATE-WO-HIST-1", captured["body"])
+		self.assertNotIn("alice@example.test", captured["body"])
+		self.assertIn("Replaced the seal", captured["body"])
+		self.assertGreaterEqual(response.audit.redaction_count, 1)
 
 	def test_preserves_date_and_amount_facts_while_redacting_phone_shapes(self):
 		request = _request()

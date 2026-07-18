@@ -39,10 +39,74 @@
   Sales Invoice identifiers are stored on the Service Work Order.
 - AI Proposal approval or rejection is audit evidence only; deterministic
   manager actions create or link ERP transaction records.
+- The server method `ai_erp_service.evidence.get_evidence_chain` returns the
+  replayable request-to-invoice chain for one work order. Every section is
+  permission-scoped: related records go through standard list permissions, the
+  finance section exists only for manager and accounts roles, and missing
+  evidence is listed explicitly instead of being omitted. Section hashes and a
+  chain hash make two replays of the same visible state comparable.
+- The Evidence Replay button on the Service Work Order form renders that chain
+  in a compact dialog: completeness, missing evidence, open exceptions, parts
+  issued, AI proposal status, and, for manager and accounts roles only, the
+  invoice handoff state with a link to the draft Sales Invoice.
+- The manager-only Evidence Packet button exports the chain as a sanitized
+  JSON file through `ai_erp_service.evidence.get_evidence_packet`: identifiers,
+  hashes, statuses, citation ids, stock and invoice links, and unresolved
+  exceptions only. It never contains draft text, prompts, provider responses,
+  or attachment contents, and a synthetic packet is technical evidence, not
+  human acceptance evidence.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish
 asynchronous events.
+
+## Scheduling suggestions
+
+The Suggest Technicians button on a draft or scheduled work order ranks
+available technicians deterministically: prior completed work at the same asset
+or location counts double, open workload subtracts, and ties break on workload
+and then on the technician id. Technicians with overlapping scheduled work are
+listed as excluded with the reason. A missing schedule window aborts instead of
+guessing availability. Suggestions never assign anyone: the dispatcher applies
+a suggestion into the form and the normal permission-checked save performs the
+assignment.
+
+A dispatcher can also request a draft explanation of the current ranking. The
+explanation is stored as a cited, draft-only AI Proposal with no ERP side
+effect: it always renders deterministically from the ranking facts (ADR-0009),
+human review records the decision, and neither the draft nor its approval can
+assign a technician.
+
+## Repair memory drafts
+
+On scheduled or in-progress work, the assigned technician or a service manager
+can request Draft Repair Memory. The draft reorganizes cited, role-visible
+prior work at the same asset or location: prior closeout notes become the
+likely-fix section, parts used across prior visits are listed with occurrence
+counts, and a failed or follow-up inspection in the history becomes a
+missing-diagnostic warning. Only supplied cited facts can appear, so the draft
+cannot invent parts, and a requester with no visible history receives a stated
+abstention instead of a suggestion.
+
+## Exception recovery drafts
+
+On a Cannot Close work order with an open closure exception, a service manager
+can request Draft Recovery Steps. The proposal maps the exception reason to a
+fixed recovery checklist, lists declared parts that are not yet issued, and
+cites permission-scoped prior work at the same asset or location. An
+uncategorized reason with no visible history produces a stated abstention. The
+draft cannot close the work order or resolve the exception; the manager owns
+the recovery action and records the outcome through review.
+
+## Margin leakage categories
+
+The Service Profitability report classifies each work order with deterministic
+margin-risk categories: missing billable time, zero-rate labor, missing part
+bill rate, part cost above bill rate, unknown cost basis, warranty risk, failed
+inspection, unresolved exception, and repeat visit risk inside a thirty-day
+window. Classification never invents a margin: missing cost data becomes an
+unknown-cost category instead of a number, and the report stays restricted to
+manager roles.
 
 ## Billing controls
 

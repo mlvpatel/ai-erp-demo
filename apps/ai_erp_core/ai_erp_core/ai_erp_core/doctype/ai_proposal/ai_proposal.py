@@ -29,6 +29,12 @@ IMMUTABLE_FIELDS = {
 	"provider_duration_ms",
 	"provider_redaction_count",
 }
+ALLOWED_PROPOSAL_TYPES = {
+	"Service Closeout Summary",
+	"Scheduling Explanation",
+	"Exception Recovery",
+	"Repair Memory",
+}
 FINAL_STATUSES = {"Approved", "Rejected"}
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
@@ -47,8 +53,8 @@ class AIProposal(Document):
 			frappe.throw(_("AI Proposals can only be created from the validated control-plane boundary."))
 		if self.proposal_status != "Draft" or self.policy_outcome != "Draft Only":
 			frappe.throw(_("New AI Proposals must be draft-only."))
-		if self.proposal_type != "Service Closeout Summary":
-			frappe.throw(_("The current policy allowlist permits only Service Closeout Summary."))
+		if self.proposal_type not in ALLOWED_PROPOSAL_TYPES:
+			frappe.throw(_("The proposal type is outside the registered policy allowlist."))
 		if not self.sources:
 			frappe.throw(_("An AI Proposal requires at least one cited source."))
 		if not HASH_PATTERN.fullmatch(self.input_context_hash or "") or not HASH_PATTERN.fullmatch(self.output_hash or ""):

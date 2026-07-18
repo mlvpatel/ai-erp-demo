@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "workflow": "scheduling_explanation",
+  "proposal_type": "scheduling_explanation",
+  "adr": "docs/adr/0009-scheduling-explanation-proposal-type.md",
+  "payload_builder": {
+    "path": "apps/ai_erp_service/ai_erp_service/scheduling.py",
+    "function": "_scheduling_explanation_payload"
+  },
+  "control_plane_models": "services/ai_control_plane/src/ai_erp_control_plane/models.py",
+  "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
+  "route": "/v1/proposals/scheduling-explanation",
+  "request_class": "SchedulingExplanationRequest",
+  "allowed_request_fields": [
+    "schema_version",
+    "request_id",
+    "tenant_site",
+    "requested_by",
+    "work_order",
+    "candidates",
+    "excluded",
+    "sources"
+  ],
+  "required_policy": {
+    "decision": "draft_only",
+    "allowed_action": "none"
+  },
+  "provider_mode": "deterministic"
+}

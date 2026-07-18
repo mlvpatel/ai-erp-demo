@@ -110,6 +110,51 @@ class TestAppSecurity(unittest.TestCase):
 		with patch.dict(os.environ, {"AI_ERP_PROVIDER": "unapproved"}, clear=True):
 			self.assertEqual(self.client.get("/readyz").status_code, 503)
 
+	def test_scheduling_route_requires_service_key_and_strict_payload(self):
+		scheduling_payload = {
+			"schema_version": 1,
+			"request_id": "00000000-0000-4000-8000-000000000002",
+			"tenant_site": "demo.localhost",
+			"requested_by": "dispatcher@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00002",
+				"subject": "Quarterly pump service",
+				"status": "Draft",
+			},
+			"candidates": [],
+			"sources": [
+				{
+					"doctype": "Service Work Order",
+					"name": "SVC-WO-00002",
+					"field": "scheduling",
+					"content_hash": "0" * 64,
+				}
+			],
+		}
+		environment = {
+			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
+			"AI_ERP_PROVIDER": "template",
+		}
+		with patch.dict(os.environ, environment, clear=True):
+			denied = self.client.post("/v1/proposals/scheduling-explanation", json=scheduling_payload)
+			self.assertEqual(denied.status_code, 401)
+
+			accepted = self.client.post(
+				"/v1/proposals/scheduling-explanation",
+				headers={"Authorization": f"Bearer {SHARED_SECRET}"},
+				json=scheduling_payload,
+			)
+			self.assertEqual(accepted.status_code, 200)
+			self.assertEqual(accepted.json()["policy"]["decision"], "draft_only")
+
+			rejected = self.client.post(
+				"/v1/proposals/scheduling-explanation",
+				headers={"Authorization": f"Bearer {SHARED_SECRET}"},
+				json={**scheduling_payload, "requested_action": "assign_technician"},
+			)
+			self.assertEqual(rejected.status_code, 422)
+
 	def test_rejects_empty_identifiers_bad_dates_non_finite_and_out_of_range_numbers(self):
 		invalid_mutations = (
 			lambda payload: payload["work_order"].update({"name": ""}),
