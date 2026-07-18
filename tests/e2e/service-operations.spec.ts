@@ -489,6 +489,84 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
   }
 });
 
+test("technician mobile journey guides validation and cannot-close without finance access", async ({ browser }) => {
+  const managerSession = await newSession(manager);
+  const technicianSession = await newSession(technician);
+  const technicianBrowser = await rolePage(browser, technician, { width: 390, height: 844 });
+  try {
+    const subject = `AI ERP E2E Mobile ${Date.now()}`;
+    const insertResponse = await call(managerSession, "frappe.client.insert", {
+      doc: JSON.stringify({
+        doctype: "Service Work Order",
+        subject,
+        customer: "AI ERP Demo Customer",
+        service_location: "SVC-LOC-.00001",
+        status: "Draft",
+      }),
+    });
+    expect(insertResponse.ok()).toBeTruthy();
+    const inserted = (await insertResponse.json()).message as Record<string, any>;
+    inserted.assigned_technician = technician;
+    inserted.scheduled_start = "2026-07-18 09:00:00";
+    inserted.scheduled_end = "2026-07-18 11:00:00";
+    inserted.closure_owner = manager;
+    inserted.closure_due_date = "2026-07-25";
+    inserted.status = "Scheduled";
+    await saveDoc(managerSession, inserted);
+    const workOrderName = inserted.name as string;
+
+    const page = technicianBrowser.page;
+    await page.goto("/app/service-work-order");
+    await expect(page).not.toHaveTitle(/Login/);
+    await expect(page.getByText(subject).first()).toBeVisible();
+
+    await openForm(page, "service-work-order", workOrderName);
+    await setSelectField(page, "status", "In Progress");
+    await saveForm(page);
+
+    await setSelectField(page, "status", "Closeout Submitted");
+    await page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first().click();
+    const validationDialog = page.locator(".modal:visible").last();
+    await expect(validationDialog).toContainText("time entry is required");
+    await validationDialog.locator(".btn-modal-close").click();
+    await expect(validationDialog).toBeHidden();
+
+    await setSelectField(page, "status", "In Progress");
+    await setSelectField(page, "status", "Cannot Close");
+    await setSelectField(page, "cannot_close_reason", "Parts unavailable");
+    await saveForm(page);
+
+    const saved = await getDoc(technicianSession, "Service Work Order", workOrderName);
+    expect(saved.status).toBe("Cannot Close");
+    expect(saved.closure_exception).toBeTruthy();
+    const exception = await getDoc(
+      technicianSession,
+      "Service Closure Exception",
+      saved.closure_exception,
+    );
+    expect(exception.status).toBe("Open");
+    expect(exception.exception_owner).toBe(manager);
+
+    const financeStatuses = await page.evaluate(() => {
+      const frm = (window as any).cur_frm;
+      return {
+        hourly_rate: frm?.fields_dict?.hourly_rate?.disp_status || "None",
+        projected_revenue: frm?.fields_dict?.projected_revenue?.disp_status || "None",
+        assigned_technician: frm?.fields_dict?.assigned_technician?.disp_status || "None",
+      };
+    });
+    expect(financeStatuses.hourly_rate).not.toBe("Write");
+    expect(financeStatuses.projected_revenue).not.toBe("Write");
+    expect(financeStatuses.assigned_technician).not.toBe("Write");
+  } finally {
+    await Promise.all([
+      managerSession.dispose(),
+      technicianSession.dispose(),
+      technicianBrowser.context.close(),
+    ]);
+  }
+});
+
 test("configured industry demos expose draft shortages without posting", async ({ browser }) => {
   const distributionSession = await newSession(distributionUser);
   const manufacturingSession = await newSession(manufacturingUser);
