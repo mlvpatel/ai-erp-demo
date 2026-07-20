@@ -1,0 +1,211 @@
+# Production-style local demo stack.
+#
+# Runs the repository's production images locally with the same runtime
+# contract as the AWS reference: TLS to MariaDB, gunicorn web workers, a
+# separate websocket process, queue workers, a scheduler, an nginx frontend,
+# and the hardened read-only AI control plane. Synthetic data only. The
+# frappe/erpnext base tag below is a local demo pin; release builds keep
+# using the digest-pinned protected variables.
+name: ai-erp-demo-prod
+
+x-backend-image: &backend-image
+  image: ai-erp-demo-backend:local
+  build:
+    context: ../..
+    dockerfile: infra/images/frappe/backend.Dockerfile
+    args:
+      FRAPPE_BACKEND_BASE_IMAGE: ${FRAPPE_BACKEND_BASE_IMAGE:-frappe/erpnext:v16.26.2}
+
+x-frappe-runtime-env: &frappe-runtime-env
+  SITE_NAME: ${DEMO_SITE_NAME:-ai-erp-demo.localhost}
+  DB_HOST: mariadb
+  DB_SSL_CA: /certs/ca.pem
+  REDIS_CACHE: redis://redis-cache:6379
+  REDIS_QUEUE: redis://redis-queue:6379
+  AI_CONTROL_PLANE_URL: http://ai-control-plane:8090
+  AI_CONTROL_PLANE_SHARED_SECRET: ${AI_CONTROL_PLANE_SHARED_SECRET:?Set AI_CONTROL_PLANE_SHARED_SECRET in development/.env}
+
+x-frappe-service: &frappe-service
+  <<: *backend-image
+  restart: unless-stopped
+  environment:
+    <<: *frappe-runtime-env
+  volumes:
+    - demo-sites:/home/frappe/frappe-bench/sites
+    - demo-certs:/certs:ro
+  depends_on:
+    migrator:
+      condition: service_completed_successfully
+
+services:
+  cert-init:
+    image: ${MARIADB_IMAGE:-mariadb@sha256:efb4959ef2c835cd735dbc388eb9ad6aab0c78dd64febcd51bc17481111890c4}
+    entrypoint: ["bash", "-ec"]
+    command:
+      - |
+        if [ ! -f /certs/ca.pem ]; then
+          cd /certs
+          openssl req -x509 -newkey rsa:2048 -nodes -days 730 \
+            -keyout ca-key.pem -out ca.pem -subj "/CN=ai-erp-demo-local-ca"
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout server-key.pem -out server-req.pem -subj "/CN=mariadb"
+          openssl x509 -req -in server-req.pem -CA ca.pem -CAkey ca-key.pem \
+            -CAcreateserial -days 730 -out server-cert.pem
+          rm -f server-req.pem
+          chmod 0644 ca.pem server-cert.pem
+          chmod 0640 server-key.pem ca-key.pem
+          chown 999:999 server-key.pem server-cert.pem
+        fi
+        ls -l /certs
+    volumes:
+      - demo-certs:/certs
+
+  mariadb:
+    image: ${MARIADB_IMAGE:-mariadb@sha256:efb4959ef2c835cd735dbc388eb9ad6aab0c78dd64febcd51bc17481111890c4}
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --ssl-ca=/certs/ca.pem
+      - --ssl-cert=/certs/server-cert.pem
+      - --ssl-key=/certs/server-key.pem
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in development/.env}
+      MARIADB_AUTO_UPGRADE: "1"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 15s
+      interval: 5s
+      retries: 20
+    volumes:
+      - demo-mariadb:/var/lib/mysql
+      - demo-certs:/certs:ro
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+
+  redis-cache:
+    image: ${REDIS_IMAGE:-redis@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763}
+    restart: unless-stopped
+    volumes:
+      - demo-redis-cache:/data
+
+  redis-queue:
+    image: ${REDIS_IMAGE:-redis@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763}
+    restart: unless-stopped
+    volumes:
+      - demo-redis-queue:/data
+
+  configurator:
+    <<: *backend-image
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["configure"]
+    environment:
+      <<: *frappe-runtime-env
+      DB_ROOT_USERNAME: root
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in development/.env}
+      FRAPPE_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?Set DEMO_ADMIN_PASSWORD in development/.env}
+      FRAPPE_DB_NAME: ai_erp_demo
+      FRAPPE_DB_PASSWORD: ${DEMO_DB_PASSWORD:?Set DEMO_DB_PASSWORD in development/.env}
+    volumes:
+      - demo-sites:/home/frappe/frappe-bench/sites
+      - demo-certs:/certs:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+
+  migrator:
+    <<: *backend-image
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["migrate"]
+    environment:
+      <<: *frappe-runtime-env
+    volumes:
+      - demo-sites:/home/frappe/frappe-bench/sites
+      - demo-certs:/certs:ro
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  web:
+    <<: *frappe-service
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["web"]
+
+  websocket:
+    <<: *frappe-service
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["websocket"]
+
+  scheduler:
+    <<: *frappe-service
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["scheduler"]
+
+  worker-short:
+    <<: *frappe-service
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["worker-short"]
+
+  worker-long:
+    <<: *frappe-service
+    entrypoint: ["/opt/ai-erp/bin/runtime"]
+    command: ["worker-long"]
+
+  frontend:
+    image: ai-erp-demo-frontend:local
+    build:
+      context: ../..
+      dockerfile: infra/images/frappe/frontend.Dockerfile
+      args:
+        FRAPPE_FRONTEND_BASE_IMAGE: ${FRAPPE_FRONTEND_BASE_IMAGE:-frappe/erpnext:v16.26.2}
+    restart: unless-stopped
+    # The release frontend base provides an nginx user; the public demo base
+    # runs its nginx entrypoint as the frappe user instead.
+    user: "1000:1000"
+    entrypoint: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: web:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${DEMO_SITE_NAME:-ai-erp-demo.localhost}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: "120"
+      CLIENT_MAX_BODY_SIZE: 50m
+    ports:
+      - "${DEMO_HTTP_PORT:-8081}:8080"
+    volumes:
+      - demo-sites:/home/frappe/frappe-bench/sites
+    depends_on:
+      web:
+        condition: service_started
+      websocket:
+        condition: service_started
+
+  ai-control-plane:
+    image: ai-erp-demo-control-plane:local
+    build:
+      context: ../../services/ai_control_plane
+      dockerfile: Dockerfile.production
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.14-slim}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      AI_CONTROL_PLANE_SHARED_SECRET: ${AI_CONTROL_PLANE_SHARED_SECRET:?Set AI_CONTROL_PLANE_SHARED_SECRET in development/.env}
+      AI_ERP_PROVIDER: ${AI_ERP_PROVIDER:-template}
+
+volumes:
+  demo-mariadb:
+  demo-redis-cache:
+  demo-redis-queue:
+  demo-sites:
+  demo-certs:

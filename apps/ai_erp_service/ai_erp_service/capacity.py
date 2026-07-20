@@ -160,6 +160,38 @@ def _seed(profile):
 
 
 def _make_accounting_baseline(prefix):
+	# Company creation builds ERPNext default warehouses and item seeding links
+	# the root item group; a bare disposable site has no setup-wizard fixtures,
+	# so both masters must exist first.
+	if not frappe.db.exists("Warehouse Type", "Transit"):
+		transit = frappe.new_doc("Warehouse Type")
+		transit.name = "Transit"
+		transit.insert(ignore_permissions=True)
+	if not frappe.db.exists("Item Group", "All Item Groups"):
+		frappe.get_doc(
+			{"doctype": "Item Group", "item_group_name": "All Item Groups", "is_group": 1}
+		).insert(ignore_permissions=True)
+	if not frappe.db.exists("UOM", "Nos"):
+		frappe.get_doc(
+			{"doctype": "UOM", "uom_name": "Nos", "must_be_whole_number": 1}
+		).insert(ignore_permissions=True)
+	for stock_entry_purpose in ("Material Receipt", "Material Issue"):
+		if not frappe.db.exists("Stock Entry Type", stock_entry_purpose):
+			entry_type = frappe.new_doc("Stock Entry Type")
+			entry_type.name = stock_entry_purpose
+			entry_type.purpose = stock_entry_purpose
+			entry_type.is_standard = 1
+			entry_type.insert(ignore_permissions=True)
+	year = now_datetime().year
+	if not frappe.db.exists("Fiscal Year", {"year_start_date": f"{year}-01-01"}):
+		frappe.get_doc(
+			{
+				"doctype": "Fiscal Year",
+				"year": str(year),
+				"year_start_date": f"{year}-01-01",
+				"year_end_date": f"{year}-12-31",
+			}
+		).insert(ignore_permissions=True)
 	company = frappe.get_doc(
 		{
 			"doctype": "Company",
@@ -172,7 +204,13 @@ def _make_accounting_baseline(prefix):
 	).insert(ignore_permissions=True)
 	frappe.db.set_single_value("Global Defaults", "default_company", company.name)
 	frappe.db.set_single_value("Global Defaults", "default_currency", "EUR")
-	price_list = frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name")
+	# The singles write skips Global Defaults.on_update, so the defaults store
+	# that document construction reads must be aligned explicitly.
+	frappe.db.set_default("currency", "EUR")
+	frappe.db.set_default("company", company.name)
+	price_list = frappe.db.get_value(
+		"Price List", {"selling": 1, "enabled": 1, "currency": "EUR"}, "name"
+	)
 	if not price_list:
 		price_list = frappe.get_doc(
 			{
@@ -263,7 +301,7 @@ def _make_locations(profile, prefix, customers, warehouse):
 				{
 					"doctype": "Service Location",
 					"location_name": f"{prefix} Synthetic Location {index:04d}",
-					"customer": customers[index % len(customers)],
+					"customer": customers[(index // 2) % len(customers)],
 					"default_warehouse": warehouse,
 					"notes": "Synthetic capacity record; no customer data.",
 				}
@@ -445,13 +483,17 @@ def _run_parts_concurrency(context, profile):
 	work_order = context["ai_work_orders"][0]
 	credentials = _make_api_credentials(context["concurrent_managers"])
 	frappe.db.commit()
+	# frappe.local is thread-local, so the pool workers receive the site name.
+	site_name = str(frappe.local.site)
 	server = _start_local_web()
 	try:
 		_wait_for_web(server)
 		with ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as pool:
 			responses = list(
 				pool.map(
-					lambda index: _issue_over_http(work_order, credentials[index % CONCURRENT_USERS]),
+					lambda index: _issue_over_http(
+						work_order, credentials[index % CONCURRENT_USERS], site_name
+					),
 					range(CONCURRENT_REQUESTS),
 				)
 			)
@@ -486,6 +528,9 @@ def _run_parts_concurrency(context, profile):
 
 
 def _make_api_credentials(users):
+	# generate_keys is System Manager-only and the preceding scenario leaves a
+	# scenario user on the session, so credential minting runs as Administrator.
+	frappe.set_user("Administrator")
 	credentials = []
 	for user_name in users:
 		generate_keys(user_name)
@@ -495,9 +540,12 @@ def _make_api_credentials(users):
 
 
 def _start_local_web():
+	# The harness may run with its working directory at the bench root or at
+	# sites/, so the spawn resolves both paths from the bench explicitly.
+	bench_path = frappe.utils.get_bench_path()
 	return subprocess.Popen(
 		[
-			"./env/bin/gunicorn",
+			os.path.join(bench_path, "env", "bin", "gunicorn"),
 			"--chdir=sites",
 			"--bind=127.0.0.1:8000",
 			"--worker-class=gthread",
@@ -508,6 +556,7 @@ def _start_local_web():
 			"--error-logfile=/dev/null",
 			"frappe.app:application",
 		],
+		cwd=bench_path,
 		stdout=subprocess.DEVNULL,
 		stderr=subprocess.DEVNULL,
 		start_new_session=True,
@@ -532,14 +581,14 @@ def _wait_for_web(server):
 	raise CapacityProfileError("the isolated capacity web process did not become ready")
 
 
-def _issue_over_http(work_order, credential):
+def _issue_over_http(work_order, credential, site_name):
 	api_key, api_credential = credential
 	session = requests.Session()
 	started = perf_counter()
 	response = session.post(
 		"http://127.0.0.1:8000/api/method/ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.issue_parts",
 		headers={
-			"Host": str(frappe.local.site),
+			"Host": site_name,
 			"Authorization": f"token {api_key}:{api_credential}",
 		},
 		data={"name": work_order},
