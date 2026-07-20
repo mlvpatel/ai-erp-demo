@@ -5,7 +5,7 @@ import os
 import frappe
 from ai_erp_core.configured_demo import seed as seed_configured_demo
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
-from frappe.utils import add_to_date, flt, now_datetime
+from frappe.utils import add_to_date, flt, now_datetime, today
 from frappe.utils.password import update_password
 
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
@@ -545,3 +545,191 @@ def _ensure_work_order(request_name, technician, part_item, warehouse, labor_ite
 	work_order.status = "Scheduled"
 	work_order.save()
 	return work_order
+
+
+RICH_SUBJECT_PREFIX = "AI ERP Rich Demo"
+RICH_CUSTOMER_PREFIX = "Synthetic Facility"
+RICH_CUSTOMERS = 12
+RICH_TECHNICIANS = tuple(
+	f"rich.technician.{index}@example.test" for index in range(1, 5)
+)
+RICH_STATUS_MIX = (
+	"Scheduled",
+	"In Progress",
+	"In Progress",
+	"Closeout Submitted",
+	"Closed",
+	"Invoice Ready",
+)
+RICH_SUBJECT_THEMES = (
+	"HVAC quarterly service",
+	"Pump vibration diagnosis",
+	"Compressor belt replacement",
+	"Chiller inspection",
+	"Conveyor motor overhaul",
+)
+
+
+def seed_rich_demo():
+	"""Layer a bounded, idempotent synthetic service portfolio over the base seed.
+
+	Everything stays synthetic and reversible: fixed customer and subject
+	prefixes make each record findable and re-runs skip existing records. The
+	layer performs no parts issue, no invoice drafting, and no AI mutation, so
+	the demo presenter still drives every transaction live.
+	"""
+	base = seed_service_demo()
+	technicians = [
+		_ensure_user(
+			email,
+			first_name="Rich",
+			last_name=f"Technician {index}",
+			roles=("Service Technician", "AI Proposal Requester"),
+		)
+		for index, email in enumerate(RICH_TECHNICIANS, 1)
+	]
+	created = {"customers": 0, "locations": 0, "work_orders": 0, "cannot_close": 0}
+	start = now_datetime()
+	for customer_index in range(1, RICH_CUSTOMERS + 1):
+		customer_name = f"{RICH_CUSTOMER_PREFIX} {customer_index:02d}"
+		customer = frappe.db.get_value("Customer", {"customer_name": customer_name}, "name")
+		if not customer:
+			customer = (
+				frappe.get_doc(
+					{
+						"doctype": "Customer",
+						"customer_name": customer_name,
+						"customer_type": "Company",
+					}
+				)
+				.insert()
+				.name
+			)
+			created["customers"] += 1
+		location_name = f"{customer_name} Plant"
+		location = frappe.db.get_value(
+			"Service Location", {"location_name": location_name, "customer": customer}, "name"
+		)
+		if not location:
+			location = (
+				frappe.get_doc(
+					{
+						"doctype": "Service Location",
+						"location_name": location_name,
+						"customer": customer,
+						"default_warehouse": base["warehouse"],
+						"notes": "Synthetic rich demo site. Do not replace with customer data.",
+					}
+				)
+				.insert()
+				.name
+			)
+			created["locations"] += 1
+		for order_index, status in enumerate(RICH_STATUS_MIX, 1):
+			subject = (
+				f"{RICH_SUBJECT_PREFIX} {customer_index:02d}-{order_index} "
+				f"{RICH_SUBJECT_THEMES[(customer_index + order_index) % len(RICH_SUBJECT_THEMES)]}"
+			)
+			if frappe.db.exists("Service Work Order", {"subject": subject}):
+				continue
+			technician = technicians[(customer_index + order_index) % len(technicians)]
+			_make_rich_work_order(
+				subject, customer, location, technician, status, base, start, order_index
+			)
+			created["work_orders"] += 1
+		if customer_index % 4 == 0:
+			blocked_subject = f"{RICH_SUBJECT_PREFIX} {customer_index:02d}-blocked Parts delay"
+			if not frappe.db.exists("Service Work Order", {"subject": blocked_subject}):
+				_make_rich_cannot_close(
+					blocked_subject, customer, location, technicians[0], base, start
+				)
+				created["cannot_close"] += 1
+	frappe.db.commit()
+	return {"synthetic_only": True, **created}
+
+
+def _make_rich_work_order(subject, customer, location, technician, status, base, start, offset):
+	document = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": subject,
+			"customer": customer,
+			"service_location": location,
+			"service_priority": ("Low", "Medium", "High")[offset % 3],
+			"description": "Synthetic rich demo record; no customer data.",
+			"status": "Draft",
+		}
+	).insert()
+	if status == "Draft":
+		return document
+	document.assigned_technician = technician
+	document.scheduled_start = add_to_date(start, days=offset - 3)
+	document.scheduled_end = add_to_date(start, days=offset - 3, hours=2)
+	document.status = "Scheduled"
+	document.save()
+	if status == "Scheduled":
+		return document
+	document.status = "In Progress"
+	document.save()
+	if status == "In Progress":
+		if offset % 2 == 0:
+			document.append(
+				"parts",
+				{
+					"item": base["part_item"],
+					"qty": 1,
+					"bill_rate": 25,
+					"source_warehouse": base["warehouse"],
+				},
+			)
+			document.save()
+		return document
+	document.append(
+		"time_entries",
+		{
+			"technician": technician,
+			"work_date": now_datetime().date(),
+			"time_type": "Work",
+			"hours": 1 + (offset % 3),
+		},
+	)
+	document.closeout_notes = "Synthetic closeout: repair completed and verified."
+	document.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
+	document.status = "Closeout Submitted"
+	document.save()
+	if status == "Closeout Submitted":
+		return document
+	document.status = "Closed"
+	document.save()
+	if status == "Closed":
+		return document
+	document.status = "Invoice Ready"
+	document.save()
+	return document
+
+
+def _make_rich_cannot_close(subject, customer, location, technician, base, start):
+	document = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": subject,
+			"customer": customer,
+			"service_location": location,
+			"service_priority": "High",
+			"description": "Synthetic rich demo record; no customer data.",
+			"status": "Draft",
+		}
+	).insert()
+	document.assigned_technician = technician
+	document.scheduled_start = start
+	document.scheduled_end = add_to_date(start, hours=2)
+	document.closure_owner = DEMO_MANAGER
+	document.closure_due_date = today()
+	document.status = "Scheduled"
+	document.save()
+	document.status = "In Progress"
+	document.save()
+	document.cannot_close_reason = "Parts unavailable"
+	document.status = "Cannot Close"
+	document.save()
+	return document

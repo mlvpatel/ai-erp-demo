@@ -39,6 +39,8 @@ Start with:
   approval bypass, tenant-boundary, or transaction-integrity incidents.
 - `runbooks/demo-script.md` before recording README screenshots, GIFs, or a
   public walkthrough.
+- [`runbooks/production-demo.md`](runbooks/production-demo.md) to run the
+  production images locally as a production-style synthetic demo.
 - `security/threat-model.md` and `security/data-classification.md` before
   adding AI workflows, integrations, fixtures, or industry packs.
 - `security/ai-workflow-review.md` before adding or expanding an AI-assisted

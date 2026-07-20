@@ -4,6 +4,15 @@ set -eu
 BENCH_ROOT="${BENCH_ROOT:-/home/frappe/frappe-bench}"
 cd "${BENCH_ROOT}"
 
+link_assets() {
+  # The shared sites volume shadows the image's built assets, so every
+  # process restores the manifest link before serving or configuring.
+  if [ -d "${BENCH_ROOT}/assets" ] && [ ! -e sites/assets/assets.json ]; then
+    rm -rf sites/assets
+    ln -s "${BENCH_ROOT}/assets" sites/assets
+  fi
+}
+
 ensure_apps_registry() {
   mkdir -p sites
   touch sites/apps.txt
@@ -28,20 +37,25 @@ install_required_apps() {
 
 case "${1:-}" in
   web)
+    link_assets
     exec ./env/bin/gunicorn --chdir=sites --bind=0.0.0.0:8000 \
       --worker-class=gthread --threads=4 --workers=2 --timeout=120 \
       --worker-tmp-dir=/tmp frappe.app:application
     ;;
   websocket)
+    link_assets
     exec node apps/frappe/socketio.js
     ;;
   scheduler)
+    link_assets
     exec bench schedule
     ;;
   worker-short)
+    link_assets
     exec bench worker --queue short,default
     ;;
   worker-long)
+    link_assets
     exec bench worker --queue long
     ;;
   configure)
@@ -50,6 +64,7 @@ case "${1:-}" in
     : "${DB_SSL_CA:?DB_SSL_CA is required}"
     : "${REDIS_CACHE:?REDIS_CACHE is required}"
     : "${REDIS_QUEUE:?REDIS_QUEUE is required}"
+    link_assets
     ensure_apps_registry
     bench set-config -g db_host "${DB_HOST}"
     bench set-config -g db_port 3306
@@ -99,6 +114,7 @@ case "${1:-}" in
   restore)
     : "${DB_HOST:?DB_HOST is required}"
     : "${DB_SSL_CA:?DB_SSL_CA is required}"
+    link_assets
     ensure_apps_registry
     bench set-config -g db_host "${DB_HOST}"
     bench set-config -g db_port 3306

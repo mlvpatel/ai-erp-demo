@@ -38,7 +38,9 @@ def execute(filters=None):
 			"creation",
 		],
 		order_by="modified desc",
-		limit=500,
+		# Bounded by the tracked full-capacity profile: a filtered manager view
+		# must return every permitted row at 5,000 work orders with headroom.
+		limit=10_000,
 	)
 	return _columns(), annotate_margin_risks(rows)
 

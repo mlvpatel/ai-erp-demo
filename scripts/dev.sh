@@ -28,6 +28,7 @@ Commands:
   contract-test         Run API contract tests in Docker.
   migrate               Run Frappe migrations for the local site.
   seed-demo             Create idempotent synthetic service demo data.
+  seed-rich-demo        Layer the bounded rich synthetic portfolio over the base seed.
   service-test          Run all AI ERP Service integration tests.
   performance-smoke     Run rollback-only scaled synthetic performance checks.
   e2e-test              Run local synthetic Chromium role/route smoke tests.
@@ -233,6 +234,11 @@ case "$command" in
       --workdir /workspace/development/frappe-bench frappe \
       bench --site "$(site_name)" execute ai_erp_service.demo_seed.initialize_local_demo_site
     compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" execute ai_erp_service.demo_seed.seed_service_demo
+    ;;
+  seed-rich-demo)
+    require_local_env
+    "$0" seed-demo
+    compose exec --workdir /workspace/development/frappe-bench frappe bench --site "$(site_name)" execute ai_erp_service.demo_seed.seed_rich_demo
     ;;
   service-test)
     require_local_env
