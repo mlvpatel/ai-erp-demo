@@ -158,9 +158,23 @@ def _lock_reference(reference_doctype, reference_name):
 	)
 
 
+CAPACITY_ACKNOWLEDGEMENT = "I_ACKNOWLEDGE_DISPOSABLE_SYNTHETIC_CAPACITY"
+
+
+def _is_disposable_capacity_site():
+	"""Only an acknowledged capacity-run site may measure beyond the request budget."""
+	return str(frappe.local.site).startswith("capacity-run-") and (
+		os.environ.get("AI_ERP_FULL_CAPACITY_ALLOW") == CAPACITY_ACKNOWLEDGEMENT
+		or frappe.conf.get("ai_erp_full_capacity_allow") == CAPACITY_ACKNOWLEDGEMENT
+	)
+
+
 @contextmanager
 def _proposal_rate_limit():
 	"""Use site-scoped Redis counters and fail closed if cache enforcement is unavailable."""
+	if _is_disposable_capacity_site():
+		yield
+		return
 	now = datetime.now(UTC)
 	try:
 		cache = frappe.cache

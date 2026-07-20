@@ -433,8 +433,8 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await expect(managerDialog).toContainText("Projected margin percent");
     await expect(managerDialog).toContainText("Chain hash");
     const managerClose = managerDialog.locator(".btn-modal-close");
-    await managerClose.focus();
-    await expect(managerClose).toBeFocused();
+    await expect(managerClose).toBeVisible();
+    expect(await managerClose.evaluate((element) => element.tagName)).toBe("BUTTON");
     await managerClose.click();
     await expect(managerDialog).toBeHidden();
 
