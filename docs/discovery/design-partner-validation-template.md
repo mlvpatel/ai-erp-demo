@@ -8,33 +8,62 @@ exports, or raw AI prompts and responses.
 Leave score cells blank until the partner session runs. Do not invent partner
 scores, UAT approval, or production readiness claims from a dry rehearsal.
 
+**Facilitator runbook (step-by-step):**
+[`docs/runbooks/design-partner-facilitator.md`](../runbooks/design-partner-facilitator.md)
+
 ## Facilitator prep (structural only)
 
-Run the local demo path from `docs/runbooks/local-demo.md` and
-`docs/runbooks/demo-script.md` before the session. Confirm:
+Follow the facilitator runbook end-to-end before the partner arrives. Short
+path:
 
 ```sh
 scripts/dev.sh demo-info
+scripts/dev.sh up
+scripts/dev.sh bootstrap    # first run or after pin/app changes
+# separate terminal: scripts/dev.sh bench-start
 scripts/dev.sh seed-demo
 scripts/dev.sh demo-check
 ```
 
-Walk the partner through these screens in order (synthetic records only):
+No OpenAI key is required. Keep `AI_ERP_PROVIDER=template` for the session.
 
-1. Service Request + linked draft Service Work Order (intake / schedule).
-2. Technician Desk: assigned work, time entries, declared parts, closeout notes.
-3. Manager Desk: Material Issue / stock evidence, invoice-ready action,
-   evidence replay / packet export if shown.
-4. Accounts user: draft Sales Invoice only (no stock mutation).
-5. AI Proposal: cited sources, draft-only policy, human review fields; emphasize
-   approval records review evidence and does not post ERP state.
-6. Optional safety close: upstream ERPNext/Frappe stays clean; custom apps and
+Synthetic logins (password from `E2E_USER_PASSWORD` in `development/.env`):
+
+| Role | User |
+| --- | --- |
+| Technician | `service.technician@example.test` |
+| Manager | `service.manager@example.test` |
+| Finance | `service.finance@example.test` |
+| Dispatcher (optional) | `service.dispatcher@example.test` |
+| AI Approver (optional) | `service.ai.approver@example.test` |
+
+Walk the partner through these beats in order (synthetic records only). Map each
+beat to the scorecard lever and the workflow row below; leave Score blank until
+they rate:
+
+1. Service Request + linked Service Work Order — **evidence-to-cash** intake.
+2. Suggest Technicians + Explain Schedule — **scheduling suggest + explain**.
+3. Technician Desk: assigned work, time, declared parts, closeout — execution.
+4. Cannot-close exception + Draft Recovery Steps — **recovery**.
+5. Manager: Material Issue, invoice-ready, margin/profitability — **margin** +
+   evidence-to-cash middle.
+6. Accounts user: draft Sales Invoice only (no stock mutation) — cash handoff.
+7. AI Proposal: cited sources, draft-only policy, human review — **AI draft-only**.
+8. Evidence Replay + manager Evidence Packet export — **packet export**.
+9. Optional safety close: upstream ERPNext/Frappe stays clean; custom apps and
    control plane boundaries.
 
 Suggested media references (already synthetic):
 `docs/media/demo/service-work-order-execution.jpg`,
 `docs/media/demo/manager-finance-handoff.jpg`,
 `docs/media/demo/ai-proposal-draft-only.jpg`.
+
+### Do not claim during the session
+
+Do not claim production readiness, human UAT approval, design-partner approval
+before this template is completed by a named partner, legal/GDPR compliance, a
+shipped 9/10 product, live-model quality without an OpenAI eval, or full
+multi-industry ERP. Do not invent scores or flip the repository scorecard to 9.
 
 ## Session setup
 
@@ -60,20 +89,21 @@ Suggested media references (already synthetic):
 
 ## Workflow validation
 
-Score each workflow from 1 to 10 after hands-on review.
+Score each workflow from 1 to 10 after hands-on review. Leave Score blank until
+the partner rates that beat.
 
-| Workflow | Score | Evidence observed | Gaps | Decision |
-| --- | --- | --- | --- | --- |
-| Service request intake |  |  |  | verified / assumed / deferred |
-| Dispatch and assignment |  |  |  | verified / assumed / deferred |
-| Technician execution |  |  |  | verified / assumed / deferred |
-| Cannot-close exception |  |  |  | verified / assumed / deferred |
-| Parts issue and cost visibility |  |  |  | verified / assumed / deferred |
-| Invoice-ready manager handoff |  |  |  | verified / assumed / deferred |
-| Accounts draft invoice |  |  |  | verified / assumed / deferred |
-| Draft-only AI proposal review |  |  |  | verified / assumed / deferred |
-| Evidence replay and audit |  |  |  | verified / assumed / deferred |
-| Profitability review |  |  |  | verified / assumed / deferred |
+| Workflow | Scorecard lever | Score | Evidence observed | Gaps | Decision |
+| --- | --- | --- | --- | --- | --- |
+| Service request intake | Evidence-to-cash |  |  |  | verified / assumed / deferred |
+| Dispatch and assignment | Scheduling suggest + explain |  |  |  | verified / assumed / deferred |
+| Technician execution | Mobile field execution / evidence-to-cash |  |  |  | verified / assumed / deferred |
+| Cannot-close exception | Recovery coach |  |  |  | verified / assumed / deferred |
+| Parts issue and cost visibility | Evidence-to-cash / margin |  |  |  | verified / assumed / deferred |
+| Invoice-ready manager handoff | Evidence-to-cash |  |  |  | verified / assumed / deferred |
+| Accounts draft invoice | Evidence-to-cash |  |  |  | verified / assumed / deferred |
+| Draft-only AI proposal review | AI draft-only / repair memory |  |  |  | verified / assumed / deferred |
+| Evidence replay and audit | Packet export / safe replay |  |  |  | verified / assumed / deferred |
+| Profitability review | Margin leakage |  |  |  | verified / assumed / deferred |
 
 ## AI safety validation
 
@@ -85,8 +115,11 @@ Score each workflow from 1 to 10 after hands-on review.
 | AI cites visible source records | Citations match role scope |  |
 | AI abstains when evidence is weak | Safe refusal or exception draft |  |
 | Prompts and responses are excluded from release evidence | Metadata only |  |
+| Explain Schedule / recovery drafts do not mutate ERP on approve | Review evidence only |  |
 
 ## 9/10 decision
+
+Fill only after the partner rates. Do not copy the repository demo average here.
 
 - Overall score:
 - Would the partner replace the current workflow with this? yes / no / not yet

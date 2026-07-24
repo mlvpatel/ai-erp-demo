@@ -2,7 +2,8 @@
   "schema_version": 1,
   "source_docs": [
     "docs/product/field-service-9-target.md",
-    "docs/discovery/design-partner-validation-template.md"
+    "docs/discovery/design-partner-validation-template.md",
+    "docs/runbooks/design-partner-facilitator.md"
   ],
   "target_category": "Governed AI-native field-service ERP for maintenance, installation, and repair firms with 10 to 100 technicians.",
   "claim_boundary": "This is a target scorecard. The repository may not claim a 9/10 product, production readiness, human UAT approval, legal compliance, or full multi-industry ERP coverage until matching evidence exists.",

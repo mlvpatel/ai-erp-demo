@@ -121,6 +121,11 @@ maintainer walkthrough, or first public demo issue. It keeps the visible demo
 story tied to MVP evidence, screenshot safety rules, and the same verification
 commands used by this runbook.
 
+For a design-partner validation session (no OpenAI key required), use
+`docs/runbooks/design-partner-facilitator.md` with the blank score template in
+`docs/discovery/design-partner-validation-template.md`. Do not invent partner
+scores or claim human UAT from a rehearsal.
+
 Keep manual demo data synthetic. Do not enter real customer names, addresses,
 phone numbers, invoices, attachments, credentials, or production exports.
 

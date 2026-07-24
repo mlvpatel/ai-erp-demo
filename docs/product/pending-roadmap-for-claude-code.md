@@ -185,10 +185,12 @@ Do not put secrets in the repo, tracked `.env`, CI logs, issues, or screenshots.
 
 #### WS2 design-partner readiness (no fake partner scores)
 
-Template and demo script path already exist:
+Facilitator path for a session without an OpenAI key:
 
-- `docs/discovery/design-partner-validation-template.md` (facilitator screen
-  checklist + blank score cells)
+- `docs/runbooks/design-partner-facilitator.md` (stack start, roles, lever-aligned
+  walkthrough, do-not-claim reminders, where to record scores)
+- `docs/discovery/design-partner-validation-template.md` (blank score cells;
+  lever-mapped workflow rows)
 - `docs/runbooks/demo-script.md` and `docs/runbooks/local-demo.md`
 - Public demo script gates via `scripts/check-demo-script.py`
 
