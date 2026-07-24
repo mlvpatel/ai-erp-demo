@@ -26,6 +26,10 @@ or private browser state. Hide or crop local passwords and blur browser
 extensions and local usernames if needed. Do not claim production readiness,
 autonomous posting, or complete support for all industries.
 
+For a live design-partner session (roles, scorecard levers, blank score
+recording), use `docs/runbooks/design-partner-facilitator.md` instead of this
+recording script.
+
 ## Story beats
 
 ### Act 1 — Intake and schedule

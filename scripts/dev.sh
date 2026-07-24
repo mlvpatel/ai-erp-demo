@@ -152,9 +152,16 @@ Local health hints:
   Bench checkout: ${bench_hint}
   For pin warnings without printing secrets: scripts/dev.sh check-local-env
 
-Synthetic demo users:
+Synthetic demo users (password from E2E_USER_PASSWORD in development/.env):
   service.technician@example.test
   service.manager@example.test
+  service.finance@example.test
+  service.dispatcher@example.test
+  service.ai.approver@example.test
+
+Partner session:
+  docs/runbooks/design-partner-facilitator.md
+  docs/discovery/design-partner-validation-template.md
 
 Important boundaries:
   - The AI control plane is internal to Docker Compose; use the ERP UI and tests
