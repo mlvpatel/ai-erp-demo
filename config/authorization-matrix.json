@@ -60,6 +60,17 @@
       "has_permission_hook": "ai_erp_service.permissions.service_closure_exception_has_permission"
     },
     {
+      "doctype": "Service Technician Capability",
+      "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_technician_capability/service_technician_capability.json",
+      "required_roles": {
+        "Service Manager": ["read", "write", "create"],
+        "Service Dispatcher": ["read", "write", "create"],
+        "Service Technician": ["read"]
+      },
+      "permission_query_hook": "ai_erp_service.permissions.service_technician_capability_query",
+      "has_permission_hook": "ai_erp_service.permissions.service_technician_capability_has_permission"
+    },
+    {
       "doctype": "AI Proposal",
       "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.json",
       "required_roles": {

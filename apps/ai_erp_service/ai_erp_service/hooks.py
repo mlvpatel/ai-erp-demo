@@ -30,6 +30,7 @@ permission_query_conditions = {
 	"Service Request": "ai_erp_service.permissions.service_request_query",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_query",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_query",
+	"Service Technician Capability": "ai_erp_service.permissions.service_technician_capability_query",
 }
 
 has_permission = {
@@ -37,6 +38,7 @@ has_permission = {
 	"Service Request": "ai_erp_service.permissions.service_request_has_permission",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_has_permission",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_has_permission",
+	"Service Technician Capability": "ai_erp_service.permissions.service_technician_capability_has_permission",
 }
 
 # Apps

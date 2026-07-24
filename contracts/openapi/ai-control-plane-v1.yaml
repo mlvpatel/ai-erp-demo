@@ -424,6 +424,12 @@ components:
             sla_due_at:
               type: string
               maxLength: 64
+            required_skill:
+              type: string
+              maxLength: 128
+            service_territory:
+              type: string
+              maxLength: 128
         candidates:
           type: array
           maxItems: 5

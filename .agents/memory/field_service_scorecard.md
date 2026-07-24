@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 6.6 / 10
+- **Current Demo Average Score**: 6.9 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -19,10 +19,11 @@
      and exception-recovery replay fixtures exist. Broader refusal corpora and
      partner UX review remain open.
 
-3. **Margin Leakage Guardian** (Current: 6.5 / Target: 9.0)
+3. **Margin Leakage Guardian** (Current: 7.2 / Target: 9.0)
    - *Status*: Partly Implemented. Deterministic classifier, profitability
-     report column, manager summary API, and evidence-replay category surfacing
-     exist. No AI explanations; deeper queue filters remain open.
+     report category filter, manager summary API with risk_category filter, and
+     evidence-replay category surfacing exist. Technician finance negatives
+     covered. No AI explanations.
 
 4. **Provenance-Based Repair Memory** (Current: 5.2 / Target: 9.0)
    - *Status*: Partly Implemented. Permission-scoped retrieval, draft proposals,
@@ -34,15 +35,15 @@
      memory, scheduling explanation, and exception recovery with fail-closed
      auth. Live provider replay aggregates remain deferred.
 
-6. **Bounded Scheduling Optimizer** (Current: 5.8 / Target: 9.0)
-   - *Status*: Partly Implemented. Deterministic ranking, Suggest Technicians
-     dialog, Explain Schedule draft button, and rejection-reason capture exist.
-     Skill/territory capability model remains open.
+6. **Bounded Scheduling Optimizer** (Current: 7.0 / Target: 9.0)
+   - *Status*: Partly Implemented. Deterministic ranking, skill/territory
+     capability DocType, Suggest Technicians dialog, Explain Schedule draft
+     button, and rejection-reason capture exist. Still propose-only.
 
 7. **Mobile Field Execution** (Current: 5.4 / Target: 9.0)
-   - *Status*: Partly Implemented. Responsive Desk CSS plus keyboard/focus
-     polish. Offline IndexedDB drafts remain intentionally gated off.
+   - *Status*: Partly Implemented. Online mobile CSS/a11y depth exists;
+     IndexedDB offline drafts remain intentionally gated off.
 
 8. **Governed Demo-to-Pilot Release** (Current: 7.0 / Target: 9.0)
-   - *Status*: Partly Implemented. IaC & static scripts verified; live AWS
-     apply, live provider eval, capacity proof, and human UAT remain deferred.
+   - *Status*: Partly Implemented. Demo gates pass; external pilot/legal/UAT
+     evidence remains pending.

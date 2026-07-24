@@ -46,6 +46,8 @@ TECHNICIAN_IMMUTABLE_FIELDS = (
 	"scheduled_start",
 	"scheduled_end",
 	"assigned_technician",
+	"required_skill",
+	"service_territory",
 	"closure_owner",
 	"closure_due_date",
 	"closure_exception",

@@ -118,6 +118,8 @@ class SchedulingWorkOrderSummary(StrictModel):
 	status: str = Field(min_length=1, max_length=128)
 	service_priority: str = Field(default="", max_length=128)
 	sla_due_at: str = Field(default="", max_length=64)
+	required_skill: str = Field(default="", max_length=128)
+	service_territory: str = Field(default="", max_length=128)
 
 
 class SchedulingExplanationRequest(StrictModel):

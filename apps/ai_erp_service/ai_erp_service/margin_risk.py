@@ -10,6 +10,17 @@ REPEAT_VISIT_WINDOW_DAYS = 30
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 WARRANTY_RISK_STATUSES = {"Unknown", "In Warranty"}
 INSPECTION_RISK_RESULTS = {"Needs Follow-up", "Failed"}
+MARGIN_RISK_CATEGORIES = (
+	"missing_billable_time",
+	"zero_rate_labor",
+	"missing_part_bill_rate",
+	"part_cost_above_bill_rate",
+	"unknown_cost_basis",
+	"warranty_risk",
+	"failed_inspection",
+	"unresolved_exception",
+	"repeat_visit_risk",
+)
 
 
 def annotate_margin_risks(rows):
@@ -162,13 +173,22 @@ def _repeat_orders(rows):
 
 
 @frappe.whitelist()
-def margin_leakage_summary(from_date=None, to_date=None):
-	"""Return aggregate margin risk counts and high-risk work orders for manager review."""
+def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, status=None):
+	"""Return aggregate margin risk counts and high-risk work orders for manager review.
+
+	Optional risk_category filters the high-risk queue to one deterministic
+	category. Technicians cannot call this API.
+	"""
 	require_any_role(
 		(*MANAGER_ROLES, *FINANCE_ROLES),
 		frappe._("Only a service manager or finance user can view margin leakage summary.")
 	)
+	if risk_category and risk_category not in MARGIN_RISK_CATEGORIES:
+		frappe.throw(frappe._("Unsupported margin risk category."))
+
 	filters = {}
+	if status:
+		filters["status"] = status
 	if from_date:
 		filters["creation"] = [">=", from_date]
 	if to_date:
@@ -188,7 +208,7 @@ def margin_leakage_summary(from_date=None, to_date=None):
 		limit_page_length=500,
 	)
 	annotated = annotate_margin_risks(rows)
-	category_counts = {}
+	category_counts = {category: 0 for category in MARGIN_RISK_CATEGORIES}
 	high_risk_orders = []
 
 	for row in annotated:
@@ -196,7 +216,12 @@ def margin_leakage_summary(from_date=None, to_date=None):
 		for risk in risks:
 			category_counts[risk] = category_counts.get(risk, 0) + 1
 
-		if len(risks) >= 2 or flt(row.projected_margin_percent) < 15.0:
+		if risk_category and risk_category not in risks:
+			continue
+
+		if len(risks) >= 2 or flt(row.projected_margin_percent) < 15.0 or (
+			risk_category and risk_category in risks
+		):
 			high_risk_orders.append({
 				"name": row.name,
 				"customer": row.customer,
@@ -207,7 +232,9 @@ def margin_leakage_summary(from_date=None, to_date=None):
 
 	return {
 		"total_orders": len(rows),
+		"available_categories": list(MARGIN_RISK_CATEGORIES),
 		"category_counts": category_counts,
+		"risk_category": risk_category or "",
 		"high_risk_orders": high_risk_orders[:50],
 	}
 

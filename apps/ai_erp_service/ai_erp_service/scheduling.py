@@ -7,6 +7,9 @@ from ai_erp_core.proposals import request_scheduling_explanation as store_schedu
 from frappe import _
 
 from ai_erp_service.ai_drafts import _source
+from ai_erp_service.ai_erp_service.doctype.service_technician_capability.service_technician_capability import (
+	normalize_capability_labels,
+)
 from ai_erp_service.service_utils import DISPATCHER_ROLES, require_any_role
 
 CANDIDATE_LIMIT = 5
@@ -15,6 +18,7 @@ COMPLETED_STATUSES = ("Closed", "Invoice Ready")
 FAMILIARITY_WEIGHT = 2
 SLA_HIGH_PRIORITY_WEIGHT = 3
 PARTS_READINESS_WEIGHT = 2
+CAPABILITY_MATCH_WEIGHT = 3
 
 
 @frappe.whitelist()
@@ -23,10 +27,12 @@ def suggest_technicians(name):
 
 	The score is deterministic: prior completed work at the same asset or
 	location counts double, high SLA priority / urgent SLA adds bonus points,
-	parts readiness adds bonus points, open workload subtracts, ties break on workload
-	and then on the technician id. Technicians with an overlapping scheduled work
-	order are excluded with a reason instead of being silently hidden, and a
-	missing schedule window aborts instead of guessing availability.
+	parts readiness adds bonus points, skill/territory capability matches add
+	bonus points, open workload subtracts, ties break on workload and then on
+	the technician id. Technicians with overlapping scheduled work or missing
+	required capability evidence are excluded with a reason instead of being
+	silently hidden, and a missing schedule window aborts instead of guessing
+	availability. This method never assigns a technician.
 	"""
 	require_any_role(DISPATCHER_ROLES, _("Only a dispatcher or manager can request scheduling suggestions."))
 	work_order = frappe.get_doc("Service Work Order", name)
@@ -42,6 +48,9 @@ def suggest_technicians(name):
 	workload = _open_workload(technicians)
 	familiarity = _completed_familiarity(work_order, technicians)
 	parts_ready = _parts_readiness(work_order, technicians)
+	capabilities = _technician_capabilities(technicians)
+	required_skill = _single_capability_label(work_order.get("required_skill"))
+	required_territory = _single_capability_label(work_order.get("service_territory"))
 
 	sla_bonus = SLA_HIGH_PRIORITY_WEIGHT if work_order.service_priority in {"Emergency", "Urgent", "High"} else 0
 
@@ -51,15 +60,28 @@ def suggest_technicians(name):
 		if technician in busy:
 			excluded.append({"technician": technician, "reason": "overlapping_scheduled_work"})
 			continue
+
+		capability = capabilities.get(technician)
+		capability_exclusion = _capability_exclusion_reason(
+			capability, required_skill, required_territory
+		)
+		if capability_exclusion:
+			excluded.append({"technician": technician, "reason": capability_exclusion})
+			continue
+
 		technician_workload = workload.get(technician, 0)
 		technician_familiarity = familiarity.get(technician, 0)
 		technician_parts = parts_ready.get(technician, False)
 		parts_bonus = PARTS_READINESS_WEIGHT if technician_parts else 0
+		capability_bonus = 0
+		if required_skill or required_territory:
+			capability_bonus = CAPABILITY_MATCH_WEIGHT
 
 		score = (
 			FAMILIARITY_WEIGHT * technician_familiarity
 			+ sla_bonus
 			+ parts_bonus
+			+ capability_bonus
 			- technician_workload
 		)
 		reasons = [
@@ -70,6 +92,10 @@ def suggest_technicians(name):
 			reasons.append(f"sla_priority:{work_order.service_priority}")
 		if technician_parts:
 			reasons.append("parts_ready:true")
+		if required_skill:
+			reasons.append(f"skill_match:{required_skill}")
+		if required_territory:
+			reasons.append(f"territory_match:{required_territory}")
 
 		candidates.append(
 			{
@@ -86,6 +112,8 @@ def suggest_technicians(name):
 		"work_order": work_order.name,
 		"scheduled_start": str(work_order.scheduled_start),
 		"scheduled_end": str(work_order.scheduled_end),
+		"required_skill": required_skill or "",
+		"service_territory": required_territory or "",
 		"candidates": candidates[:CANDIDATE_LIMIT],
 		"excluded": excluded,
 		"assignment_note": "Suggestions only. Assignment happens through the dispatcher-saved form.",
@@ -194,6 +222,49 @@ def _parts_readiness(work_order, technicians):
 	return {tech: has_all for tech in technicians}
 
 
+def _single_capability_label(raw_value):
+	labels = normalize_capability_labels(raw_value)
+	if not labels:
+		return ""
+	return sorted(labels)[0]
+
+
+def _technician_capabilities(technicians):
+	"""Return active skill/territory capability maps keyed by technician user."""
+	if not technicians:
+		return {}
+	rows = frappe.get_all(
+		"Service Technician Capability",
+		filters={"technician": ("in", technicians), "active": 1},
+		fields=["technician", "skills", "territories"],
+		limit_page_length=200,
+	)
+	capabilities = {}
+	for row in rows:
+		capabilities[row.technician] = {
+			"skills": normalize_capability_labels(row.skills),
+			"territories": normalize_capability_labels(row.territories),
+		}
+	return capabilities
+
+
+def _capability_exclusion_reason(capability, required_skill, required_territory):
+	"""Exclude when the work order requires capability evidence the technician lacks.
+
+	If the work order does not declare a required skill or territory, capability
+	filtering is skipped so existing demos stay backward compatible.
+	"""
+	if not required_skill and not required_territory:
+		return None
+	if not capability:
+		return "missing_capability_record"
+	if required_skill and required_skill not in capability["skills"]:
+		return "missing_skill"
+	if required_territory and required_territory not in capability["territories"]:
+		return "missing_territory"
+	return None
+
+
 @frappe.whitelist()
 def request_scheduling_explanation(name):
 	"""Create one cited, draft-only explanation of the current deterministic ranking."""
@@ -256,6 +327,8 @@ def _scheduling_explanation_payload(work_order, suggestions):
 		"status": work_order.status,
 		"service_priority": work_order.service_priority or "",
 		"sla_due_at": str(work_order.sla_due_at or ""),
+		"required_skill": suggestions.get("required_skill") or "",
+		"service_territory": suggestions.get("service_territory") or "",
 	}
 	candidates = suggestions["candidates"]
 	excluded = suggestions["excluded"]
@@ -276,6 +349,15 @@ def _scheduling_explanation_payload(work_order, suggestions):
 			{
 				"scheduled_start": suggestions["scheduled_start"],
 				"scheduled_end": suggestions["scheduled_end"],
+			},
+		),
+		_source(
+			work_order.doctype,
+			work_order.name,
+			"capability",
+			{
+				"required_skill": work_order_summary["required_skill"],
+				"service_territory": work_order_summary["service_territory"],
 			},
 		),
 		_source(
