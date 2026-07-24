@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import sys
 from uuid import UUID
 
 from .models import ServiceCloseoutSummaryRequest
@@ -86,15 +87,42 @@ def _synthetic_cases():
 	)
 
 
-def _require_private_gate() -> None:
+def _require_private_gate(*, require_secret_origin: bool = True) -> None:
 	if os.environ.get("AI_ERP_ENABLE_PRIVATE_LIVE_EVAL") != LIVE_EVAL_ACKNOWLEDGEMENT:
 		raise OpenAIProviderError("private live evaluation is not acknowledged")
-	if os.environ.get("OPENAI_API_KEY_SOURCE") != CREDENTIAL_ORIGIN_MARKER:
+	if require_secret_origin and os.environ.get("OPENAI_API_KEY_SOURCE") != CREDENTIAL_ORIGIN_MARKER:
 		raise OpenAIProviderError("private live evaluation requires secret-store injection")
 	if os.environ.get("AI_ERP_PROVIDER") != "openai":
 		raise OpenAIProviderError("private live evaluation requires the approved provider")
 	if LIVE_EVAL_CASES > MAX_LIVE_EVAL_CASES or MAX_PROVIDER_CALLS != 1:
 		raise OpenAIProviderError("private live evaluation exceeds its spend envelope")
+
+
+def _dry_run_requested(argv: list[str] | None = None) -> bool:
+	args = sys.argv[1:] if argv is None else argv
+	return os.environ.get("AI_ERP_LIVE_EVAL_DRY_RUN") == "1" or "--dry-run" in args
+
+
+def run_live_eval_dry_run() -> None:
+	"""Validate gates and synthetic case packing without calling the provider.
+
+	A dry run is operator prep only. It never records PASS and never contacts
+	OpenAI. Injecting a real key is not required.
+	"""
+	_require_private_gate(require_secret_origin=False)
+	cases = _synthetic_cases()
+	if len(cases) != LIVE_EVAL_CASES:
+		raise OpenAIProviderError("private live evaluation case count mismatch")
+	for request, expected_terms, case_forbidden in cases:
+		if not request.tenant_site.endswith(".localhost"):
+			raise OpenAIProviderError("private live evaluation requires synthetic tenant")
+		if not request.requested_by.endswith(("@example.test", "@example.org")):
+			raise OpenAIProviderError("private live evaluation requires allowlisted requester")
+		if not request.work_order.name.startswith("SYNTHETIC-"):
+			raise OpenAIProviderError("private live evaluation requires synthetic work order")
+		if not expected_terms:
+			raise OpenAIProviderError("private live evaluation requires grounding terms")
+		_ = case_forbidden
 
 
 def run_live_eval(renderer=render_openai) -> None:
@@ -113,8 +141,12 @@ def run_live_eval(renderer=render_openai) -> None:
 			raise OpenAIProviderError("private live evaluation failed output policy")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
 	try:
+		if _dry_run_requested(argv):
+			run_live_eval_dry_run()
+			print(f"openai_live_eval=DRY_RUN cases={LIVE_EVAL_CASES} synthetic=true ready=false")
+			return 0
 		run_live_eval()
 	except Exception:
 		print("openai_live_eval=FAIL reason=provider_or_policy")

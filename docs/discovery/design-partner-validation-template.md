@@ -5,6 +5,37 @@ approved redacted examples only. Do not commit customer names, employee names,
 addresses, phone numbers, emails, private attachments, credentials, production
 exports, or raw AI prompts and responses.
 
+Leave score cells blank until the partner session runs. Do not invent partner
+scores, UAT approval, or production readiness claims from a dry rehearsal.
+
+## Facilitator prep (structural only)
+
+Run the local demo path from `docs/runbooks/local-demo.md` and
+`docs/runbooks/demo-script.md` before the session. Confirm:
+
+```sh
+scripts/dev.sh demo-info
+scripts/dev.sh seed-demo
+scripts/dev.sh demo-check
+```
+
+Walk the partner through these screens in order (synthetic records only):
+
+1. Service Request + linked draft Service Work Order (intake / schedule).
+2. Technician Desk: assigned work, time entries, declared parts, closeout notes.
+3. Manager Desk: Material Issue / stock evidence, invoice-ready action,
+   evidence replay / packet export if shown.
+4. Accounts user: draft Sales Invoice only (no stock mutation).
+5. AI Proposal: cited sources, draft-only policy, human review fields; emphasize
+   approval records review evidence and does not post ERP state.
+6. Optional safety close: upstream ERPNext/Frappe stays clean; custom apps and
+   control plane boundaries.
+
+Suggested media references (already synthetic):
+`docs/media/demo/service-work-order-execution.jpg`,
+`docs/media/demo/manager-finance-handoff.jpg`,
+`docs/media/demo/ai-proposal-draft-only.jpg`.
+
 ## Session setup
 
 - Design partner:
