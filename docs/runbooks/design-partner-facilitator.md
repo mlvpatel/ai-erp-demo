@@ -46,6 +46,7 @@ demo with draft-only AI proposals**.
 | Margin leakage | Profitability / margin risk on manager/finance views | Profitability review; parts and cost visibility |
 | Cannot-close recovery | Exception + Draft Recovery Steps | Cannot-close exception |
 | Packet export | Manager Evidence Packet JSON (sanitized) | Evidence replay and audit |
+| Safe agent replay / AI safety | Beat J live safety table + draft-only approve | Entire AI safety validation table |
 
 Source of truth for lever definitions:
 `config/field-service-9-scorecard.json` and
@@ -128,7 +129,7 @@ Keep each beat short. After each beat, pause for partner reaction, then note
 evidence / gaps in the matching template rows (scores stay blank until they
 rate).
 
-### Beat A — Intake (evidence-to-cash start)
+### Beat A: Intake (evidence-to-cash start)
 
 1. Open **Service Request** → synthetic subject such as
    `AI ERP Demo Pump Inspection`.
@@ -139,7 +140,7 @@ rate).
 
 **Record in template:** Workflow → Service request intake.
 
-### Beat B — Scheduling suggest + explain
+### Beat B: Scheduling suggest + explain
 
 1. As manager or dispatcher, on a draft work order with **Scheduled Start** and
    **Scheduled End** set (required before suggestions), use
@@ -155,7 +156,7 @@ reasons?
 **Record in template:** Workflow → Dispatch and assignment; AI safety rows as
 relevant.
 
-### Beat C — Technician execution (mobile-aware)
+### Beat C: Technician execution (mobile-aware)
 
 1. Log in as `service.technician@example.test`.
 2. Open assigned work only; show that finance/margin fields are not exposed.
@@ -167,7 +168,7 @@ relevant.
 **Record in template:** Workflow → Technician execution; Parts issue and cost
 visibility (tech side).
 
-### Beat D — Cannot-close recovery
+### Beat D: Cannot-close recovery
 
 1. As technician or manager, show (or create on a disposable synthetic order) a
    **Cannot Close** / closure exception path with an owner and reason.
@@ -179,7 +180,7 @@ visibility (tech side).
 
 **Record in template:** Workflow → Cannot-close exception; AI safety table.
 
-### Beat E — Manager stock + invoice-ready (evidence-to-cash middle)
+### Beat E: Manager stock + invoice-ready (evidence-to-cash middle)
 
 1. Log in as `service.manager@example.test`.
 2. Confirm **Labor Billing Item** / hourly rate and **Part Bill Rate** on each
@@ -194,7 +195,7 @@ visibility (tech side).
 **Record in template:** Workflow → Parts issue and cost visibility; Invoice-ready
 manager handoff.
 
-### Beat F — Margin leakage
+### Beat F: Margin leakage
 
 1. Still as manager (or accounts), open **Service Profitability** / projected
    margin and margin-risk categories on the work order or report.
@@ -205,7 +206,7 @@ manager handoff.
 
 **Record in template:** Workflow → Profitability review.
 
-### Beat G — Finance draft invoice
+### Beat G: Finance draft invoice
 
 1. Log out; log in as `service.finance@example.test`.
 2. Create the linked **draft Sales Invoice** from the work order action.
@@ -216,7 +217,7 @@ manager handoff.
 
 **Record in template:** Workflow → Accounts draft invoice.
 
-### Beat H — AI draft-only closeout / repair memory
+### Beat H: AI draft-only closeout / repair memory
 
 1. As technician or manager, request **Draft Closeout Summary** on a closeout-
    submitted order and/or **Draft Repair Memory** on a **Scheduled** or
@@ -234,13 +235,13 @@ model?
 **Record in template:** Workflow → Draft-only AI proposal review; entire AI
 safety table.
 
-### Beat I — Evidence replay + packet export
+### Beat I: Evidence replay + packet export
 
 1. As manager on the Service Work Order, open **Evidence Replay**.
 2. Walk completeness, missing evidence, exceptions, parts, AI proposal status,
    and finance handoff (manager/finance only).
 3. Use **Evidence Packet** to export sanitized JSON. Confirm it has identifiers,
-   hashes, statuses, and links — **not** draft text, prompts, or attachments.
+   hashes, statuses, and links: **not** draft text, prompts, or attachments.
 4. Optional media references (already synthetic):
    `docs/media/demo/service-work-order-execution.jpg`,
    `docs/media/demo/manager-finance-handoff.jpg`,
@@ -251,18 +252,42 @@ emails?
 
 **Record in template:** Workflow → Evidence replay and audit.
 
-### Beat J — Safety close (60 seconds)
+### Beat J: Safety close (demonstrable, ~5 minutes)
 
-Remind the partner:
+Do **not** end on a verbal reminder only. Walk the AI safety validation table
+live so a partner can honestly rate Safety at 9/10 when the checks pass.
 
-- Upstream ERPNext/Frappe stays clean; custom behavior is in `apps/`.
-- AI orchestration is in `services/ai_control_plane/` behind the ERP UI.
-- Distribution / manufacturing packs are configured demos only, not claimed
-  industry products.
-- Current scorecard demo average is below 9 and is **not** a partner rating.
+1. **Proposal-only proof (Desk).** On an approved AI Proposal from Beat H,
+   show work-order status, stock links, and Sales Invoice are unchanged by
+   Approve. Repeat the line: approval is review evidence only.
+2. **Abstention / refusal.** If template provider produced a refusal or weak-
+   evidence path earlier, reopen it; otherwise open a disposable WO without
+   closeout notes and show Draft Closeout is blocked or abstains rather than
+   inventing facts.
+3. **Role scope.** As technician, confirm Evidence Replay hides Finance and
+   that margin / profitability actions are denied. As manager, confirm the
+   same packet export has hashes and links: **no** draft text or prompts.
+4. **Explain Schedule / recovery non-mutation.** Point at Beat B / D: Approve
+   did not assign a technician and did not clear the exception.
+5. **Automated evidence (optional, 30s).** If the partner wants engineering
+   proof, mention the local gates already covering this session path:
+   `scripts/dev.sh e2e-test` (AI approve does not post ERP) and
+   `tests/contract/test_replay_harness.py` (four draft-only fixtures, no
+   money/stock/permission side effects). Do not run a long gate mid-session
+   unless asked.
+6. **Architecture boundary (15s).** Upstream ERPNext/Frappe stays clean;
+   custom behavior is in `apps/`; AI orchestration is in
+   `services/ai_control_plane/`; distribution / manufacturing packs are
+   configured demos only.
+7. **Claim hygiene (15s).** Current scorecard demo average is below 9 and is
+   **not** a partner rating. Fill the 9/10 decision only after the partner
+   scores; leave blank cells blank.
 
-**Record in template:** Discovery gate answers; 9/10 decision section only after
-the partner rates; repository-safe summary without PII.
+**Ask:** Which safety check would block a paid pilot if it failed tomorrow?
+
+**Record in template:** Entire AI safety validation table (Observed result);
+Discovery gate answers; 9/10 decision section only after the partner rates;
+repository-safe summary without PII.
 
 ## 5. Where to write scores
 
@@ -270,14 +295,14 @@ Open a **copy** of
 `docs/discovery/design-partner-validation-template.md` (or fill the tracked
 file only with sanitized, partner-approved notes):
 
-1. **Session setup** — partner name class, segment, roles, date, facilitator.
-2. **Discovery gate** — outcome and system-of-record answers.
-3. **Workflow validation** — fill Score / Evidence / Gaps / Decision **only
+1. **Session setup**: partner name class, segment, roles, date, facilitator.
+2. **Discovery gate**: outcome and system-of-record answers.
+3. **Workflow validation**: fill Score / Evidence / Gaps / Decision **only
    after** hands-on review. Leave blank if the partner deferred a beat.
-4. **AI safety validation** — Observed result column from what they saw.
-5. **9/10 decision** — overall score and replace-workflow answer from the
+4. **AI safety validation**: Observed result column from what they saw.
+5. **9/10 decision**: overall score and replace-workflow answer from the
    partner, not the facilitator.
-6. **Repository-safe summary** — sanitized only; no credentials, prompts, or
+6. **Repository-safe summary**: sanitized only; no credentials, prompts, or
    customer data.
 
 Never commit raw partner PII, credentials, or screenshots that leak local

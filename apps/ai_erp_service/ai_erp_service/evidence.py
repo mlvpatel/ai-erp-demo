@@ -1,9 +1,11 @@
 """Deterministic, role-scoped evidence chain for a Service Work Order."""
 
+import json
+
 import frappe
 from ai_erp_core.proposals import content_hash
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, get_datetime
 
 from ai_erp_service.margin_risk import annotate_margin_risks
 from ai_erp_service.service_utils import (
@@ -329,16 +331,16 @@ def get_evidence_timeline(name):
 		timeline.append({
 			"stage": "Execution",
 			"label": _("Time Recorded"),
-			"timestamp": str(entry.work_date),
+			"timestamp": str(getattr(entry, "creation", None) or _timeline_day_timestamp(entry.work_date)),
 			"actor": entry.technician,
-			"details": f"{entry.hours:g} hrs ({entry.time_type})",
+			"details": f"{entry.hours:g} hrs ({entry.time_type}) on {entry.work_date}",
 		})
 
 	if work_order.closeout_notes:
 		timeline.append({
 			"stage": "Closeout",
 			"label": _("Closeout Submitted"),
-			"timestamp": str(work_order.modified),
+			"timestamp": str(_closeout_timeline_timestamp(work_order)),
 			"actor": work_order.assigned_technician or work_order.owner,
 			"details": f"Result: {work_order.inspection_result or 'Submitted'}",
 		})
@@ -349,7 +351,7 @@ def get_evidence_timeline(name):
 		timeline.append({
 			"stage": "Inventory",
 			"label": _("Parts Issued"),
-			"timestamp": str(se_date or work_order.modified),
+			"timestamp": str(se_date or work_order.creation),
 			"actor": _("Service Manager"),
 			"details": f"Stock Entry: {se_name}",
 		})
@@ -374,11 +376,70 @@ def get_evidence_timeline(name):
 		timeline.append({
 			"stage": "Finance",
 			"label": _("Draft Sales Invoice"),
-			"timestamp": str(inv_date or work_order.modified),
+			"timestamp": str(inv_date or work_order.creation),
 			"actor": _("Accounts User"),
 			"details": f"Invoice: {work_order.sales_invoice}",
 		})
 
-	timeline.sort(key=lambda x: x["timestamp"])
+	timeline.sort(key=_timeline_sort_key)
 	return timeline
 
+
+def _timeline_day_timestamp(work_date):
+	"""Normalize date-only work_date values to a sortable datetime string."""
+	if not work_date:
+		return ""
+	value = get_datetime(work_date)
+	# Date-only fields sort at start-of-day so they stay before same-day datetimes
+	# only when they truly precede them; keep midnight for stable chronology.
+	return str(value)
+
+
+def _closeout_timeline_timestamp(work_order):
+	"""Prefer the Version timestamp when status became Closeout Submitted.
+
+	Falling back to modified would move the Closeout event whenever the document
+	is saved later, which breaks replay chronology.
+	"""
+	versions = frappe.get_all(
+		"Version",
+		filters={"ref_doctype": "Service Work Order", "docname": work_order.name},
+		fields=["creation", "data"],
+		order_by="creation asc",
+		limit_page_length=50,
+	)
+	for version in versions:
+		if _version_marks_closeout(version.get("data")):
+			return version.creation
+
+	# Stable fallbacks: last time entry day, then work-order creation — never modified.
+	time_dates = [entry.work_date for entry in (work_order.get("time_entries") or []) if entry.work_date]
+	if time_dates:
+		return get_datetime(max(time_dates))
+	return work_order.creation
+
+
+def _version_marks_closeout(raw_data):
+	if not raw_data:
+		return False
+	try:
+		payload = json.loads(raw_data) if isinstance(raw_data, str) else raw_data
+	except (TypeError, ValueError, json.JSONDecodeError):
+		return False
+	if not isinstance(payload, dict):
+		return False
+	for change in payload.get("changed") or []:
+		if not isinstance(change, (list, tuple)) or len(change) < 3:
+			continue
+		field, _old, new = change[0], change[1], change[2]
+		if field == "status" and new == "Closeout Submitted":
+			return True
+	return False
+
+
+def _timeline_sort_key(event):
+	timestamp = event.get("timestamp") or ""
+	try:
+		return (0, get_datetime(timestamp))
+	except (TypeError, ValueError):
+		return (1, timestamp)

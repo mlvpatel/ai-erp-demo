@@ -1,0 +1,35 @@
+---
+description: Apply BEhuMan on every prose deliverable (docs, commit messages, summaries, comments, emails). Strips AI-writing tells per Wikipedia Signs of AI writing.
+alwaysApply: true
+---
+
+# BEhuMan (always on)
+
+For any prose you write or edit in this repository (documentation, runbooks,
+commit messages, PR descriptions, comments, summaries, facilitator notes,
+validation templates), follow the BEhuMan skill before delivering.
+
+Canonical skill (read and apply):
+
+- `.cursor/skills/behuman/SKILL.md`
+- Mirrored at `.agents/skills/behuman/SKILL.md`
+
+Load references when needed:
+
+- `.cursor/skills/behuman/references/patterns.md`
+- `.cursor/skills/behuman/references/wordlists.md`
+- `.cursor/skills/behuman/references/mediawiki.md` (MediaWiki / Wikipedia only)
+
+## Binding summary
+
+- **R rules**: never break (no assistant residue, no spaced em dashes, no fake
+  significance, no fabricated sources, sentence-case headings).
+- **A rules**: default-deny with density budgets (AI vocabulary, rule of three,
+  promotional register).
+- **G rules**: prefer specific checkable claims and plain words.
+- **X rules**: do not over-correct; X overrides A. Do not announce the pass.
+
+Precedence: user instruction > X > R > G > A.
+
+Do not mass-rewrite unrelated historical docs unless the user asks. Apply on
+every new or edited prose deliverable in the current task.

@@ -2,19 +2,23 @@
 
 Read these before changing anything:
 
-1. `AGENTS.md` — repository working rules (root entrypoint; details in
+1. `AGENTS.md`: repository working rules (root entrypoint; details in
    `.agents/AGENTS.md`).
-2. `.agents/skills/erp-build-and-minimal-change/SKILL.md` — surgical custom-app
+2. `.agents/skills/erp-build-and-minimal-change/SKILL.md`: surgical custom-app
    and control-plane change ladder.
-3. `.agents/skills/ai-governance-and-gates/SKILL.md` — AI proposal boundary and
+3. `.agents/skills/ai-governance-and-gates/SKILL.md`: AI proposal boundary and
    quality-gate enforcement.
-4. `docs/product/pending-roadmap-for-claude-code.md` — the phase-by-phase
+4. `.agents/skills/behuman/SKILL.md`: BEhuMan prose rules (always on for docs,
+   commit messages, summaries, and other written deliverables).
+5. `docs/product/pending-roadmap-for-claude-code.md`: the phase-by-phase
    continuation plan.
-5. `docs/workflows/quality-gates.md` — which gate to run for which change.
+6. `docs/workflows/quality-gates.md`: which gate to run for which change.
 
 Other skills under `.agents/skills/` cover discovery, security/PII, connectors,
 architecture, QA, and tech-stack constraints. When `.claude/skills/` is present
-locally it mirrors the same set for Claude Code.
+locally it mirrors the same set for Claude Code. Cursor loads the same
+`behuman` skill from `.cursor/skills/behuman/` plus the always-on rule
+`.cursor/rules/behuman.mdc`.
 
 ## Hard rules
 
@@ -32,6 +36,8 @@ locally it mirrors the same set for Claude Code.
   evaluation live in `services/ai_control_plane/`; external APIs and events
   are versioned in `contracts/`; new services, datastores, or providers need
   an ADR in `docs/adr/` first.
+- Prose follows BEhuMan (`.agents/skills/behuman/SKILL.md`): no AI-writing
+  tells in docs, commit messages, or other written deliverables.
 
 ## Gates
 
