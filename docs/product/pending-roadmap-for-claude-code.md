@@ -166,6 +166,33 @@ Scope:
 - Keep `store=false` and redact sensitive data before provider calls.
 - Keep raw prompts and raw responses out of Git, CI logs, and release evidence.
 
+#### WS1 unblock checklist (credentials required; do not invent scores)
+
+Live OpenAI evaluation is blocked until an operator can complete this privately.
+Do not put secrets in the repo, tracked `.env`, CI logs, issues, or screenshots.
+
+1. Confirm a private deployment/task environment (not public CI).
+2. Inject `OPENAI_API_KEY` from an approved secret store only.
+3. Set non-secret gates from `docs/runbooks/openai-live-evaluation.md`:
+   - `AI_ERP_PROVIDER=openai`
+   - `OPENAI_API_KEY_SOURCE=deployment-secret-store`
+   - `AI_ERP_ENABLE_PRIVATE_LIVE_EVAL=I_ACKNOWLEDGE_SYNTHETIC_ONLY`
+4. Use the pinned EU base URL and model from ADR-0006.
+5. Set a project-level hard budget/alert before the run.
+6. Run `python -m ai_erp_control_plane.live_eval` and keep only the safe
+   aggregate stdout line as evidence.
+7. Store that aggregate privately; never commit raw prompts/responses.
+
+#### WS2 design-partner readiness (no fake partner scores)
+
+Template and demo script path already exist:
+
+- `docs/discovery/design-partner-validation-template.md`
+- `docs/runbooks/local-demo.md` and public demo script gates
+
+Do not invent partner scores. Record only real design-partner feedback when an
+external owner runs the session.
+
 Implementation tasks:
 
 1. Review current provider configuration and tests in:
