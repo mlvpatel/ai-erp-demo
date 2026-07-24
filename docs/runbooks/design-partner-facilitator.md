@@ -141,7 +141,8 @@ rate).
 
 ### Beat B — Scheduling suggest + explain
 
-1. As manager or dispatcher, on a draft/scheduled work order, use
+1. As manager or dispatcher, on a draft work order with **Scheduled Start** and
+   **Scheduled End** set (required before suggestions), use
    **Suggest Technicians**.
 2. Show ranked candidates and exclusion reasons. Emphasize: suggestions do
    **not** assign anyone until a human saves the assignment.
@@ -181,9 +182,12 @@ visibility (tech side).
 ### Beat E — Manager stock + invoice-ready (evidence-to-cash middle)
 
 1. Log in as `service.manager@example.test`.
-2. Issue declared parts (Material Issue / stock evidence linked on part rows).
-3. Close / mark **Invoice Ready** when gates pass.
-4. Retry the same action once to show idempotency (no duplicate stock).
+2. Confirm **Labor Billing Item** / hourly rate and **Part Bill Rate** on each
+   declared part (finance draft will refuse empty rates; missing rates also
+   show up as margin-risk categories).
+3. Issue declared parts (Material Issue / stock evidence linked on part rows).
+4. Close / mark **Invoice Ready** when gates pass.
+5. Retry the same action once to show idempotency (no duplicate stock).
 
 **Ask:** Who posts stock in their org? What should block invoice-ready?
 
@@ -214,8 +218,9 @@ manager handoff.
 
 ### Beat H — AI draft-only closeout / repair memory
 
-1. As technician or manager, request **Draft Closeout Summary** and/or
-   **Draft Repair Memory** on an eligible synthetic work order.
+1. As technician or manager, request **Draft Closeout Summary** on a closeout-
+   submitted order and/or **Draft Repair Memory** on a **Scheduled** or
+   **In Progress** order (repair memory is not available after closeout).
 2. Open **AI Proposal**: citations, source hashes, model/prompt metadata,
    draft content, human review fields.
 3. Review (approve or reject) as AI Approver / manager with approver role.
@@ -293,6 +298,8 @@ Facilitator-only:
 
 - Local stack detail: [`local-demo.md`](local-demo.md)
 - Recording / screenshot script: [`demo-script.md`](demo-script.md)
+- Internal facilitator dry-run notes (not partner scores):
+  [`design-partner-dry-run-notes.md`](design-partner-dry-run-notes.md)
 - Synthetic UAT rehearsal (engineering, not partner approval):
   [`service-operations-synthetic-uat.md`](service-operations-synthetic-uat.md)
 - Interview prompts: [`../discovery/service-operations-interview-guide.md`](../discovery/service-operations-interview-guide.md)
