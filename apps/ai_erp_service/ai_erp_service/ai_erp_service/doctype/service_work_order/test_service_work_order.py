@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import frappe
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_to_date, flt, now_datetime, today
+from frappe.utils import add_to_date, flt, get_datetime, now_datetime, today
 
 from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
@@ -19,6 +19,7 @@ from ai_erp_service.ai_erp_service.report.service_profitability.service_profitab
 	execute as profitability_report,
 )
 from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
+from ai_erp_service.evidence import get_evidence_timeline
 from ai_erp_service.tasks import escalate_overdue_closure_exceptions
 
 # This focused integration suite creates its synthetic dependencies directly.
@@ -1093,9 +1094,6 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.db.set_value("Service Location", self.location, "default_warehouse", "")
 
 	def test_evidence_timeline_closeout_ignores_later_modified(self):
-		from ai_erp_service.evidence import get_evidence_timeline
-		from frappe.utils import get_datetime
-
 		work_order = self._make_work_order("Timeline closeout stability work order")
 		self._schedule(work_order, self.technician)
 		frappe.set_user(self.technician)
