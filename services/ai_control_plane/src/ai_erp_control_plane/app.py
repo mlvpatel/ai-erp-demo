@@ -25,7 +25,6 @@ from .render import (
 	render_scheduling_template,
 )
 
-
 logger = logging.getLogger("ai_erp_control_plane.provider")
 
 app = FastAPI(
@@ -41,9 +40,10 @@ bearer = HTTPBearer(
 	bearerFormat="opaque-service-key",
 	auto_error=False,
 )
+_bearer_dependency = Depends(bearer)
 
 
-def require_service_key(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
+def require_service_key(credentials: HTTPAuthorizationCredentials | None = _bearer_dependency):
 	expected = os.environ.get("AI_CONTROL_PLANE_SHARED_SECRET", "")
 	provided = credentials.credentials if credentials and credentials.scheme.lower() == "bearer" else ""
 	if not expected or not hmac.compare_digest(provided, expected):
@@ -135,7 +135,7 @@ def draft_repair_memory(request: RepairMemoryRequest):
 	if provider == "openai":
 		try:
 			return render_openai_repair_memory(request)
-		except OpenAIProviderError as exc:
+		except OpenAIProviderError:
 			raise HTTPException(
 				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 				detail="approved model provider is unavailable",

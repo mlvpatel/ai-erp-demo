@@ -13,7 +13,6 @@ from .models import (
 	ServiceCloseoutSummaryRequest,
 )
 
-
 POLICY_REASON = "This response is a cited draft only; a human review records no ERP action."
 
 

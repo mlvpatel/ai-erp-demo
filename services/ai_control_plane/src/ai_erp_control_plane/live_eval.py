@@ -7,7 +7,6 @@ from uuid import UUID
 from .models import ServiceCloseoutSummaryRequest
 from .openai_provider import DEFAULT_MODEL, MAX_PROVIDER_CALLS, OpenAIProviderError, render_openai
 
-
 LIVE_EVAL_ACKNOWLEDGEMENT = "I_ACKNOWLEDGE_SYNTHETIC_ONLY"
 CREDENTIAL_ORIGIN_MARKER = "deployment-secret-store"
 LIVE_EVAL_CASES = 5

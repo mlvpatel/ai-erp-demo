@@ -3,8 +3,8 @@
 import json
 import os
 import re
-from hashlib import sha256
 from dataclasses import dataclass
+from hashlib import sha256
 from time import monotonic
 
 import httpx
@@ -21,7 +21,6 @@ from .models import (
 	ServiceCloseoutSummaryRequest,
 )
 from .render import POLICY_REASON
-
 
 PROMPT_VERSION = "service-closeout-summary@v2"
 DEFAULT_MODEL = "gpt-5.4-mini-2026-03-17"

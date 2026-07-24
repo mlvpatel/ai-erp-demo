@@ -133,15 +133,21 @@ class TestOpenAIProvider(unittest.TestCase):
 			self.assertNotIn(private_value, serialized_body)
 
 	def test_missing_key_and_unapproved_origin_fail_closed_before_network(self):
-		with patch.dict(os.environ, _environment(OPENAI_API_KEY=""), clear=True):
-			with self.assertRaises(OpenAIProviderError):
-				render_openai(_request())
-		with patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://example.invalid/v1"), clear=True):
-			with self.assertRaises(OpenAIProviderError):
-				render_openai(_request())
-		with patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://api.openai.com/v1"), clear=True):
-			with self.assertRaises(OpenAIProviderError):
-				render_openai(_request())
+		with (
+			patch.dict(os.environ, _environment(OPENAI_API_KEY=""), clear=True),
+			self.assertRaises(OpenAIProviderError),
+		):
+			render_openai(_request())
+		with (
+			patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://example.invalid/v1"), clear=True),
+			self.assertRaises(OpenAIProviderError),
+		):
+			render_openai(_request())
+		with (
+			patch.dict(os.environ, _environment(OPENAI_BASE_URL="https://api.openai.com/v1"), clear=True),
+			self.assertRaises(OpenAIProviderError),
+		):
+			render_openai(_request())
 
 	def test_refusal_malformed_strict_schema_and_rate_limit_fail_closed_without_retry(self):
 		responses = [
@@ -159,14 +165,16 @@ class TestOpenAIProvider(unittest.TestCase):
 			with self.subTest(status=provider_response.status_code, body=provider_response.text):
 				calls = []
 
-				def handler(request):
-					calls.append(request)
-					return provider_response
+				def handler(request, _calls=calls, _response=provider_response):
+					_calls.append(request)
+					return _response
 
 				client = httpx.Client(transport=httpx.MockTransport(handler))
-				with patch.dict(os.environ, _environment(), clear=True):
-					with self.assertRaises(OpenAIProviderError):
-						render_openai(_request(), client=client)
+				with (
+					patch.dict(os.environ, _environment(), clear=True),
+					self.assertRaises(OpenAIProviderError),
+				):
+					render_openai(_request(), client=client)
 				client.close()
 				self.assertEqual(len(calls), MAX_PROVIDER_CALLS)
 
@@ -178,9 +186,11 @@ class TestOpenAIProvider(unittest.TestCase):
 			raise httpx.ReadTimeout("private provider detail", request=request)
 
 		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			with self.assertRaisesRegex(OpenAIProviderError, "provider request failed") as raised:
-				render_openai(_request(), client=client)
+		with (
+			patch.dict(os.environ, _environment(), clear=True),
+			self.assertRaisesRegex(OpenAIProviderError, "provider request failed") as raised,
+		):
+			render_openai(_request(), client=client)
 		client.close()
 		self.assertNotIn("private provider detail", str(raised.exception))
 		self.assertEqual(len(calls), MAX_PROVIDER_CALLS)
@@ -190,9 +200,15 @@ class TestOpenAIProvider(unittest.TestCase):
 		self.assertEqual(MAX_PROVIDER_CALLS, 1)
 		self.assertLessEqual(MAX_OUTPUT_TOKENS, 2_000)
 		self.assertLessEqual(MAX_INPUT_BYTES, 32_000)
-		with patch.dict(os.environ, _environment(OPENAI_TIMEOUT_SECONDS=str(MAX_TIMEOUT_SECONDS + 1)), clear=True):
-			with self.assertRaisesRegex(OpenAIProviderError, "outside the approved range"):
-				render_openai(_request())
+		with (
+			patch.dict(
+				os.environ,
+				_environment(OPENAI_TIMEOUT_SECONDS=str(MAX_TIMEOUT_SECONDS + 1)),
+				clear=True,
+			),
+			self.assertRaisesRegex(OpenAIProviderError, "outside the approved range"),
+		):
+			render_openai(_request())
 
 	def test_rejects_input_above_spend_envelope_before_network(self):
 		request = _request()
@@ -202,9 +218,11 @@ class TestOpenAIProvider(unittest.TestCase):
 		request.work_order.parts = request.work_order.parts * 200
 		calls = []
 		client = httpx.Client(transport=httpx.MockTransport(lambda request: calls.append(request)))
-		with patch.dict(os.environ, _environment(), clear=True):
-			with self.assertRaisesRegex(OpenAIProviderError, "spend envelope"):
-				render_openai(request, client=client)
+		with (
+			patch.dict(os.environ, _environment(), clear=True),
+			self.assertRaisesRegex(OpenAIProviderError, "spend envelope"),
+		):
+			render_openai(request, client=client)
 		client.close()
 		self.assertEqual(calls, [])
 
@@ -286,10 +304,16 @@ class TestOpenAIProvider(unittest.TestCase):
 			_provider_payload(id=""),
 			_provider_payload(usage=None),
 		):
-			client = httpx.Client(transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=payload)))
-			with patch.dict(os.environ, _environment(), clear=True):
-				with self.assertRaises(OpenAIProviderError):
-					render_openai(_request(), client=client)
+			client = httpx.Client(
+				transport=httpx.MockTransport(
+					lambda _request, _payload=payload: httpx.Response(200, json=_payload)
+				)
+			)
+			with (
+				patch.dict(os.environ, _environment(), clear=True),
+				self.assertRaises(OpenAIProviderError),
+			):
+				render_openai(_request(), client=client)
 			client.close()
 
 	def test_repair_memory_redacts_pii_and_records_audit_parity(self):
