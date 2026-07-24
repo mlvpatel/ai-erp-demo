@@ -1,0 +1,73 @@
+/* Mobile Field Execution Ergonomics & Responsive Layouts */
+@media (max-width: 768px) {
+  .form-page {
+    padding: 8px !important;
+  }
+
+  /* Large touch targets for primary form actions — leave Desk chrome alone */
+  .form-page .btn,
+  .form-page .btn-primary,
+  .form-page .btn-default,
+  .form-page .btn-secondary,
+  .modal .btn {
+    min-height: 44px !important;
+    font-size: 1rem !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .page-head .btn:focus-visible,
+  .form-page .btn:focus-visible,
+  .form-control:focus-visible,
+  .grid-row .form-control:focus-visible,
+  a:focus-visible,
+  .modal .btn:focus-visible {
+    outline: 2px solid #0f172a !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+  }
+
+  .form-control, .grid-row .form-control {
+    font-size: 1rem !important;
+    height: 44px !important;
+  }
+
+  /* Compact grid table cards on small screens */
+  .form-grid .grid-heading_row {
+    display: none;
+  }
+
+  .form-grid .grid-row {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .form-grid .grid-row:focus-within {
+    border-color: #0f172a;
+  }
+
+  .offline-draft-banner {
+    background-color: #fef3c7;
+    color: #92400e;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Keep custom action buttons reachable without hover-only disclosure */
+  .standard-actions,
+  .custom-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}

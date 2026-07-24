@@ -115,3 +115,21 @@ def service_closure_exception_has_permission(doc, user=None, permission_type=Non
 	if "Service Technician" in user_roles(user):
 		return frappe.db.get_value("Service Work Order", doc.work_order, "assigned_technician") == user
 	return False
+
+
+def service_technician_capability_query(user=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return None
+	if "Service Technician" in user_roles(user):
+		return "`tabService Technician Capability`.`technician` = {0}".format(frappe.db.escape(user))
+	return "1=0"
+
+
+def service_technician_capability_has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if _is_privileged(user):
+		return True
+	if "Service Technician" in user_roles(user):
+		return permission_type in {None, "read", "select", "print"} and doc.technician == user
+	return False

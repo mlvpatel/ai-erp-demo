@@ -1,5 +1,7 @@
 frappe.ui.form.on("AI Proposal", {
 	refresh(frm) {
+		_show_proposal_governance_banner(frm);
+
 		if (frm.is_new() || frm.doc.proposal_status !== "Draft" || !frm.perm[0].write) {
 			return;
 		}
@@ -32,3 +34,26 @@ frappe.ui.form.on("AI Proposal", {
 		});
 	},
 });
+
+function _show_proposal_governance_banner(frm) {
+	if (frm.is_new()) {
+		return;
+	}
+	const escape = frappe.utils.escape_html;
+	const meta = [
+		frm.doc.proposal_type,
+		frm.doc.policy_outcome || "Draft Only",
+		frm.doc.model_provider,
+		frm.doc.prompt_version,
+	]
+		.filter(Boolean)
+		.map(escape)
+		.join(" · ");
+	frm.set_intro(
+		__(
+			"Draft-only proposal. Review does not post stock, invoices, payroll, or customer messages. {0}",
+			[meta],
+		),
+		frm.doc.proposal_status === "Draft" ? "blue" : "green",
+	);
+}

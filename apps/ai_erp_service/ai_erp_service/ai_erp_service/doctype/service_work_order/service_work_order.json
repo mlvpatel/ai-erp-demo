@@ -26,6 +26,8 @@
   "scheduled_end",
   "assignment_column",
   "assigned_technician",
+  "required_skill",
+  "service_territory",
   "execution_section",
   "time_entries",
   "parts",
@@ -185,6 +187,22 @@
    "in_standard_filter": 1,
    "label": "Assigned Technician",
    "options": "User",
+   "permlevel": 1
+  },
+  {
+   "description": "Optional skill required for ranked scheduling suggestions.",
+   "fieldname": "required_skill",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Required Skill",
+   "permlevel": 1
+  },
+  {
+   "description": "Optional territory required for ranked scheduling suggestions.",
+   "fieldname": "service_territory",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Service Territory",
    "permlevel": 1
   },
   {

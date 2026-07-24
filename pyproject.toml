@@ -1,0 +1,47 @@
+[tool.ruff]
+target-version = "py314"
+line-length = 110
+src = ["apps", "services/ai_control_plane/src", "tests"]
+exclude = [
+    ".git",
+    ".pycache",
+    "build",
+    "dist",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "ai_erp_control_plane.*"
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=services/ai_control_plane/src --cov-report=term-missing"
+testpaths = [
+    "services/ai_control_plane/tests",
+    "tests/contract",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["services/ai_control_plane/src"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.bandit]
+targets = ["services/ai_control_plane/src", "apps"]
+exclude_dirs = ["tests", "node_modules"]
+skips = ["B101"]

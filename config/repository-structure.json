@@ -47,18 +47,25 @@
   ],
   "allowed_root_entries": [
     ".DS_Store",
+    ".agents",
+    ".claude",
     ".git",
     ".gitattributes",
     ".gitignore",
+    ".pre-commit-config.yaml",
     "BACKLOG.md",
     "CHANGELOG.md",
+    "CLAUDE.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
     "LICENSE",
     "ROADMAP.md",
     "SECURITY.md",
-    "SUPPORT.md"
+    "SUPPORT.md",
+    "AGENTS.md",
+    "pyproject.toml",
+    "uv.lock"
   ],
   "forbidden_root_directories": [
     "frontend",

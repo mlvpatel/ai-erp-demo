@@ -129,13 +129,19 @@ echo "==> Public claims"
 "$python_bin" scripts/check-public-claims.py
 
 echo "==> Python syntax"
-PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/ai-erp-pycache}" \
+PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-./.pycache}" \
   "$python_bin" -m compileall -q \
   apps/ai_erp_core \
   apps/ai_erp_service \
   services/ai_control_plane/src \
   tests/contract
 
+# Ruff/mypy are intentionally not part of this always-run static gate. Host
+# tool presence would make the gate flip by laptop. Run them through the
+# dedicated Python lint CI job, pre-commit, or:
+#   python -m pip install ruff==0.14.10 && ruff check --no-cache apps/ services/
+
 echo "Static quality gates passed."
+
 echo
 echo "For Docker-backed ERP checks, run the commands in docs/workflows/quality-gates.md."

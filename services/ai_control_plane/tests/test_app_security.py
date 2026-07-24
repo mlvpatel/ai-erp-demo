@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from ai_erp_control_plane.app import app
 
-
 PROPOSAL_PATH = "/v1/proposals/service-closeout-summary"
 SHARED_SECRET = "example-shared-secret"
 
@@ -89,9 +88,11 @@ class TestAppSecurity(unittest.TestCase):
 			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
 			"AI_ERP_PROVIDER": "openai",
 		}
-		with patch.dict(os.environ, environment, clear=True):
-			with self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured:
-				response = self._post(f"Bearer {SHARED_SECRET}")
+		with (
+			patch.dict(os.environ, environment, clear=True),
+			self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured,
+		):
+			response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 503)
 		self.assertEqual(response.json()["detail"], "approved model provider is unavailable")
