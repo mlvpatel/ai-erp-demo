@@ -1,0 +1,49 @@
+{
+  "name": "scheduling_explanation_bundle",
+  "route": "/v1/proposals/scheduling-explanation",
+  "proposal_type": "scheduling_explanation",
+  "payload": {
+    "schema_version": 1,
+    "request_id": "33333333-3333-3333-3333-333333333333",
+    "tenant_site": "test.localhost",
+    "requested_by": "dispatcher@example.test",
+    "work_order": {
+      "doctype": "Service Work Order",
+      "name": "WO-2026-00003",
+      "subject": "Quarterly rooftop unit service",
+      "status": "Draft",
+      "service_priority": "High",
+      "sla_due_at": "2026-07-24 16:00:00"
+    },
+    "candidates": [
+      {
+        "technician": "tech.a@example.test",
+        "score": 4,
+        "workload": 0,
+        "familiarity": 1,
+        "reasons": ["open_workload:0", "completed_here:1", "sla_priority:High"]
+      },
+      {
+        "technician": "tech.b@example.test",
+        "score": 1,
+        "workload": 1,
+        "familiarity": 0,
+        "reasons": ["open_workload:1", "completed_here:0", "sla_priority:High"]
+      }
+    ],
+    "excluded": [
+      {
+        "technician": "tech.c@example.test",
+        "reason": "overlapping_scheduled_work"
+      }
+    ],
+    "sources": [
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00003",
+        "field": "ranking",
+        "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

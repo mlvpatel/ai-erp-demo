@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import httpx
 
-from ai_erp_control_plane.models import RelatedWorkSummary, ServiceCloseoutSummaryRequest
+from ai_erp_control_plane.models import RelatedWorkSummary, RepairMemoryRequest, ServiceCloseoutSummaryRequest
 from ai_erp_control_plane.openai_provider import (
 	DEFAULT_MODEL,
 	MAX_AUTOMATIC_RETRIES,
@@ -17,6 +17,7 @@ from ai_erp_control_plane.openai_provider import (
 	MAX_TIMEOUT_SECONDS,
 	OpenAIProviderError,
 	render_openai,
+	render_openai_repair_memory,
 )
 
 
@@ -290,3 +291,71 @@ class TestOpenAIProvider(unittest.TestCase):
 				with self.assertRaises(OpenAIProviderError):
 					render_openai(_request(), client=client)
 			client.close()
+
+	def test_repair_memory_redacts_pii_and_records_audit_parity(self):
+		request = _repair_memory_request()
+		request.work_order.description = "Email alice@example.test or call +1 (415) 555-0100."
+		request.related_history[0].closeout_notes = "credential=synthetic-value-1234 and owner alice@example.test"
+		captured = {}
+
+		def handler(http_request):
+			captured["body"] = http_request.content.decode()
+			return httpx.Response(200, json=_provider_payload(draft="Prior seal replacement."))
+
+		client = httpx.Client(transport=httpx.MockTransport(handler))
+		with patch.dict(os.environ, _environment(), clear=True):
+			response = render_openai_repair_memory(request, client=client)
+		client.close()
+
+		for sensitive in ("alice@example.test", "+1 (415) 555-0100", "synthetic-value-1234"):
+			self.assertNotIn(sensitive, captured["body"])
+		model_input = json.loads(json.loads(captured["body"])["input"])
+		self.assertEqual(
+			set(model_input["related_history"][0]),
+			{"subject", "status", "inspection_result", "closeout_notes", "parts"},
+		)
+		self.assertNotIn("PRIVATE-WO-HIST-1", captured["body"])
+		self.assertNotIn("PRIVATE-WO-0002", captured["body"])
+		self.assertEqual(response.proposal_type, "repair_memory")
+		self.assertEqual(response.policy.decision, "draft_only")
+		self.assertIsNotNone(response.audit)
+		self.assertGreaterEqual(response.audit.redaction_count, 3)
+		self.assertEqual(response.audit.input_tokens, 120)
+		self.assertEqual(response.audit.output_tokens, 20)
+		self.assertEqual(len(response.audit.response_id_hash), 64)
+
+
+def _repair_memory_request():
+	return RepairMemoryRequest.model_validate(
+		{
+			"schema_version": 1,
+			"request_id": str(uuid4()),
+			"tenant_site": "private-tenant.example",
+			"requested_by": "private-user@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "PRIVATE-WO-0002",
+				"subject": "Inspect pump again",
+				"status": "In Progress",
+				"description": "Investigate noise recurrence.",
+			},
+			"related_history": [
+				{
+					"name": "PRIVATE-WO-HIST-1",
+					"subject": "Prior pump repair",
+					"status": "Closed",
+					"inspection_result": "Passed",
+					"closeout_notes": "Replaced the seal.",
+					"parts": [{"item": "SEAL-1", "qty": 1, "issued": True}],
+				}
+			],
+			"sources": [
+				{
+					"doctype": "Service Work Order",
+					"name": "PRIVATE-WO-0002",
+					"field": "repair_context",
+					"content_hash": "0" * 64,
+				}
+			],
+		}
+	)

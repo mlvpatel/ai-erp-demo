@@ -218,5 +218,6 @@ class RepairMemoryProposalResponse(StrictModel):
 	proposal_type: Literal["repair_memory"]
 	policy: Policy
 	model: ModelMetadata
+	audit: ProviderAudit | None = None
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)

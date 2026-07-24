@@ -785,6 +785,10 @@ components:
               type: string
             prompt_version:
               type: string
+        audit:
+          anyOf:
+            - $ref: '#/components/schemas/ProviderAudit'
+            - type: 'null'
         draft_content:
           type: string
           minLength: 1

@@ -13,6 +13,8 @@ CANDIDATE_LIMIT = 5
 ACTIVE_STATUSES = ("Draft", "Scheduled", "In Progress", "Closeout Submitted", "Cannot Close")
 COMPLETED_STATUSES = ("Closed", "Invoice Ready")
 FAMILIARITY_WEIGHT = 2
+SLA_HIGH_PRIORITY_WEIGHT = 3
+PARTS_READINESS_WEIGHT = 2
 
 
 @frappe.whitelist()
@@ -20,8 +22,9 @@ def suggest_technicians(name):
 	"""Rank available technicians for one scheduled work order without assigning.
 
 	The score is deterministic: prior completed work at the same asset or
-	location counts double, open workload subtracts, ties break on workload and
-	then on the technician id. Technicians with an overlapping scheduled work
+	location counts double, high SLA priority / urgent SLA adds bonus points,
+	parts readiness adds bonus points, open workload subtracts, ties break on workload
+	and then on the technician id. Technicians with an overlapping scheduled work
 	order are excluded with a reason instead of being silently hidden, and a
 	missing schedule window aborts instead of guessing availability.
 	"""
@@ -38,6 +41,9 @@ def suggest_technicians(name):
 	busy = _overlapping_technicians(work_order, technicians)
 	workload = _open_workload(technicians)
 	familiarity = _completed_familiarity(work_order, technicians)
+	parts_ready = _parts_readiness(work_order, technicians)
+
+	sla_bonus = SLA_HIGH_PRIORITY_WEIGHT if work_order.service_priority in {"Emergency", "Urgent", "High"} else 0
 
 	candidates = []
 	excluded = []
@@ -47,11 +53,28 @@ def suggest_technicians(name):
 			continue
 		technician_workload = workload.get(technician, 0)
 		technician_familiarity = familiarity.get(technician, 0)
-		reasons = [f"open_workload:{technician_workload}", f"completed_here:{technician_familiarity}"]
+		technician_parts = parts_ready.get(technician, False)
+		parts_bonus = PARTS_READINESS_WEIGHT if technician_parts else 0
+
+		score = (
+			FAMILIARITY_WEIGHT * technician_familiarity
+			+ sla_bonus
+			+ parts_bonus
+			- technician_workload
+		)
+		reasons = [
+			f"open_workload:{technician_workload}",
+			f"completed_here:{technician_familiarity}",
+		]
+		if sla_bonus:
+			reasons.append(f"sla_priority:{work_order.service_priority}")
+		if technician_parts:
+			reasons.append("parts_ready:true")
+
 		candidates.append(
 			{
 				"technician": technician,
-				"score": FAMILIARITY_WEIGHT * technician_familiarity - technician_workload,
+				"score": score,
 				"workload": technician_workload,
 				"familiarity": technician_familiarity,
 				"reasons": reasons,
@@ -133,6 +156,44 @@ def _completed_familiarity(work_order, technicians):
 	return familiarity
 
 
+def _parts_warehouse(work_order):
+	"""Resolve the stock warehouse for readiness checks.
+
+	Demo seed and service locations bind stock via Service Location.default_warehouse
+	or part source_warehouse rows. User.default_warehouse is not used because the
+	demo does not set it and standard User has no such field.
+	"""
+	location = work_order.get("service_location")
+	if location:
+		warehouse = frappe.db.get_value("Service Location", location, "default_warehouse")
+		if warehouse:
+			return warehouse
+	for row in work_order.get("parts") or []:
+		if getattr(row, "source_warehouse", None):
+			return row.source_warehouse
+	return ""
+
+
+def _parts_readiness(work_order, technicians):
+	"""Return a map of technician -> bool indicating if declared parts are available."""
+	parts = work_order.get("parts") or []
+	if not parts:
+		return {tech: True for tech in technicians}
+
+	warehouse = _parts_warehouse(work_order)
+	if not warehouse:
+		return {tech: False for tech in technicians}
+
+	required_items = {row.item: row.qty for row in parts}
+	has_all = True
+	for item, req_qty in required_items.items():
+		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty") or 0
+		if bin_qty < req_qty:
+			has_all = False
+			break
+	return {tech: has_all for tech in technicians}
+
+
 @frappe.whitelist()
 def request_scheduling_explanation(name):
 	"""Create one cited, draft-only explanation of the current deterministic ranking."""
@@ -144,6 +205,46 @@ def request_scheduling_explanation(name):
 	payload = _scheduling_explanation_payload(work_order, suggestions)
 	proposal = store_scheduling_explanation(work_order.doctype, work_order.name, payload)
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
+
+
+REJECTION_REASON_CATEGORIES = {
+	"Wrong skill or territory",
+	"Parts not ready",
+	"Workload conflict",
+	"Customer preference",
+	"Other",
+}
+
+
+@frappe.whitelist()
+def record_suggestion_feedback(name, technician, reason_category, note=None):
+	"""Capture lightweight dispatcher rejection feedback for the ranking loop.
+
+	Feedback is stored as a Comment on the work order. It never assigns a
+	technician and never posts stock, invoices, or AI proposals.
+	"""
+	require_any_role(
+		DISPATCHER_ROLES, _("Only a dispatcher or manager can record scheduling feedback.")
+	)
+	if reason_category not in REJECTION_REASON_CATEGORIES:
+		frappe.throw(_("Unsupported rejection reason category."))
+	if not technician:
+		frappe.throw(_("A rejected technician is required."))
+	work_order = frappe.get_doc("Service Work Order", name)
+	work_order.check_permission("write")
+	safe_note = (note or "").strip()[:500]
+	content = (
+		f"Scheduling suggestion rejected for {technician}. "
+		f"Reason: {reason_category}."
+		+ (f" Note: {safe_note}" if safe_note else "")
+	)
+	work_order.add_comment("Info", content)
+	return {
+		"work_order": work_order.name,
+		"technician": technician,
+		"reason_category": reason_category,
+		"recorded": True,
+	}
 
 
 def _scheduling_explanation_payload(work_order, suggestions):

@@ -1,0 +1,42 @@
+{
+  "name": "repair_memory_bundle",
+  "route": "/v1/proposals/repair-memory",
+  "proposal_type": "repair_memory",
+  "payload": {
+    "schema_version": 1,
+    "request_id": "22222222-2222-2222-2222-222222222222",
+    "tenant_site": "test.localhost",
+    "requested_by": "tech@example.test",
+    "work_order": {
+      "doctype": "Service Work Order",
+      "name": "WO-2026-00002",
+      "subject": "Chiller Low Pressure Alert",
+      "status": "In Progress",
+      "description": "Low refrigerant pressure reported."
+    },
+    "related_history": [
+      {
+        "name": "WO-2026-00001",
+        "subject": "Chiller Low Pressure",
+        "status": "Closed",
+        "inspection_result": "Passed",
+        "closeout_notes": "Refilled R-410A refrigerant and sealed valve.",
+        "parts": [
+          {
+            "item": "R410A-CAN",
+            "qty": 1.0,
+            "issued": true
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00002",
+        "field": "repair_context",
+        "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

@@ -84,7 +84,7 @@ def render_scheduling_template(request: SchedulingExplanationRequest) -> Schedul
 		f"Priority: {work_order.service_priority or 'Not set'}",
 		f"SLA due: {work_order.sla_due_at or 'Not set'}",
 		"",
-		"Ranked candidates (score = 2 x completed work here - open workload)",
+		"Ranked candidates (weighted score based on familiarity, SLA priority, parts readiness, and open workload)",
 	]
 	for position, candidate in enumerate(request.candidates, 1):
 		lines.append(

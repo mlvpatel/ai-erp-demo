@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import frappe
+from ai_erp_service.service_utils import FINANCE_ROLES, MANAGER_ROLES, require_any_role
 from frappe.utils import flt, get_datetime
 
 REPEAT_VISIT_WINDOW_DAYS = 30
@@ -158,3 +159,55 @@ def _repeat_orders(rows):
 				repeats.add(row.name)
 				break
 	return repeats
+
+
+@frappe.whitelist()
+def margin_leakage_summary(from_date=None, to_date=None):
+	"""Return aggregate margin risk counts and high-risk work orders for manager review."""
+	require_any_role(
+		(*MANAGER_ROLES, *FINANCE_ROLES),
+		frappe._("Only a service manager or finance user can view margin leakage summary.")
+	)
+	filters = {}
+	if from_date:
+		filters["creation"] = [">=", from_date]
+	if to_date:
+		if "creation" in filters:
+			filters["creation"] = ["between", [from_date, to_date]]
+		else:
+			filters["creation"] = ["<=", to_date]
+
+	rows = frappe.get_all(
+		"Service Work Order",
+		filters=filters,
+		fields=[
+			"name", "status", "hourly_rate", "warranty_status",
+			"inspection_result", "service_asset", "service_location",
+			"creation", "projected_margin_percent", "customer"
+		],
+		limit_page_length=500,
+	)
+	annotated = annotate_margin_risks(rows)
+	category_counts = {}
+	high_risk_orders = []
+
+	for row in annotated:
+		risks = [r.strip() for r in (row.margin_risks or "").split(",") if r.strip()]
+		for risk in risks:
+			category_counts[risk] = category_counts.get(risk, 0) + 1
+
+		if len(risks) >= 2 or flt(row.projected_margin_percent) < 15.0:
+			high_risk_orders.append({
+				"name": row.name,
+				"customer": row.customer,
+				"status": row.status,
+				"margin_percent": flt(row.projected_margin_percent),
+				"risks": risks,
+			})
+
+	return {
+		"total_orders": len(rows),
+		"category_counts": category_counts,
+		"high_risk_orders": high_risk_orders[:50],
+	}
+

@@ -17,7 +17,7 @@ from .models import (
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
-from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
+from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai, render_openai_repair_memory
 from .render import (
 	render_development_template,
 	render_recovery_template,
@@ -129,7 +129,22 @@ def draft_exception_recovery(request: ExceptionRecoveryRequest):
 	dependencies=[Depends(require_service_key)],
 )
 def draft_repair_memory(request: RepairMemoryRequest):
-	return render_repair_memory_template(request)
+	provider = os.environ.get("AI_ERP_PROVIDER", "template")
+	if provider == "template":
+		return render_repair_memory_template(request)
+	if provider == "openai":
+		try:
+			return render_openai_repair_memory(request)
+		except OpenAIProviderError as exc:
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail="approved model provider is unavailable",
+			) from None
+	else:
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="approved model provider is unavailable",
+		)
 
 
 @app.post(

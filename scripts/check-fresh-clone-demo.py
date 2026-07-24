@@ -261,7 +261,7 @@ def validate_demo_info_output(manifest: dict[str, Any], failures: list[str]) -> 
         elif not contains_snippet(existing_output, phrase):
             fail(failures, f"demo-info output missing required phrase: {phrase}")
 
-    custom_env_path = Path("/tmp/ai-erp-demo-info-output-safety-does-not-exist.env")
+    custom_env_path = Path("./.pycache/ai-erp-demo-info-output-safety-does-not-exist.env")
     custom_output = demo_info_output(custom_env_path, failures)
     for phrase in contract.get("custom_env_required_phrases", []):
         if not isinstance(phrase, str) or not phrase.strip():

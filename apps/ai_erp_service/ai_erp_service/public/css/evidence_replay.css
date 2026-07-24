@@ -1,0 +1,102 @@
+/* Evidence Replay Dialog & Timeline Styles */
+.evidence-replay-container {
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.evidence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.evidence-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-complete {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-incomplete {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.evidence-timeline {
+  position: relative;
+  margin-left: 20px;
+  border-left: 2px solid #cbd5e1;
+  padding-left: 20px;
+}
+
+.timeline-event {
+  position: relative;
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.timeline-event:focus-visible {
+  box-shadow: 0 0 0 2px #0f172a;
+  border-radius: 6px;
+}
+
+.timeline-event::before {
+  content: "";
+  position: absolute;
+  left: -27px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  border: 2px solid #ffffff;
+}
+
+.timeline-event.stage-Created::before { background-color: #64748b; }
+.timeline-event.stage-Execution::before { background-color: #0284c7; }
+.timeline-event.stage-Closeout::before { background-color: #d97706; }
+.timeline-event.stage-Inventory::before { background-color: #7c3aed; }
+.timeline-event.stage-AI-Proposal::before { background-color: #059669; }
+.timeline-event.stage-Finance::before { background-color: #15803d; }
+
+.timeline-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.timeline-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.timeline-details {
+  font-size: 0.85rem;
+  color: #334155;
+  margin-top: 4px;
+  background-color: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+}
+
+.margin-risk-panel {
+  margin-top: 8px;
+}
+
+.evidence-disclaimer {
+  margin-top: 16px;
+  font-size: 0.8rem;
+}
