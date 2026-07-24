@@ -70,10 +70,16 @@ GitHub CI runs this as the required `Python lint` check. The version matches
 both custom-app pre-commit configurations, and cache writes are disabled so the
 repository-structure gate sees no generated root entry.
 
+This is intentionally separate from `scripts/run-quality-gates.sh`. The always-
+run static gate must not flip based on whether `ruff` or `mypy` happen to be
+installed on a laptop.
+
 ```sh
 python -m pip install ruff==0.14.10
 ruff check --no-cache apps/ services/
 ```
+
+Pre-commit also runs ruff when configured via `.pre-commit-config.yaml`.
 
 ## Control-plane gate
 

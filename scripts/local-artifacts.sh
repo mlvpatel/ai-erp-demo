@@ -62,7 +62,8 @@ case "$command" in
     artifact_count
     ;;
   --clean)
-    artifact_file="$(mktemp)"
+    mkdir -p "$repo_root/.pycache"
+    artifact_file="$(TMPDIR="$repo_root/.pycache" mktemp)"
     list_artifacts > "$artifact_file"
     if [ ! -s "$artifact_file" ]; then
       rm -f "$artifact_file"

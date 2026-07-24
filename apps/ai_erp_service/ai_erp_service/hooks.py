@@ -30,6 +30,7 @@ permission_query_conditions = {
 	"Service Request": "ai_erp_service.permissions.service_request_query",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_query",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_query",
+	"Service Technician Capability": "ai_erp_service.permissions.service_technician_capability_query",
 }
 
 has_permission = {
@@ -37,6 +38,7 @@ has_permission = {
 	"Service Request": "ai_erp_service.permissions.service_request_has_permission",
 	"Service Work Order": "ai_erp_service.permissions.service_work_order_has_permission",
 	"Service Closure Exception": "ai_erp_service.permissions.service_closure_exception_has_permission",
+	"Service Technician Capability": "ai_erp_service.permissions.service_technician_capability_has_permission",
 }
 
 # Apps
@@ -59,8 +61,16 @@ has_permission = {
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/ai_erp_service/css/ai_erp_service.css"
-# app_include_js = "/assets/ai_erp_service/js/ai_erp_service.js"
+app_include_css = [
+	"/assets/ai_erp_service/css/evidence_replay.css",
+	"/assets/ai_erp_service/css/mobile_field.css",
+]
+# Offline IndexedDB drafts (mobile_helpers.js) are unfinished and not included.
+# Re-enable only behind a tracked feature flag with scoped sync.
+# app_include_js = "/assets/ai_erp_service/js/mobile_helpers.js"
+# Service Work Order Desk JS lives only at
+# ai_erp_service/doctype/service_work_order/service_work_order.js (Frappe auto-load).
+# Do not also register doctype_js here — dual registration loads competing UIs.
 
 # include js, css files in header of web template
 # web_include_css = "/assets/ai_erp_service/css/ai_erp_service.css"

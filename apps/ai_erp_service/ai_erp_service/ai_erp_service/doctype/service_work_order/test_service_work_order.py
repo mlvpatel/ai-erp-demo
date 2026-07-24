@@ -724,6 +724,94 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			get_evidence_chain(work_order.name)
 
+	def test_evidence_timeline_hides_finance_and_ai_from_technician(self):
+		from ai_erp_service.evidence import get_evidence_timeline
+
+		work_order = self._make_work_order("Evidence timeline work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Verified repair for timeline coverage."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		technician_timeline = get_evidence_timeline(work_order.name)
+		stages = {event["stage"] for event in technician_timeline}
+		self.assertIn("Created", stages)
+		self.assertIn("Execution", stages)
+		self.assertIn("Closeout", stages)
+		self.assertNotIn("Finance", stages)
+
+		frappe.set_user(self.manager)
+		work_order.reload()
+		work_order.status = "Closed"
+		work_order.save()
+		work_order.status = "Invoice Ready"
+		work_order.save()
+		# Timeline finance stage is gated on sales_invoice presence plus manager/finance role.
+		frappe.db.set_value(
+			"Service Work Order", work_order.name, "sales_invoice", "SINV-TEST-TIMELINE"
+		)
+
+		manager_timeline = get_evidence_timeline(work_order.name)
+		manager_stages = {event["stage"] for event in manager_timeline}
+		self.assertIn("Finance", manager_stages)
+
+		frappe.set_user(self.technician)
+		technician_after_close = get_evidence_timeline(work_order.name)
+		self.assertNotIn("Finance", {event["stage"] for event in technician_after_close})
+
+	def test_margin_leakage_summary_is_manager_or_finance_only(self):
+		from ai_erp_service.margin_risk import MARGIN_RISK_CATEGORIES, margin_leakage_summary
+
+		work_order = self._make_work_order("Margin leakage summary work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user("Administrator")
+		work_order.reload()
+		# Unknown warranty is the DocType default and already a margin risk category.
+		work_order.inspection_result = "Failed"
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			margin_leakage_summary()
+
+		frappe.set_user(self.manager)
+		summary = margin_leakage_summary()
+		self.assertIn("total_orders", summary)
+		self.assertIn("category_counts", summary)
+		self.assertIn("high_risk_orders", summary)
+		self.assertEqual(summary["available_categories"], list(MARGIN_RISK_CATEGORIES))
+		self.assertGreaterEqual(summary["total_orders"], 1)
+		self.assertGreaterEqual(summary["category_counts"].get("failed_inspection", 0), 1)
+
+		filtered = margin_leakage_summary(risk_category="failed_inspection")
+		self.assertEqual(filtered["risk_category"], "failed_inspection")
+		self.assertTrue(filtered["high_risk_orders"])
+		self.assertTrue(
+			all("failed_inspection" in row["risks"] for row in filtered["high_risk_orders"])
+		)
+
+		frappe.set_user(self.finance_user)
+		finance_summary = margin_leakage_summary()
+		self.assertIn("category_counts", finance_summary)
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			profitability_report({})
+
 	def test_evidence_packet_is_manager_only_and_carries_no_draft_content(self):
 		from ai_erp_service.evidence import get_evidence_packet
 
@@ -785,7 +873,12 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(packet["unresolved_exceptions"], [])
 		self.assertIn("stock_entries", packet)
 		self.assertIn("sales_invoice", packet)
+		self.assertEqual(packet["packet_kind"], "evidence_to_cash_ledger")
+		self.assertIn("ledger_narrative", packet)
+		self.assertIn("stages", packet["ledger_narrative"])
+		self.assertIn("margin_risks", packet)
 		self.assertEqual(len(packet["chain_hash"]), 64)
+		self.assertIn("Synthetic export evidence", packet["synthetic_note"])
 
 		serialized = frappe.as_json(packet)
 		self.assertNotIn(draft_text, serialized)
@@ -918,6 +1011,40 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			suggest_technicians(target.name)
 
+	def test_parts_readiness_uses_service_location_warehouse(self):
+		from ai_erp_service.scheduling import _parts_readiness, suggest_technicians
+
+		item, warehouse = self._make_stocked_item()
+		frappe.db.set_value("Service Location", self.location, "default_warehouse", warehouse)
+
+		dispatcher = self._make_role_user(
+			"service.dispatcher.parts@example.test", ("Service Dispatcher",)
+		)
+		target = self._make_work_order("Parts readiness scheduling work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		target.save()
+
+		ready = _parts_readiness(target, [self.technician])
+		self.assertTrue(ready[self.technician])
+
+		frappe.db.set_value("Service Location", self.location, "default_warehouse", "")
+		target.reload()
+		# Fall back to part source_warehouse when location default is unset.
+		ready_from_parts = _parts_readiness(target, [self.technician])
+		self.assertTrue(ready_from_parts[self.technician])
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		top_reasons = suggestions["candidates"][0]["reasons"]
+		self.assertIn("parts_ready:true", top_reasons)
+
 	def test_scheduling_explanation_is_draft_only_cited_and_cannot_assign(self):
 		from ai_erp_service.scheduling import request_scheduling_explanation
 
@@ -958,6 +1085,163 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertFalse(target.assigned_technician)
 		self.assertEqual(
 			frappe.get_doc("AI Proposal", result["name"]).proposal_status, "Approved"
+		)
+
+	def test_suggestion_rejection_feedback_is_dispatcher_only_and_non_assigning(self):
+		from ai_erp_service.scheduling import record_suggestion_feedback
+
+		dispatcher = self._make_role_user(
+			"service.dispatcher.feedback@example.test",
+			("Service Dispatcher",),
+		)
+		target = self._make_work_order("Suggestion feedback work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			record_suggestion_feedback(
+				target.name,
+				self.technician,
+				"Wrong skill or territory",
+				"Not the right craft.",
+			)
+
+		frappe.set_user(dispatcher)
+		result = record_suggestion_feedback(
+			target.name,
+			self.technician,
+			"Parts not ready",
+			"Van stock missing filter.",
+		)
+		self.assertTrue(result["recorded"])
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+		comments = frappe.get_all(
+			"Comment",
+			filters={"reference_doctype": "Service Work Order", "reference_name": target.name},
+			fields=["content"],
+		)
+		self.assertTrue(
+			any("Scheduling suggestion rejected" in (row.content or "") for row in comments)
+		)
+
+	def test_scheduling_capability_match_excludes_and_ranks_without_assigning(self):
+		from ai_erp_service.scheduling import suggest_technicians
+
+		matched = self._make_role_user(
+			"service.technician.capable@example.test", ("Service Technician",)
+		)
+		mismatched = self._make_role_user(
+			"service.technician.wrongskill@example.test", ("Service Technician",)
+		)
+		dispatcher = self._make_role_user(
+			"service.dispatcher.capability@example.test", ("Service Dispatcher",)
+		)
+
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{
+				"doctype": "Service Technician Capability",
+				"technician": matched,
+				"skills": "HVAC, Electrical",
+				"territories": "North",
+				"active": 1,
+			}
+		).insert()
+		frappe.get_doc(
+			{
+				"doctype": "Service Technician Capability",
+				"technician": mismatched,
+				"skills": "Plumbing",
+				"territories": "South",
+				"active": 1,
+			}
+		).insert()
+
+		target = self._make_work_order("Capability scheduling work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.required_skill = "HVAC"
+		target.service_territory = "North"
+		target.save()
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		candidate_names = [row["technician"] for row in suggestions["candidates"]]
+		self.assertIn(matched, candidate_names)
+		self.assertNotIn(mismatched, candidate_names)
+		self.assertIn(
+			{"technician": mismatched, "reason": "missing_skill"},
+			suggestions["excluded"],
+		)
+		top = next(row for row in suggestions["candidates"] if row["technician"] == matched)
+		self.assertIn("skill_match:hvac", top["reasons"])
+		self.assertIn("territory_match:north", top["reasons"])
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+
+		capability_name = frappe.db.get_value(
+			"Service Technician Capability", {"technician": matched}
+		)
+		frappe.set_user(mismatched)
+		capability = frappe.get_doc("Service Technician Capability", capability_name)
+		with self.assertRaises(frappe.PermissionError):
+			capability.check_permission("read")
+
+	def test_related_history_retrieval_abstains_without_asset_or_location(self):
+		from ai_erp_service.retrieval import related_work_history
+
+		orphan = frappe.get_doc(
+			{
+				"doctype": "Service Work Order",
+				"subject": "Orphan retrieval work order",
+				"customer": self.customer,
+				"status": "Draft",
+			}
+		)
+		orphan.insert()
+		self.assertEqual(related_work_history(orphan), [])
+
+	def test_evidence_chain_surfaces_margin_risks_for_managers(self):
+		from ai_erp_service.evidence import get_evidence_chain
+
+		work_order = self._make_work_order("Margin risk evidence chain")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.inspection_result = "Failed"
+		work_order.inspection_notes = "Alignment still drifts after warm-up."
+		work_order.closeout_notes = "Alignment still drifts."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		frappe.set_user(self.technician)
+		technician_chain = get_evidence_chain(work_order.name)
+		self.assertNotIn("finance", technician_chain["sections"])
+
+		frappe.set_user(self.manager)
+		manager_chain = get_evidence_chain(work_order.name)
+		self.assertIn("margin_risks", manager_chain["sections"]["finance"])
+		self.assertIn(
+			"failed_inspection", manager_chain["sections"]["finance"]["margin_risks"]
 		)
 
 	def test_recovery_draft_is_manager_only_cited_and_cannot_close_work(self):

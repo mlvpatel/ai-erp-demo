@@ -5,10 +5,23 @@ from datetime import timedelta
 import frappe
 from frappe.utils import flt, get_datetime
 
+from ai_erp_service.service_utils import FINANCE_ROLES, MANAGER_ROLES, require_any_role
+
 REPEAT_VISIT_WINDOW_DAYS = 30
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 WARRANTY_RISK_STATUSES = {"Unknown", "In Warranty"}
 INSPECTION_RISK_RESULTS = {"Needs Follow-up", "Failed"}
+MARGIN_RISK_CATEGORIES = (
+	"missing_billable_time",
+	"zero_rate_labor",
+	"missing_part_bill_rate",
+	"part_cost_above_bill_rate",
+	"unknown_cost_basis",
+	"warranty_risk",
+	"failed_inspection",
+	"unresolved_exception",
+	"repeat_visit_risk",
+)
 
 
 def annotate_margin_risks(rows):
@@ -158,3 +171,71 @@ def _repeat_orders(rows):
 				repeats.add(row.name)
 				break
 	return repeats
+
+
+@frappe.whitelist()
+def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, status=None):
+	"""Return aggregate margin risk counts and high-risk work orders for manager review.
+
+	Optional risk_category filters the high-risk queue to one deterministic
+	category. Technicians cannot call this API.
+	"""
+	require_any_role(
+		(*MANAGER_ROLES, *FINANCE_ROLES),
+		frappe._("Only a service manager or finance user can view margin leakage summary.")
+	)
+	if risk_category and risk_category not in MARGIN_RISK_CATEGORIES:
+		frappe.throw(frappe._("Unsupported margin risk category."))
+
+	filters = {}
+	if status:
+		filters["status"] = status
+	if from_date:
+		filters["creation"] = [">=", from_date]
+	if to_date:
+		if "creation" in filters:
+			filters["creation"] = ["between", [from_date, to_date]]
+		else:
+			filters["creation"] = ["<=", to_date]
+
+	rows = frappe.get_all(
+		"Service Work Order",
+		filters=filters,
+		fields=[
+			"name", "status", "hourly_rate", "warranty_status",
+			"inspection_result", "service_asset", "service_location",
+			"creation", "projected_margin_percent", "customer"
+		],
+		limit_page_length=500,
+	)
+	annotated = annotate_margin_risks(rows)
+	category_counts = {category: 0 for category in MARGIN_RISK_CATEGORIES}
+	high_risk_orders = []
+
+	for row in annotated:
+		risks = [r.strip() for r in (row.margin_risks or "").split(",") if r.strip()]
+		for risk in risks:
+			category_counts[risk] = category_counts.get(risk, 0) + 1
+
+		if risk_category and risk_category not in risks:
+			continue
+
+		if len(risks) >= 2 or flt(row.projected_margin_percent) < 15.0 or (
+			risk_category and risk_category in risks
+		):
+			high_risk_orders.append({
+				"name": row.name,
+				"customer": row.customer,
+				"status": row.status,
+				"margin_percent": flt(row.projected_margin_percent),
+				"risks": risks,
+			})
+
+	return {
+		"total_orders": len(rows),
+		"available_categories": list(MARGIN_RISK_CATEGORIES),
+		"category_counts": category_counts,
+		"risk_category": risk_category or "",
+		"high_risk_orders": high_risk_orders[:50],
+	}
+

@@ -3,7 +3,7 @@
 import frappe
 from frappe import _
 
-from ai_erp_service.margin_risk import annotate_margin_risks
+from ai_erp_service.margin_risk import MARGIN_RISK_CATEGORIES, annotate_margin_risks
 from ai_erp_service.service_utils import MANAGER_ROLES, require_any_role
 
 
@@ -42,7 +42,17 @@ def execute(filters=None):
 		# must return every permitted row at 5,000 work orders with headroom.
 		limit=10_000,
 	)
-	return _columns(), annotate_margin_risks(rows)
+	annotated = annotate_margin_risks(rows)
+	risk_category = (filters.margin_risk_category or "").strip()
+	if risk_category:
+		if risk_category not in MARGIN_RISK_CATEGORIES:
+			frappe.throw(_("Unsupported margin risk category."))
+		annotated = [
+			row
+			for row in annotated
+			if risk_category in {risk.strip() for risk in (row.margin_risks or "").split(",") if risk.strip()}
+		]
+	return _columns(), annotated
 
 
 def _columns():

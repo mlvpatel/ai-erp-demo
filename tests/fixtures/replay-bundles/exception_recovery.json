@@ -1,0 +1,49 @@
+{
+  "name": "exception_recovery_bundle",
+  "route": "/v1/proposals/exception-recovery",
+  "proposal_type": "exception_recovery",
+  "payload": {
+    "schema_version": 1,
+    "request_id": "44444444-4444-4444-4444-444444444444",
+    "tenant_site": "test.localhost",
+    "requested_by": "manager@example.test",
+    "work_order": {
+      "doctype": "Service Work Order",
+      "name": "WO-2026-00004",
+      "subject": "Compressor restart failure",
+      "status": "Cannot Close",
+      "cannot_close_reason": "Parts unavailable",
+      "inspection_result": "Failed"
+    },
+    "exception": {
+      "name": "EXC-2026-00001",
+      "reason": "Parts unavailable",
+      "status": "Open",
+      "due_date": "2026-07-25"
+    },
+    "parts": [
+      {
+        "item": "COMP-VALVE",
+        "qty": 1.0,
+        "issued": false
+      }
+    ],
+    "related_history": [
+      {
+        "name": "WO-2026-00001",
+        "subject": "Prior compressor valve replacement",
+        "status": "Closed",
+        "inspection_result": "Passed",
+        "closeout_notes": "Replaced valve and verified restart at example.org site notes."
+      }
+    ],
+    "sources": [
+      {
+        "doctype": "Service Closure Exception",
+        "name": "EXC-2026-00001",
+        "field": "reason",
+        "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

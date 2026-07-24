@@ -1,0 +1,44 @@
+{
+  "name": "closeout_summary_bundle",
+  "route": "/v1/proposals/service-closeout-summary",
+  "proposal_type": "service_closeout_summary",
+  "payload": {
+    "schema_version": 1,
+    "request_id": "11111111-1111-1111-1111-111111111111",
+    "tenant_site": "test.localhost",
+    "requested_by": "tech@example.test",
+    "work_order": {
+      "doctype": "Service Work Order",
+      "name": "WO-2026-00001",
+      "subject": "HVAC Compressor Repair",
+      "status": "Closeout Submitted",
+      "description": "Compressor failing to start.",
+      "closeout_notes": "Replaced capacitor and cleared line.",
+      "time_entries": [
+        {
+          "technician": "tech@example.test",
+          "work_date": "2026-07-23",
+          "time_type": "Labor",
+          "hours": 2.5
+        }
+      ],
+      "parts": [
+        {
+          "item": "CAPACITOR-45UF",
+          "qty": 1.0,
+          "source_warehouse": "Main - Store",
+          "issued": true
+        }
+      ],
+      "related_history": []
+    },
+    "sources": [
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00001",
+        "field": "closeout_notes",
+        "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}
