@@ -33,7 +33,8 @@
 5. **Safe Agent Replay** (Current: 7.5 / Target: 9.0)
    - *Status*: Partly Implemented. Replay harness covers closeout, repair
      memory, scheduling explanation, and exception recovery with fail-closed
-     auth. Live provider replay aggregates remain deferred.
+     auth. Finance-handoff evidence-packet fixture covers ledger packaging
+     without draft text. Live provider replay aggregates remain deferred.
 
 6. **Bounded Scheduling Optimizer** (Current: 7.0 / Target: 9.0)
    - *Status*: Partly Implemented. Deterministic ranking, skill/territory

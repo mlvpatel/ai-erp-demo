@@ -12,12 +12,30 @@ from ai_erp_control_plane.app import app
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "replay-bundles"
+EVIDENCE_PACKET_DIR = REPO_ROOT / "tests" / "fixtures" / "evidence-packets"
 EXPECTED_BUNDLES = {
 	"closeout_summary.json",
 	"repair_memory.json",
 	"scheduling_explanation.json",
 	"exception_recovery.json",
 }
+EXPECTED_EVIDENCE_PACKETS = {
+	"finance_handoff.json",
+}
+FORBIDDEN_PACKET_KEYS = (
+	"draft_content",
+	"prompt",
+	"prompt_version",
+	"provider_response",
+	"raw_response",
+)
+REQUIRED_FINANCE_STAGES = (
+	"request_identity",
+	"execution",
+	"ai_proposals",
+	"finance_handoff",
+	"completeness",
+)
 
 
 class TestReplayHarness(unittest.TestCase):
@@ -90,6 +108,43 @@ class TestReplayHarness(unittest.TestCase):
 						json=bundle["payload"],
 					)
 				self.assertEqual(response.status_code, 401)
+
+	def test_finance_handoff_evidence_packet_fixture(self):
+		packet_files = sorted(EVIDENCE_PACKET_DIR.glob("*.json"))
+		self.assertTrue(packet_files, "At least one evidence-packet fixture must exist.")
+		self.assertEqual(
+			{path.name for path in packet_files},
+			EXPECTED_EVIDENCE_PACKETS,
+			"Evidence-packet harness must include finance-handoff packaging.",
+		)
+
+		for packet_file in packet_files:
+			with self.subTest(packet=packet_file.name):
+				fixture = json.loads(packet_file.read_text(encoding="utf-8"))
+				self.assertEqual(fixture.get("packet_kind"), "evidence_to_cash_ledger")
+				packet = fixture["packet"]
+				self._assert_synthetic_domains(packet)
+				self._assert_finance_handoff_packet(packet)
+
+	def _assert_finance_handoff_packet(self, packet):
+		serialized = json.dumps(packet)
+		for forbidden in FORBIDDEN_PACKET_KEYS:
+			self.assertNotIn(forbidden, serialized)
+		self.assertEqual(packet["packet_kind"], "evidence_to_cash_ledger")
+		self.assertTrue(packet.get("sales_invoice"))
+		self.assertTrue(packet.get("stock_entries"))
+		self.assertIn("ledger_narrative", packet)
+		stages = [row["stage"] for row in packet["ledger_narrative"]["stages"]]
+		for required in REQUIRED_FINANCE_STAGES:
+			self.assertIn(required, stages)
+		finance_stage = next(
+			row for row in packet["ledger_narrative"]["stages"] if row["stage"] == "finance_handoff"
+		)
+		self.assertIn(packet["sales_invoice"], finance_stage["summary"])
+		self.assertEqual(len(packet["chain_hash"]), 64)
+		self.assertIn("Synthetic export evidence", packet["synthetic_note"])
+		self.assertNotIn("submit invoice", serialized.casefold())
+		self.assertNotIn("post stock", serialized.casefold())
 
 	def _assert_synthetic_domains(self, payload):
 		serialized = json.dumps(payload)

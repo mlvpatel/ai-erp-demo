@@ -154,11 +154,12 @@
       "validation_gate": "Replay tests prove no financial, stock, payroll, permission, compliance, or customer-message side effects across four proposal fixtures.",
       "feedback_loop": "Rejected proposals feed evaluation cases and workflow policy updates.",
       "failure_handling": "Policy mismatch, missing citation, or model mismatch fails closed and records safe metadata only.",
-      "optimization_step": "Add finance-handoff-specific replay packaging and private live-provider aggregates.",
+      "optimization_step": "Private live-provider aggregates remain blocked on credentials; finance-handoff evidence-packet fixture is in place for replay packaging.",
       "scalability_note": "Replay storage must keep metadata and hashes, not raw prompts or provider responses.",
       "evidence_paths": [
         "tests/contract/test_replay_harness.py",
         "tests/fixtures/replay-bundles/",
+        "tests/fixtures/evidence-packets/finance_handoff.json",
         "config/ai-workflow-registry.json",
         "docs/workflows/ai-workflow-lifecycle.md",
         "tests/contract/test_ai_control_plane_openapi.py"
