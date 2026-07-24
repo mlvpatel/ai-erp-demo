@@ -187,8 +187,10 @@ Do not put secrets in the repo, tracked `.env`, CI logs, issues, or screenshots.
 
 Template and demo script path already exist:
 
-- `docs/discovery/design-partner-validation-template.md`
-- `docs/runbooks/local-demo.md` and public demo script gates
+- `docs/discovery/design-partner-validation-template.md` (facilitator screen
+  checklist + blank score cells)
+- `docs/runbooks/demo-script.md` and `docs/runbooks/local-demo.md`
+- Public demo script gates via `scripts/check-demo-script.py`
 
 Do not invent partner scores. Record only real design-partner feedback when an
 external owner runs the session.

@@ -1,0 +1,100 @@
+{
+  "name": "finance_handoff_packet",
+  "packet_kind": "evidence_to_cash_ledger",
+  "proposal_type": null,
+  "notes": "Synthetic evidence-packet fixture for finance-handoff replay packaging. No AI draft text, prompts, or provider responses.",
+  "packet": {
+    "schema_version": 1,
+    "packet_kind": "evidence_to_cash_ledger",
+    "title": "Evidence-to-cash ledger for WO-2026-FIN-00001",
+    "generated_for": "service.manager@example.test",
+    "work_order": {
+      "name": "WO-2026-FIN-00001",
+      "subject": "Synthetic pump seal replacement",
+      "status": "Invoice Ready",
+      "customer": "SYNTHETIC-CUSTOMER",
+      "assigned_technician": "service.technician@example.test"
+    },
+    "ledger_narrative": {
+      "headline": "Request → execution → cited proposals → finance handoff",
+      "stages": [
+        {
+          "stage": "request_identity",
+          "summary": "Invoice Ready work order WO-2026-FIN-00001 for customer SYNTHETIC-CUSTOMER."
+        },
+        {
+          "stage": "execution",
+          "summary": "1 time entries; 1 part rows."
+        },
+        {
+          "stage": "exceptions",
+          "summary": "0 closure exception record(s)."
+        },
+        {
+          "stage": "ai_proposals",
+          "summary": "1 draft-only proposal(s); 1 citation row(s)."
+        },
+        {
+          "stage": "finance_handoff",
+          "summary": "Invoice SINV-DRAFT-SYNTH-00001; margin risks: none."
+        },
+        {
+          "stage": "completeness",
+          "summary": "complete"
+        }
+      ],
+      "integrity": {
+        "chain_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "section_hashes": {
+          "ai_proposals": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "exceptions": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "execution": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "finance": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "service_request": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "work_order": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      }
+    },
+    "proposals": [
+      {
+        "name": "AIP-SYNTH-00001",
+        "proposal_status": "Pending Review",
+        "policy_outcome": "Draft Only",
+        "model_provider": "development-template",
+        "model_name": "development-template",
+        "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "reviewed_by": ""
+      }
+    ],
+    "policy_decisions": ["Draft Only"],
+    "citations": [
+      {
+        "proposal": "AIP-SYNTH-00001",
+        "source_doctype": "Service Work Order",
+        "source_name": "WO-2026-FIN-00001",
+        "source_field": "closeout_notes",
+        "content_hash": "4444444444444444444444444444444444444444444444444444444444444444"
+      }
+    ],
+    "stock_entries": ["MAT-STE-SYNTH-00001"],
+    "sales_invoice": "SINV-DRAFT-SYNTH-00001",
+    "margin_risks": [],
+    "unresolved_exceptions": [],
+    "completeness": {
+      "complete": true,
+      "missing": [],
+      "open_exceptions": 0
+    },
+    "section_hashes": {
+      "ai_proposals": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "exceptions": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "execution": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "finance": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "service_request": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "work_order": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "chain_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "synthetic_note": "Synthetic export evidence; not human acceptance evidence, production audit proof, or GDPR compliance evidence."
+  }
+}

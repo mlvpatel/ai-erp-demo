@@ -9,6 +9,7 @@ from ai_erp_control_plane.live_eval import (
 	LIVE_EVAL_ACKNOWLEDGEMENT,
 	main,
 	run_live_eval,
+	run_live_eval_dry_run,
 )
 from ai_erp_control_plane.models import ModelMetadata, Policy, ProposalResponse
 from ai_erp_control_plane.openai_provider import DEFAULT_MODEL, OpenAIProviderError
@@ -119,3 +120,47 @@ class TestPrivateLiveEval(unittest.TestCase):
 			self.assertEqual(main(), 1)
 		self.assertEqual(output.getvalue().strip(), "openai_live_eval=FAIL reason=provider_or_policy")
 		self.assertNotIn("example-private-detail", output.getvalue())
+
+	def test_dry_run_validates_cases_without_secret_or_provider_call(self):
+		called = []
+
+		def renderer(request):
+			called.append(request)
+			return _renderer(request)
+
+		with patch.dict(
+			os.environ,
+			{
+				"AI_ERP_ENABLE_PRIVATE_LIVE_EVAL": LIVE_EVAL_ACKNOWLEDGEMENT,
+				"AI_ERP_PROVIDER": "openai",
+			},
+			clear=True,
+		):
+			run_live_eval_dry_run()
+			output = io.StringIO()
+			with redirect_stdout(output):
+				self.assertEqual(main(["--dry-run"]), 0)
+		self.assertEqual(
+			output.getvalue().strip(),
+			"openai_live_eval=DRY_RUN cases=5 synthetic=true ready=false",
+		)
+		self.assertEqual(called, [])
+
+	def test_dry_run_never_emits_pass(self):
+		output = io.StringIO()
+		with (
+			patch.dict(
+				os.environ,
+				{
+					"AI_ERP_ENABLE_PRIVATE_LIVE_EVAL": LIVE_EVAL_ACKNOWLEDGEMENT,
+					"AI_ERP_PROVIDER": "openai",
+					"AI_ERP_LIVE_EVAL_DRY_RUN": "1",
+				},
+				clear=True,
+			),
+			redirect_stdout(output),
+		):
+			self.assertEqual(main(), 0)
+		line = output.getvalue().strip()
+		self.assertTrue(line.startswith("openai_live_eval=DRY_RUN"))
+		self.assertNotIn("=PASS", line)
