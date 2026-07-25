@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import frappe
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_to_date, flt, now_datetime, today
+from frappe.utils import add_to_date, flt, get_datetime, now_datetime, today
 
 from ai_erp_service.ai_drafts import request_closeout_summary
 from ai_erp_service.ai_erp_service.doctype.service_request.service_request import create_service_work_order
@@ -19,6 +19,7 @@ from ai_erp_service.ai_erp_service.report.service_profitability.service_profitab
 	execute as profitability_report,
 )
 from ai_erp_service.demo_seed import prepare_e2e_demo, seed_service_demo
+from ai_erp_service.evidence import get_evidence_timeline
 from ai_erp_service.tasks import escalate_overdue_closure_exceptions
 
 # This focused integration suite creates its synthetic dependencies directly.
@@ -793,6 +794,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertIn("total_orders", summary)
 		self.assertIn("category_counts", summary)
 		self.assertIn("high_risk_orders", summary)
+		self.assertIn("truncated", summary)
+		self.assertIn("page_limit", summary)
+		self.assertFalse(summary["truncated"])
 		self.assertEqual(summary["available_categories"], list(MARGIN_RISK_CATEGORIES))
 		self.assertGreaterEqual(summary["total_orders"], 1)
 		self.assertGreaterEqual(summary["category_counts"].get("failed_inspection", 0), 1)
@@ -1044,6 +1048,88 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		suggestions = suggest_technicians(target.name)
 		top_reasons = suggestions["candidates"][0]["reasons"]
 		self.assertIn("parts_ready:true", top_reasons)
+
+	def test_parts_readiness_sums_duplicate_items_and_honors_row_warehouse(self):
+		from ai_erp_service.scheduling import _parts_readiness
+
+		item, warehouse = self._make_stocked_item()
+		# Location default points at an empty warehouse so readiness must use the
+		# part-row source_warehouse (same warehouse issue_parts would debit).
+		company = frappe.db.get_value("Warehouse", warehouse, "company")
+		empty_warehouse = frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": f"Empty Parts WH {frappe.generate_hash(length=6)}",
+				"company": company,
+			}
+		).insert(ignore_permissions=True).name
+		frappe.db.set_value("Service Location", self.location, "default_warehouse", empty_warehouse)
+
+		target = self._make_work_order("Duplicate parts readiness work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		# Seed receipt qty is 5; two rows of 3 would undercount as ready if only
+		# the last row were kept, but the summed demand of 6 must fail readiness.
+		target.append(
+			"parts",
+			{"item": item, "qty": 3, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		target.append(
+			"parts",
+			{"item": item, "qty": 3, "bill_rate": 25, "source_warehouse": warehouse},
+		)
+		target.save()
+
+		ready = _parts_readiness(target, [self.technician])
+		self.assertFalse(ready[self.technician])
+
+		bin_name = frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse})
+		self.assertTrue(bin_name)
+		frappe.db.set_value("Bin", bin_name, "actual_qty", 6)
+		target.reload()
+		ready_after_restock = _parts_readiness(target, [self.technician])
+		self.assertTrue(ready_after_restock[self.technician])
+		frappe.db.set_value("Service Location", self.location, "default_warehouse", "")
+
+	def test_evidence_timeline_closeout_ignores_later_modified(self):
+		work_order = self._make_work_order("Timeline closeout stability work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Stable closeout timestamp."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		first = get_evidence_timeline(work_order.name)
+		closeout_first = next(event for event in first if event["stage"] == "Closeout")
+		closeout_ts = closeout_first["timestamp"]
+
+		frappe.set_user(self.manager)
+		work_order.reload()
+		work_order.subject = f"{work_order.subject} edited later"
+		work_order.save()
+
+		second = get_evidence_timeline(work_order.name)
+		closeout_second = next(event for event in second if event["stage"] == "Closeout")
+		self.assertEqual(closeout_second["timestamp"], closeout_ts)
+		self.assertNotEqual(str(work_order.modified), closeout_ts)
+
+		parsed = [get_datetime(event["timestamp"]) for event in second]
+		self.assertEqual(parsed, sorted(parsed))
 
 	def test_scheduling_explanation_is_draft_only_cited_and_cannot_assign(self):
 		from ai_erp_service.scheduling import request_scheduling_explanation

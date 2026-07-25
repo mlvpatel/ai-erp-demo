@@ -184,37 +184,41 @@ def _completed_familiarity(work_order, technicians):
 	return familiarity
 
 
-def _parts_warehouse(work_order):
-	"""Resolve the stock warehouse for readiness checks.
-
-	Demo seed and service locations bind stock via Service Location.default_warehouse
-	or part source_warehouse rows. User.default_warehouse is not used because the
-	demo does not set it and standard User has no such field.
-	"""
+def _location_default_warehouse(work_order):
+	"""Return Service Location.default_warehouse when the work order has a location."""
 	location = work_order.get("service_location")
-	if location:
-		warehouse = frappe.db.get_value("Service Location", location, "default_warehouse")
-		if warehouse:
-			return warehouse
-	for row in work_order.get("parts") or []:
-		if getattr(row, "source_warehouse", None):
-			return row.source_warehouse
-	return ""
+	if not location:
+		return ""
+	return frappe.db.get_value("Service Location", location, "default_warehouse") or ""
+
+
+def _row_parts_warehouse(row, location_warehouse):
+	"""Resolve the warehouse issue_parts would use for one declared part row."""
+	return getattr(row, "source_warehouse", None) or location_warehouse or ""
 
 
 def _parts_readiness(work_order, technicians):
-	"""Return a map of technician -> bool indicating if declared parts are available."""
+	"""Return a map of technician -> bool indicating if declared parts are available.
+
+	Quantities for the same item in the same warehouse are summed. Each row uses
+	its own source_warehouse when set, otherwise the location default, matching
+	issue_parts rather than forcing every row onto the location warehouse.
+	"""
 	parts = work_order.get("parts") or []
 	if not parts:
 		return {tech: True for tech in technicians}
 
-	warehouse = _parts_warehouse(work_order)
-	if not warehouse:
-		return {tech: False for tech in technicians}
+	location_warehouse = _location_default_warehouse(work_order)
+	required_by_bin = {}
+	for row in parts:
+		warehouse = _row_parts_warehouse(row, location_warehouse)
+		if not warehouse or not row.item:
+			return {tech: False for tech in technicians}
+		key = (row.item, warehouse)
+		required_by_bin[key] = required_by_bin.get(key, 0) + (row.qty or 0)
 
-	required_items = {row.item: row.qty for row in parts}
 	has_all = True
-	for item, req_qty in required_items.items():
+	for (item, warehouse), req_qty in required_by_bin.items():
 		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty") or 0
 		if bin_qty < req_qty:
 			has_all = False

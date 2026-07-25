@@ -11,6 +11,7 @@ REPEAT_VISIT_WINDOW_DAYS = 30
 CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 WARRANTY_RISK_STATUSES = {"Unknown", "In Warranty"}
 INSPECTION_RISK_RESULTS = {"Needs Follow-up", "Failed"}
+MARGIN_SUMMARY_PAGE_LENGTH = 500
 MARGIN_RISK_CATEGORIES = (
 	"missing_billable_time",
 	"zero_rate_labor",
@@ -206,8 +207,9 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 			"inspection_result", "service_asset", "service_location",
 			"creation", "projected_margin_percent", "customer"
 		],
-		limit_page_length=500,
+		limit_page_length=MARGIN_SUMMARY_PAGE_LENGTH,
 	)
+	truncated = len(rows) >= MARGIN_SUMMARY_PAGE_LENGTH
 	annotated = annotate_margin_risks(rows)
 	category_counts = {category: 0 for category in MARGIN_RISK_CATEGORIES}
 	high_risk_orders = []
@@ -233,6 +235,8 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 
 	return {
 		"total_orders": len(rows),
+		"truncated": truncated,
+		"page_limit": MARGIN_SUMMARY_PAGE_LENGTH,
 		"available_categories": list(MARGIN_RISK_CATEGORIES),
 		"category_counts": category_counts,
 		"risk_category": risk_category or "",
