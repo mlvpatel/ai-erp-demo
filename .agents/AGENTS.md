@@ -30,3 +30,11 @@
    - Author: `mlvpatel <mlvpatel@users.noreply.github.com>`
    - Committer: `mlvpatel <mlvpatel@users.noreply.github.com>`
    - NO AI, LLM, bot, assistant, or generated-by attribution strings in commit messages or code comments.
+
+7. **Prose (BEhuMan)**:
+   - Apply `.agents/skills/behuman/SKILL.md` on every written deliverable:
+     docs, runbooks, commit messages, PR text, summaries, comments.
+   - Cursor loads the same skill from `.cursor/skills/behuman/` and the
+     always-on rule `.cursor/rules/behuman.mdc`.
+   - Do not announce the pass. Do not mass-rewrite unrelated historical docs
+     unless asked.

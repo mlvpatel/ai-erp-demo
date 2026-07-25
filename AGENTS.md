@@ -1,17 +1,21 @@
-# AI ERP Demo — agent entrypoint
+# AI ERP Demo: agent entrypoint
 
 Start here before changing this repository.
 
 ## Read first
 
-1. `.agents/AGENTS.md` — repository working rules (authoritative copy).
-2. `.agents/skills/erp-build-and-minimal-change/SKILL.md` — minimal-change build ladder.
-3. `.agents/skills/ai-governance-and-gates/SKILL.md` — AI proposal boundary and gates.
-4. `docs/product/pending-roadmap-for-claude-code.md` — phase-by-phase continuation plan.
-5. `docs/workflows/quality-gates.md` — which gate to run for which change.
+1. `.agents/AGENTS.md`: repository working rules (authoritative copy).
+2. `.agents/skills/erp-build-and-minimal-change/SKILL.md`: minimal-change build ladder.
+3. `.agents/skills/ai-governance-and-gates/SKILL.md`: AI proposal boundary and gates.
+4. `.agents/skills/behuman/SKILL.md`: BEhuMan prose rules (always on for docs,
+   commit messages, summaries, and other written deliverables).
+5. `docs/product/pending-roadmap-for-claude-code.md`: phase-by-phase continuation plan.
+6. `docs/workflows/quality-gates.md`: which gate to run for which change.
 
 Additional skills live under `.agents/skills/` (mirrored for Claude Code under
-`.claude/skills/` when that tree is present locally).
+`.claude/skills/` and for Cursor under `.cursor/skills/` when those trees are
+present locally). Cursor also loads `.cursor/rules/behuman.mdc` as an always-on
+rule.
 
 ## Hard rules (summary)
 
@@ -27,6 +31,9 @@ Additional skills live under `.agents/skills/` (mirrored for Claude Code under
   evaluation live in `services/ai_control_plane/`; external APIs and events are
   versioned in `contracts/`; new services, datastores, or providers need an ADR
   in `docs/adr/` first.
+- Prose follows BEhuMan (`.agents/skills/behuman/SKILL.md` /
+  `.cursor/skills/behuman/SKILL.md`): no AI-writing tells in docs, commit
+  messages, or other written deliverables.
 
 ## Gates
 

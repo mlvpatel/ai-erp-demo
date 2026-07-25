@@ -41,17 +41,18 @@ Walk the partner through these beats in order (synthetic records only). Map each
 beat to the scorecard lever and the workflow row below; leave Score blank until
 they rate:
 
-1. Service Request + linked Service Work Order — **evidence-to-cash** intake.
-2. Suggest Technicians + Explain Schedule — **scheduling suggest + explain**.
-3. Technician Desk: assigned work, time, declared parts, closeout — execution.
-4. Cannot-close exception + Draft Recovery Steps — **recovery**.
-5. Manager: Material Issue, invoice-ready, margin/profitability — **margin** +
+1. Service Request + linked Service Work Order: **evidence-to-cash** intake.
+2. Suggest Technicians + Explain Schedule: **scheduling suggest + explain**.
+3. Technician Desk: assigned work, time, declared parts, closeout: execution.
+4. Cannot-close exception + Draft Recovery Steps: **recovery**.
+5. Manager: Material Issue, invoice-ready, margin/profitability: **margin** +
    evidence-to-cash middle.
-6. Accounts user: draft Sales Invoice only (no stock mutation) — cash handoff.
-7. AI Proposal: cited sources, draft-only policy, human review — **AI draft-only**.
-8. Evidence Replay + manager Evidence Packet export — **packet export**.
-9. Optional safety close: upstream ERPNext/Frappe stays clean; custom apps and
-   control plane boundaries.
+6. Accounts user: draft Sales Invoice only (no stock mutation): cash handoff.
+7. AI Proposal: cited sources, draft-only policy, human review: **AI draft-only**.
+8. Evidence Replay + manager Evidence Packet export: **packet export**.
+9. Safety close (Beat J): live AI safety table: approve does not post ERP,
+   role-scoped replay/packet, abstention, architecture + claim hygiene.
+   Target partner Safety rating ≥9 when checks pass; do not invent scores.
 
 Suggested media references (already synthetic):
 `docs/media/demo/service-work-order-execution.jpg`,
