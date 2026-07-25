@@ -19,6 +19,13 @@ const assignmentSubjectPrefix = "AI ERP E2E Assignment";
 
 if (!password) throw new Error("E2E_USER_PASSWORD is required");
 
+// Dates must stay relative. The site runs in a UTC+x timezone, so a hardcoded
+// date silently becomes "in the past" for server-side validation such as the
+// Cannot Close closure due date.
+function offsetDate(days: number) {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 async function login(client: APIRequestContext, user: string) {
   const response = await client.post("/api/method/login", {
     form: { usr: user, pwd: password! },
@@ -82,6 +89,13 @@ async function saveForm(page: Page) {
   const save = page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first();
   await expect(save).toBeVisible();
   await save.click();
+  // Report the blocking message instead of only timing out on a still-dirty form.
+  const blockingMessage = await page
+    .locator(".modal:visible .modal-body")
+    .last()
+    .innerText({ timeout: 2000 })
+    .catch(() => "");
+  expect(blockingMessage.trim(), "save was rejected by a server validation dialog").toBe("");
   await expect.poll(() => page.evaluate(() => Boolean((window as any).cur_frm?.is_dirty?.()))).toBeFalsy();
 }
 
@@ -507,10 +521,10 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(insertResponse.ok()).toBeTruthy();
     const inserted = (await insertResponse.json()).message as Record<string, any>;
     inserted.assigned_technician = technician;
-    inserted.scheduled_start = "2026-07-18 09:00:00";
-    inserted.scheduled_end = "2026-07-18 11:00:00";
+    inserted.scheduled_start = `${offsetDate(1)} 09:00:00`;
+    inserted.scheduled_end = `${offsetDate(1)} 11:00:00`;
     inserted.closure_owner = manager;
-    inserted.closure_due_date = "2026-07-25";
+    inserted.closure_due_date = offsetDate(7);
     inserted.status = "Scheduled";
     await saveDoc(managerSession, inserted);
     const workOrderName = inserted.name as string;
