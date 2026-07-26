@@ -13,7 +13,7 @@
       "subject": "Quarterly rooftop unit service",
       "status": "Draft",
       "service_priority": "High",
-      "sla_due_at": "2026-07-24 16:00:00"
+      "sla_due_at": "@today+2 16:00:00"
     },
     "candidates": [
       {

@@ -1,5 +1,6 @@
 import hashlib
 import unittest
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -22,6 +23,25 @@ def _hash(value):
 	return hashlib.sha256(value.encode()).hexdigest()
 
 
+def _offset_date(days):
+	"""Keep fixture dates relative so they never drift into the past."""
+	return (date.today() + timedelta(days=days)).isoformat()
+
+
+def _offset_datetime(days):
+	stamp = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0) + timedelta(days=days)
+	return stamp.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _source_for(name, field, value):
+	return {
+		"doctype": "Service Work Order",
+		"name": name,
+		"field": field,
+		"content_hash": _hash(value),
+	}
+
+
 def _valid_request_payload():
 	return {
 		"schema_version": 1,
@@ -38,7 +58,7 @@ def _valid_request_payload():
 			"time_entries": [
 				{
 					"technician": "technician@example.test",
-					"work_date": "2026-07-10",
+					"work_date": _offset_date(-2),
 					"time_type": "Work",
 					"hours": 1.5,
 				}
@@ -116,7 +136,7 @@ class TestDevelopmentTemplate(unittest.TestCase):
 				"subject": "Quarterly pump service",
 				"status": "Draft",
 				"service_priority": "High",
-				"sla_due_at": "2026-07-20 12:00:00",
+				"sla_due_at": _offset_datetime(2),
 			},
 			"candidates": [
 				{
@@ -183,7 +203,7 @@ class TestDevelopmentTemplate(unittest.TestCase):
 				"name": "SVC-EXC-00001",
 				"reason": "Parts unavailable",
 				"status": "Open",
-				"due_date": "2026-07-21",
+				"due_date": _offset_date(3),
 			},
 			"parts": [{"item": "COMP-VALVE", "qty": 1, "issued": False}],
 			"related_history": [
@@ -200,7 +220,8 @@ class TestDevelopmentTemplate(unittest.TestCase):
 					"name": "SVC-EXC-00001",
 					"field": "reason",
 					"content_hash": _hash("Parts unavailable"),
-				}
+				},
+				_source_for("SVC-WO-00001", "history", "Replaced valve and reset controller."),
 			],
 		}
 		request = ExceptionRecoveryRequest.model_validate(payload)
@@ -258,12 +279,8 @@ class TestDevelopmentTemplate(unittest.TestCase):
 				},
 			],
 			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-00001",
-					"field": "history",
-					"content_hash": _hash("prior"),
-				}
+				_source_for("SVC-WO-00001", "history", "prior"),
+				_source_for("SVC-WO-00002", "history", "second prior"),
 			],
 		}
 		request = RepairMemoryRequest.model_validate(payload)
@@ -277,6 +294,16 @@ class TestDevelopmentTemplate(unittest.TestCase):
 		self.assertIn("Missing diagnostic step", response.draft_content)
 		self.assertIn("cannot change the work order", response.draft_content)
 		self.assertNotIn("BEARING", response.draft_content)
+		self.assertNotIn("Evidence note", response.draft_content)
+
+		partly_cited = dict(payload)
+		partly_cited["sources"] = [_source_for("SVC-WO-00001", "history", "prior")]
+		partial = render_repair_memory_template(RepairMemoryRequest.model_validate(partly_cited))
+		self.assertIn("SVC-WO-00001", partial.draft_content)
+		self.assertNotIn("SVC-WO-00002", partial.draft_content)
+		self.assertNotIn("Replaced mount kit fully", partial.draft_content)
+		self.assertIn("MOUNT-KIT: used in 1 prior visit(s)", partial.draft_content)
+		self.assertIn("1 prior record was omitted", partial.draft_content)
 
 		empty = dict(payload)
 		empty["related_history"] = []

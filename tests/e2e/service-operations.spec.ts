@@ -19,6 +19,13 @@ const assignmentSubjectPrefix = "AI ERP E2E Assignment";
 
 if (!password) throw new Error("E2E_USER_PASSWORD is required");
 
+// Dates must stay relative. The site runs in a UTC+x timezone, so a hardcoded
+// date silently becomes "in the past" for server-side validation such as the
+// Cannot Close closure due date.
+function offsetDate(days: number) {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 async function login(client: APIRequestContext, user: string) {
   const response = await client.post("/api/method/login", {
     form: { usr: user, pwd: password! },
@@ -82,6 +89,13 @@ async function saveForm(page: Page) {
   const save = page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first();
   await expect(save).toBeVisible();
   await save.click();
+  // Report the blocking message instead of only timing out on a still-dirty form.
+  const blockingMessage = await page
+    .locator(".modal:visible .modal-body")
+    .last()
+    .innerText({ timeout: 2000 })
+    .catch(() => "");
+  expect(blockingMessage.trim(), "save was rejected by a server validation dialog").toBe("");
   await expect.poll(() => page.evaluate(() => Boolean((window as any).cur_frm?.is_dirty?.()))).toBeFalsy();
 }
 
@@ -507,10 +521,10 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(insertResponse.ok()).toBeTruthy();
     const inserted = (await insertResponse.json()).message as Record<string, any>;
     inserted.assigned_technician = technician;
-    inserted.scheduled_start = "2026-07-18 09:00:00";
-    inserted.scheduled_end = "2026-07-18 11:00:00";
+    inserted.scheduled_start = `${offsetDate(1)} 09:00:00`;
+    inserted.scheduled_end = `${offsetDate(1)} 11:00:00`;
     inserted.closure_owner = manager;
-    inserted.closure_due_date = "2026-07-25";
+    inserted.closure_due_date = offsetDate(7);
     inserted.status = "Scheduled";
     await saveDoc(managerSession, inserted);
     const workOrderName = inserted.name as string;
@@ -521,18 +535,75 @@ test("technician mobile journey guides validation and cannot-close without finan
     await expect(page.getByText(subject).first()).toBeVisible();
 
     await openForm(page, "service-work-order", workOrderName);
+
+    const saveButton = page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first();
+    await expect(saveButton).toBeVisible();
+    const saveBox = await saveButton.boundingBox();
+    expect(saveBox, "Save must render a measurable touch target").toBeTruthy();
+    expect(saveBox!.height).toBeGreaterThanOrEqual(44);
+
+    const statusSelect = field(page, "status").locator("select").first();
+    await expect(statusSelect).toBeVisible();
+    const statusAccessibleName = await statusSelect.evaluate((element) => {
+      const labeledBy = element.getAttribute("aria-labelledby");
+      if (labeledBy) {
+        return labeledBy
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent?.trim() || "")
+          .join(" ")
+          .trim();
+      }
+      const ariaLabel = element.getAttribute("aria-label");
+      if (ariaLabel) return ariaLabel.trim();
+      const control = element.closest(".frappe-control");
+      const label = control?.querySelector(".control-label, label");
+      return (label?.textContent || "").trim();
+    });
+    expect(statusAccessibleName.toLowerCase()).toContain("status");
+
+    const statusBox = await statusSelect.boundingBox();
+    expect(statusBox, "Status select must render a measurable touch target").toBeTruthy();
+    expect(statusBox!.height).toBeGreaterThanOrEqual(44);
+
+    await statusSelect.focus();
+    await expect(statusSelect).toBeFocused();
+    await page.keyboard.press("Tab");
     await setSelectField(page, "status", "In Progress");
     await saveForm(page);
 
     await setSelectField(page, "status", "Closeout Submitted");
-    await page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first().click();
+    await saveButton.click();
     const validationDialog = page.locator(".modal:visible").last();
     await expect(validationDialog).toContainText("time entry is required");
+    const validationBody = validationDialog.locator(".modal-body, .msgprint").first();
+    await expect(validationBody).toBeVisible();
+    const validationMetrics = await validationBody.evaluate((element) => {
+      const styles = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        fontSize: Number.parseFloat(styles.fontSize),
+        width: rect.width,
+        height: rect.height,
+        text: (element.textContent || "").trim(),
+      };
+    });
+    expect(validationMetrics.fontSize).toBeGreaterThanOrEqual(16);
+    expect(validationMetrics.width).toBeGreaterThan(200);
+    expect(validationMetrics.height).toBeGreaterThan(24);
+    expect(validationMetrics.text.toLowerCase()).toContain("time entry is required");
     await validationDialog.locator(".btn-modal-close").click();
     await expect(validationDialog).toBeHidden();
 
     await setSelectField(page, "status", "In Progress");
     await setSelectField(page, "status", "Cannot Close");
+    const reasonSelect = field(page, "cannot_close_reason").locator("select").first();
+    await expect(reasonSelect).toBeVisible();
+    const reasonAccessibleName = await reasonSelect.evaluate((element) => {
+      const control = element.closest(".frappe-control");
+      const label = control?.querySelector(".control-label, label");
+      return (element.getAttribute("aria-label") || label?.textContent || "").trim();
+    });
+    expect(reasonAccessibleName.toLowerCase()).toMatch(/cannot close|reason/);
     await setSelectField(page, "cannot_close_reason", "Parts unavailable");
     await saveForm(page);
 

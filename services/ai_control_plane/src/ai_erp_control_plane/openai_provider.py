@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 from dataclasses import dataclass
 from hashlib import sha256
 from time import monotonic
@@ -21,6 +20,13 @@ from .models import (
 	ServiceCloseoutSummaryRequest,
 )
 from .render import POLICY_REASON
+from .safety import (
+	EMAIL_PATTERN,
+	GROUNDING_FACT_PATTERN,
+	PHONE_PATTERN,
+	SENSITIVE_VALUE_PATTERN,
+)
+from .safety import redact as _redact
 
 PROMPT_VERSION = "service-closeout-summary@v2"
 DEFAULT_MODEL = "gpt-5.4-mini-2026-03-17"
@@ -31,14 +37,17 @@ MAX_OUTPUT_TOKENS = 2_000
 MAX_PROVIDER_CALLS = 1
 MAX_AUTOMATIC_RETRIES = 0
 MAX_TIMEOUT_SECONDS = 8
-EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
-PHONE_PATTERN = re.compile(r"(?<![\w-])(?:\+?\d[\d .()\-]{7,}\d)(?![\w-])")
-# ponytail: shape allowlist for operational facts; datetimes and other digit runs
-# still redact (safe direction). Extend only when a live eval loses grounding on them.
-GROUNDING_FACT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}|\d{1,3}(?: \d{3})*\.\d{2}")
-SENSITIVE_VALUE_PATTERN = re.compile(
-	r"(?i)\b(?:api[_ -]?key|access[_ -]?token|bearer|password|secret|credential)\b\s*[:=]?\s*[^\s,;]{4,}"
-)
+
+__all__ = [
+	"EMAIL_PATTERN",
+	"GROUNDING_FACT_PATTERN",
+	"PHONE_PATTERN",
+	"SENSITIVE_VALUE_PATTERN",
+	"OpenAIConfig",
+	"OpenAIProviderError",
+	"render_openai",
+	"render_openai_repair_memory",
+]
 
 
 class OpenAIProviderError(RuntimeError):
@@ -72,24 +81,6 @@ class OpenAIConfig:
 		if not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS:
 			raise OpenAIProviderError("provider timeout is outside the approved range", "configuration")
 		return cls(credential=credential, model=model, base_url=base_url, timeout_seconds=timeout_seconds)
-
-
-def _redact(value: str) -> tuple[str, int]:
-	count = 0
-
-	def redact_phone(match: re.Match) -> str:
-		nonlocal count
-		if GROUNDING_FACT_PATTERN.fullmatch(match.group(0)):
-			return match.group(0)
-		count += 1
-		return "[REDACTED]"
-
-	value, matches = EMAIL_PATTERN.subn("[REDACTED]", value)
-	count += matches
-	value = PHONE_PATTERN.sub(redact_phone, value)
-	value, matches = SENSITIVE_VALUE_PATTERN.subn("[REDACTED]", value)
-	count += matches
-	return value, count
 
 
 def _minimized_model_input(request: ServiceCloseoutSummaryRequest) -> tuple[dict, int]:

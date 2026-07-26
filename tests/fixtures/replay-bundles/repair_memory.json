@@ -36,6 +36,12 @@
         "name": "WO-2026-00002",
         "field": "repair_context",
         "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00001",
+        "field": "history",
+        "content_hash": "beb28771fe690c7f8919d78e16188cff22955a7919413f8c07799cc1e80d24e2"
       }
     ]
   }

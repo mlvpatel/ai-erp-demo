@@ -17,7 +17,7 @@
       "time_entries": [
         {
           "technician": "tech@example.test",
-          "work_date": "2026-07-23",
+          "work_date": "@today-3",
           "time_type": "Labor",
           "hours": 2.5
         }
