@@ -12,6 +12,7 @@ from .models import (
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
+from .safety import cited_history, omission_note, quote_block, quote_inline
 
 POLICY_REASON = "This response is a cited draft only; a human review records no ERP action."
 
@@ -20,15 +21,15 @@ def render_development_template(request: ServiceCloseoutSummaryRequest) -> Propo
 	"""Format supplied data without inference, tools, retrieval, or ERP access."""
 	work_order = request.work_order
 	lines = [
-		f"Draft closeout summary — {work_order.subject}",
+		f"Draft closeout summary — {quote_inline(work_order.subject)}",
 		"",
 		f"Work order: {work_order.name}",
 		f"Current status: {work_order.status}",
 	]
 	if work_order.description:
-		lines.extend(["", "Reported scope", work_order.description])
+		lines.extend(["", "Reported scope", quote_block(work_order.description)])
 	if work_order.closeout_notes:
-		lines.extend(["", "Technician closeout notes", work_order.closeout_notes])
+		lines.extend(["", "Technician closeout notes", quote_block(work_order.closeout_notes)])
 
 	total_hours = sum(entry.hours for entry in work_order.time_entries)
 	lines.extend(["", "Recorded effort", f"- Total hours: {total_hours:g}"])
@@ -41,14 +42,16 @@ def render_development_template(request: ServiceCloseoutSummaryRequest) -> Propo
 			issue_state = "issued" if part.issued else "not issued"
 			lines.append(f"- {part.item}: {part.qty:g} from {part.source_warehouse} ({issue_state})")
 
-	if work_order.related_history:
+	history, omitted = cited_history(work_order.related_history, request.sources)
+	if history:
 		lines.extend(["", "Prior related work (cited)"])
-		for entry in work_order.related_history:
-			lines.append(f"- {entry.name}: {entry.subject} ({entry.status})")
+		for entry in history:
+			lines.append(f"- {entry.name}: {quote_inline(entry.subject)} ({entry.status})")
 			if entry.inspection_result:
 				lines.append(f"  Inspection result: {entry.inspection_result}")
 			if entry.closeout_notes:
-				lines.append(f"  Closeout notes: {entry.closeout_notes}")
+				lines.append(f"  Closeout notes: {quote_inline(entry.closeout_notes)}")
+	lines.extend(omission_note(omitted))
 
 	lines.extend(
 		[
@@ -76,7 +79,7 @@ def render_scheduling_template(request: SchedulingExplanationRequest) -> Schedul
 	"""Explain supplied deterministic ranking facts without inference or assignment authority."""
 	work_order = request.work_order
 	lines = [
-		f"Draft scheduling explanation — {work_order.subject}",
+		f"Draft scheduling explanation — {quote_inline(work_order.subject)}",
 		"",
 		f"Work order: {work_order.name}",
 		f"Status: {work_order.status}",
@@ -157,7 +160,7 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 	work_order = request.work_order
 	exception = request.exception
 	lines = [
-		f"Draft recovery steps — {work_order.subject}",
+		f"Draft recovery steps — {quote_inline(work_order.subject)}",
 		"",
 		f"Work order: {work_order.name} ({work_order.status})",
 		f"Closure exception: {exception.name} ({exception.status})",
@@ -168,17 +171,18 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 	if work_order.inspection_result:
 		lines.append(f"Inspection result: {work_order.inspection_result}")
 
+	history, omitted = cited_history(request.related_history, request.sources)
 	guidance = RECOVERY_GUIDANCE.get(exception.reason)
 	unissued = [part for part in request.parts if not part.issued]
 	if guidance:
 		lines.extend(["", "Recommended next steps"])
 		lines.extend(f"- {step}" for step in guidance)
-	elif not request.related_history:
+	elif not history:
 		lines.extend(
 			[
 				"",
 				"Abstention",
-				"The exception reason is uncategorized and no prior related work is visible, "
+				"The exception reason is uncategorized and no cited prior work is visible, "
 				"so no recovery recommendation is made. The manager should record the next "
 				"step manually.",
 			]
@@ -186,12 +190,13 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 	if unissued:
 		lines.extend(["", "Declared parts not yet issued"])
 		lines.extend(f"- {part.item}: {part.qty:g}" for part in unissued)
-	if request.related_history:
+	if history:
 		lines.extend(["", "Prior related work (cited)"])
-		for entry in request.related_history:
-			lines.append(f"- {entry.name}: {entry.subject} ({entry.status})")
+		for entry in history:
+			lines.append(f"- {entry.name}: {quote_inline(entry.subject)} ({entry.status})")
 			if entry.closeout_notes:
-				lines.append(f"  Closeout notes: {entry.closeout_notes}")
+				lines.append(f"  Closeout notes: {quote_inline(entry.closeout_notes)}")
+	lines.extend(omission_note(omitted))
 	lines.extend(
 		[
 			"",
@@ -222,34 +227,35 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 	"""Reorganize cited prior work into repair memory; supplied facts only."""
 	work_order = request.work_order
 	lines = [
-		f"Draft repair memory — {work_order.subject}",
+		f"Draft repair memory — {quote_inline(work_order.subject)}",
 		"",
 		f"Work order: {work_order.name} ({work_order.status})",
 	]
-	if not request.related_history:
+	history, omitted = cited_history(request.related_history, request.sources)
+	if not history:
 		lines.extend(
 			[
 				"",
 				"Abstention",
-				"No completed prior work at this asset or location is visible to the "
+				"No cited completed prior work at this asset or location is visible to the "
 				"requesting role, so no repair suggestion is made.",
 			]
 		)
 	else:
 		lines.extend(["", "Likely fix based on cited prior work"])
-		for entry in request.related_history:
-			lines.append(f"- {entry.name}: {entry.subject} ({entry.status})")
+		for entry in history:
+			lines.append(f"- {entry.name}: {quote_inline(entry.subject)} ({entry.status})")
 			if entry.closeout_notes:
-				lines.append(f"  Prior fix notes: {entry.closeout_notes}")
+				lines.append(f"  Prior fix notes: {quote_inline(entry.closeout_notes)}")
 		part_counts: dict[str, int] = {}
-		for entry in request.related_history:
+		for entry in history:
 			for part in entry.parts:
 				part_counts[part.item] = part_counts.get(part.item, 0) + 1
 		if part_counts:
 			lines.extend(["", "Parts likely required (occurrences in prior visits)"])
 			for item, count in sorted(part_counts.items()):
 				lines.append(f"- {item}: used in {count} prior visit(s)")
-		if any(entry.inspection_result in INSPECTION_FOLLOW_UP_RESULTS for entry in request.related_history):
+		if any(entry.inspection_result in INSPECTION_FOLLOW_UP_RESULTS for entry in history):
 			lines.extend(
 				[
 					"",
@@ -258,6 +264,7 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 					"outstanding diagnostic before repeating the repair.",
 				]
 			)
+	lines.extend(omission_note(omitted))
 	lines.extend(
 		[
 			"",

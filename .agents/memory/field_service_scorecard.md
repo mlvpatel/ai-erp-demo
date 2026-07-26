@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.0 / 10
+- **Current Demo Average Score**: 7.3 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -29,22 +29,25 @@
    - *Status*: Partly Implemented. Summary API now returns `truncated` /
      `page_limit` when the 500-row cap is hit.
 
-4. **Provenance-Based Repair Memory** (Current: 5.2 / Target: 9.0)
-   - *Status*: Partly Implemented. Permission-scoped retrieval, draft proposals,
-     and deeper abstention/leakage evals exist. Live provider aggregate eval is
-     blocked on credentials.
+4. **Provenance-Based Repair Memory** (Current: 6.5 / Target: 9.0)
+   - *Status*: Partly Implemented. Template renderers keep only citation-backed
+     history, redact contact/credential-shaped free text, and neutralize
+     instruction-like spans. Live provider aggregate eval is still blocked on
+     credentials.
 
-5. **Safe Agent Replay** (Current: 7.8 / Target: 9.0)
-   - *Status*: Partly Implemented. Four draft-only replay fixtures + Beat J live
-     safety script. Live provider replay aggregates remain deferred.
+5. **Safe Agent Replay** (Current: 8.0 / Target: 9.0)
+   - *Status*: Partly Implemented. Four draft-only replay fixtures cite every
+     history entry and use `@today` relative dates. Live provider replay
+     aggregates remain deferred.
 
 6. **Bounded Scheduling Optimizer** (Current: 7.3 / Target: 9.0)
    - *Status*: Partly Implemented. Parts readiness sums duplicate items and
      honors per-row `source_warehouse` (aligned with `issue_parts`).
 
-7. **Mobile Field Execution** (Current: 5.4 / Target: 9.0)
-   - *Status*: Partly Implemented. Online mobile CSS/a11y depth exists;
-     IndexedDB offline drafts remain intentionally gated off.
+7. **Mobile Field Execution** (Current: 6.1 / Target: 9.0)
+   - *Status*: Partly Implemented. Online mobile CSS enforces 44px targets and
+     readable validation copy; browser tests assert accessible names at
+     390 by 844. IndexedDB offline drafts remain intentionally gated off.
 
 8. **Governed Demo-to-Pilot Release** (Current: 7.0 / Target: 9.0)
    - *Status*: Partly Implemented. Demo gates pass; external pilot/legal/UAT

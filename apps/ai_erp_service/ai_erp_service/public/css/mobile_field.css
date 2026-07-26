@@ -4,11 +4,14 @@
     padding: 8px !important;
   }
 
-  /* Large touch targets for primary form actions — leave Desk chrome alone */
+  /* Large touch targets for form actions the technician must hit */
   .form-page .btn,
   .form-page .btn-primary,
   .form-page .btn-default,
   .form-page .btn-secondary,
+  .page-head .btn.primary-action,
+  .page-head .standard-actions .btn,
+  .page-head .custom-actions .btn,
   .modal .btn {
     min-height: 44px !important;
     font-size: 1rem !important;
@@ -20,6 +23,7 @@
   .form-page .btn:focus-visible,
   .form-control:focus-visible,
   .grid-row .form-control:focus-visible,
+  select.form-control:focus-visible,
   a:focus-visible,
   .modal .btn:focus-visible {
     outline: 2px solid #0f172a !important;
@@ -27,9 +31,33 @@
     box-shadow: none !important;
   }
 
-  .form-control, .grid-row .form-control {
+  .form-control,
+  .grid-row .form-control,
+  select.form-control,
+  .form-page select {
     font-size: 1rem !important;
+    min-height: 44px !important;
     height: 44px !important;
+  }
+
+  .form-page textarea.form-control {
+    height: auto !important;
+    min-height: 88px !important;
+  }
+
+  /* Validation and alert copy must stay readable at phone width */
+  .modal .modal-body,
+  .modal .msgprint,
+  .form-message,
+  .form-page .help-box {
+    font-size: 1rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .form-page .control-label,
+  .form-page .frappe-control > .checkbox > label {
+    font-size: 0.95rem !important;
+    line-height: 1.35 !important;
   }
 
   /* Compact grid table cards on small screens */

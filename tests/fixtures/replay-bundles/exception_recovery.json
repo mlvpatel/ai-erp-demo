@@ -19,7 +19,7 @@
       "name": "EXC-2026-00001",
       "reason": "Parts unavailable",
       "status": "Open",
-      "due_date": "2026-07-25"
+      "due_date": "@today+3"
     },
     "parts": [
       {
@@ -43,6 +43,12 @@
         "name": "EXC-2026-00001",
         "field": "reason",
         "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00001",
+        "field": "history",
+        "content_hash": "187f5fda045721b1f2545f32935c8ca604460b9f2e1316f9edb7635a79dc78da"
       }
     ]
   }

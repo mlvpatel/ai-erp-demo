@@ -73,11 +73,18 @@
     ".agents/skills/behuman/references/patterns.md",
     ".agents/skills/behuman/references/wordlists.md",
     ".agents/skills/behuman/references/mediawiki.md",
+    ".claude/skills/behuman/SKILL.md",
+    ".claude/skills/behuman/references/patterns.md",
+    ".claude/skills/behuman/references/wordlists.md",
+    ".claude/skills/behuman/references/mediawiki.md",
     ".cursor/rules/behuman.mdc",
     ".cursor/skills/behuman/SKILL.md",
     ".cursor/skills/behuman/references/patterns.md",
     ".cursor/skills/behuman/references/wordlists.md",
     ".cursor/skills/behuman/references/mediawiki.md"
+  ],
+  "claude_allowed_children": [
+    "skills"
   ],
   "cursor_allowed_children": [
     "rules",
@@ -92,7 +99,9 @@
     "ide_state.json",
     "credentials",
     "secrets",
-    "node_modules"
+    "node_modules",
+    "settings.local.json",
+    "settings.json"
   ],
   "forbidden_root_directories": [
     "frontend",
@@ -135,6 +144,8 @@
     "docs": "product, architecture, discovery, security, runbooks, and workflows",
     "infra": "non-secret infrastructure configuration only",
     "tests": "contract, e2e, fixture, and performance tests",
+    ".agents": "shared agent entrypoints, memory, and skills",
+    ".claude": "Claude Code mirrored skills only; local settings stay gitignored",
     ".cursor": "versioned Cursor agent skills and always-on rules only; no secrets or MCP credentials"
   }
 }
