@@ -2,7 +2,9 @@
 
 import json
 import os
+import re
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,12 +38,56 @@ REQUIRED_FINANCE_STAGES = (
 	"finance_handoff",
 	"completeness",
 )
+# Bundles carry relative date markers such as "@today+3" instead of literal dates.
+# An absolute date in a fixture silently becomes "in the past" and stops
+# exercising the case it was written for.
+TODAY_OFFSET_PATTERN = re.compile(r"@today(?P<offset>[+-]\d+)?")
+ABSOLUTE_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+
+
+def expand_relative_dates(value):
+	"""Replace @today markers with dates resolved at run time."""
+	if isinstance(value, dict):
+		return {key: expand_relative_dates(item) for key, item in value.items()}
+	if isinstance(value, list):
+		return [expand_relative_dates(item) for item in value]
+	if isinstance(value, str):
+		return TODAY_OFFSET_PATTERN.sub(
+			lambda match: (date.today() + timedelta(days=int(match.group("offset") or 0))).isoformat(),
+			value,
+		)
+	return value
 
 
 class TestReplayHarness(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		cls.client = TestClient(app)
+
+	def test_bundle_dates_stay_relative(self):
+		for bundle_file in sorted(FIXTURES_DIR.glob("*.json")):
+			with self.subTest(bundle=bundle_file.name):
+				raw = bundle_file.read_text(encoding="utf-8")
+				self.assertEqual(
+					ABSOLUTE_DATE.findall(raw),
+					[],
+					f"{bundle_file.name} must use @today tokens instead of absolute dates.",
+				)
+
+	def test_bundle_history_is_cited(self):
+		for bundle_file in sorted(FIXTURES_DIR.glob("*.json")):
+			with self.subTest(bundle=bundle_file.name):
+				payload = json.loads(bundle_file.read_text(encoding="utf-8"))["payload"]
+				history = payload.get("related_history") or payload.get("work_order", {}).get(
+					"related_history", []
+				)
+				cited = {source["name"] for source in payload["sources"]}
+				uncited = [entry["name"] for entry in history if entry["name"] not in cited]
+				self.assertEqual(
+					uncited,
+					[],
+					f"{bundle_file.name} supplies prior work without a matching source citation.",
+				)
 
 	def test_replay_all_bundles(self):
 		bundle_files = sorted(FIXTURES_DIR.glob("*.json"))
@@ -61,7 +107,7 @@ class TestReplayHarness(unittest.TestCase):
 				with self.subTest(bundle=bundle_file.name):
 					bundle = json.loads(bundle_file.read_text(encoding="utf-8"))
 					route = bundle["route"]
-					payload = bundle["payload"]
+					payload = expand_relative_dates(bundle["payload"])
 					self.assertIn(
 						bundle["proposal_type"],
 						{
@@ -105,7 +151,7 @@ class TestReplayHarness(unittest.TestCase):
 					response = self.client.post(
 						bundle["route"],
 						headers={"Authorization": "Bearer example-shared-secret"},
-						json=bundle["payload"],
+						json=expand_relative_dates(bundle["payload"]),
 					)
 				self.assertEqual(response.status_code, 401)
 

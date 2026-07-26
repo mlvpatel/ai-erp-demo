@@ -535,18 +535,75 @@ test("technician mobile journey guides validation and cannot-close without finan
     await expect(page.getByText(subject).first()).toBeVisible();
 
     await openForm(page, "service-work-order", workOrderName);
+
+    const saveButton = page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first();
+    await expect(saveButton).toBeVisible();
+    const saveBox = await saveButton.boundingBox();
+    expect(saveBox, "Save must render a measurable touch target").toBeTruthy();
+    expect(saveBox!.height).toBeGreaterThanOrEqual(44);
+
+    const statusSelect = field(page, "status").locator("select").first();
+    await expect(statusSelect).toBeVisible();
+    const statusAccessibleName = await statusSelect.evaluate((element) => {
+      const labeledBy = element.getAttribute("aria-labelledby");
+      if (labeledBy) {
+        return labeledBy
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent?.trim() || "")
+          .join(" ")
+          .trim();
+      }
+      const ariaLabel = element.getAttribute("aria-label");
+      if (ariaLabel) return ariaLabel.trim();
+      const control = element.closest(".frappe-control");
+      const label = control?.querySelector(".control-label, label");
+      return (label?.textContent || "").trim();
+    });
+    expect(statusAccessibleName.toLowerCase()).toContain("status");
+
+    const statusBox = await statusSelect.boundingBox();
+    expect(statusBox, "Status select must render a measurable touch target").toBeTruthy();
+    expect(statusBox!.height).toBeGreaterThanOrEqual(44);
+
+    await statusSelect.focus();
+    await expect(statusSelect).toBeFocused();
+    await page.keyboard.press("Tab");
     await setSelectField(page, "status", "In Progress");
     await saveForm(page);
 
     await setSelectField(page, "status", "Closeout Submitted");
-    await page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first().click();
+    await saveButton.click();
     const validationDialog = page.locator(".modal:visible").last();
     await expect(validationDialog).toContainText("time entry is required");
+    const validationBody = validationDialog.locator(".modal-body, .msgprint").first();
+    await expect(validationBody).toBeVisible();
+    const validationMetrics = await validationBody.evaluate((element) => {
+      const styles = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        fontSize: Number.parseFloat(styles.fontSize),
+        width: rect.width,
+        height: rect.height,
+        text: (element.textContent || "").trim(),
+      };
+    });
+    expect(validationMetrics.fontSize).toBeGreaterThanOrEqual(16);
+    expect(validationMetrics.width).toBeGreaterThan(200);
+    expect(validationMetrics.height).toBeGreaterThan(24);
+    expect(validationMetrics.text.toLowerCase()).toContain("time entry is required");
     await validationDialog.locator(".btn-modal-close").click();
     await expect(validationDialog).toBeHidden();
 
     await setSelectField(page, "status", "In Progress");
     await setSelectField(page, "status", "Cannot Close");
+    const reasonSelect = field(page, "cannot_close_reason").locator("select").first();
+    await expect(reasonSelect).toBeVisible();
+    const reasonAccessibleName = await reasonSelect.evaluate((element) => {
+      const control = element.closest(".frappe-control");
+      const label = control?.querySelector(".control-label, label");
+      return (element.getAttribute("aria-label") || label?.textContent || "").trim();
+    });
+    expect(reasonAccessibleName.toLowerCase()).toMatch(/cannot close|reason/);
     await setSelectField(page, "cannot_close_reason", "Parts unavailable");
     await saveForm(page);
 
