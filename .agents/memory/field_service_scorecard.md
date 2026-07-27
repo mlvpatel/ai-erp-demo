@@ -25,9 +25,10 @@
      and exception-recovery replay fixtures exist. Broader refusal corpora and
      partner UX review remain open.
 
-3. **Margin Leakage Guardian** (Current: 7.4 / Target: 9.0)
-   - *Status*: Partly Implemented. Summary API now returns `truncated` /
-     `page_limit` when the 500-row cap is hit.
+3. **Margin Leakage Guardian** (Current: 7.8 / Target: 9.0)
+   - *Status*: Partly Implemented. Managers and finance can open a Desk
+     summary dialog (category counts, capped high-risk queue, truncation
+     notice). Partner-reviewed analytics and UAT remain open.
 
 4. **Provenance-Based Repair Memory** (Current: 6.5 / Target: 9.0)
    - *Status*: Partly Implemented. Template renderers keep only citation-backed

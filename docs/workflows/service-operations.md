@@ -105,8 +105,14 @@ margin-risk categories: missing billable time, zero-rate labor, missing part
 bill rate, part cost above bill rate, unknown cost basis, warranty risk, failed
 inspection, unresolved exception, and repeat visit risk inside a thirty-day
 window. Classification never invents a margin: missing cost data becomes an
-unknown-cost category instead of a number, and the report stays restricted to
-manager roles.
+unknown-cost category instead of a number.
+
+Managers and finance users can open **Margin Leakage Summary** from a Service
+Work Order. The dialog shows category counts, a capped high-risk queue, and an
+optional single-category filter. When the scan hits the 500-row page limit, the
+dialog states that counts may understate the full queue. Technicians cannot
+call the summary API or see the button. The summary never changes billing
+records.
 
 ## Billing controls
 
