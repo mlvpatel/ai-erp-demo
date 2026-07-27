@@ -12,6 +12,7 @@ CLOSEOUT_STATES = {"Closeout Submitted", "Closed", "Invoice Ready"}
 WARRANTY_RISK_STATUSES = {"Unknown", "In Warranty"}
 INSPECTION_RISK_RESULTS = {"Needs Follow-up", "Failed"}
 MARGIN_SUMMARY_PAGE_LENGTH = 500
+MARGIN_HIGH_RISK_LIMIT = 50
 MARGIN_RISK_CATEGORIES = (
 	"missing_billable_time",
 	"zero_rate_labor",
@@ -121,7 +122,15 @@ def _unit_costs(parts_by_order):
 		filters={"parent": ("in", stock_entries)},
 		fields=["parent", "item_code", "basic_rate"],
 	)
-	return {(row.parent, row.item_code): flt(row.basic_rate) for row in details}
+	# Keep the highest unit cost when an SE splits the same item across lines so
+	# a cheaper batch cannot hide part_cost_above_bill_rate.
+	costs = {}
+	for row in details:
+		key = (row.parent, row.item_code)
+		rate = flt(row.basic_rate)
+		if key not in costs or rate > costs[key]:
+			costs[key] = rate
+	return costs
 
 
 def _repeat_orders(rows):
@@ -199,17 +208,7 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 		else:
 			filters["creation"] = ["<=", to_date]
 
-	rows = frappe.get_all(
-		"Service Work Order",
-		filters=filters,
-		fields=[
-			"name", "status", "hourly_rate", "warranty_status",
-			"inspection_result", "service_asset", "service_location",
-			"creation", "projected_margin_percent", "customer"
-		],
-		limit_page_length=MARGIN_SUMMARY_PAGE_LENGTH,
-	)
-	truncated = len(rows) >= MARGIN_SUMMARY_PAGE_LENGTH
+	rows, truncated = _load_summary_work_orders(filters)
 	annotated = annotate_margin_risks(rows)
 	category_counts = {category: 0 for category in MARGIN_RISK_CATEGORIES}
 	high_risk_orders = []
@@ -233,6 +232,13 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 				"risks": risks,
 			})
 
+	# Worst margin first, then most risk categories, so the capped queue is useful.
+	high_risk_orders.sort(
+		key=lambda row: (flt(row["margin_percent"]), -len(row["risks"]), row["name"])
+	)
+	high_risk_truncated = len(high_risk_orders) > MARGIN_HIGH_RISK_LIMIT
+	high_risk_orders = high_risk_orders[:MARGIN_HIGH_RISK_LIMIT]
+
 	return {
 		"total_orders": len(rows),
 		"truncated": truncated,
@@ -240,6 +246,38 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 		"available_categories": list(MARGIN_RISK_CATEGORIES),
 		"category_counts": category_counts,
 		"risk_category": risk_category or "",
-		"high_risk_orders": high_risk_orders[:50],
+		"high_risk_truncated": high_risk_truncated,
+		"high_risk_limit": MARGIN_HIGH_RISK_LIMIT,
+		"high_risk_orders": high_risk_orders,
 	}
+
+
+def _load_summary_work_orders(filters):
+	"""Load newest-first work orders and detect real page truncation.
+
+	Fetching page_limit + 1 avoids the false positive where exactly page_limit
+	rows exist and `len(rows) >= page_limit` would claim truncation.
+	"""
+	rows = frappe.get_all(
+		"Service Work Order",
+		filters=filters,
+		fields=[
+			"name",
+			"status",
+			"hourly_rate",
+			"warranty_status",
+			"inspection_result",
+			"service_asset",
+			"service_location",
+			"creation",
+			"projected_margin_percent",
+			"customer",
+		],
+		order_by="creation desc",
+		limit_page_length=MARGIN_SUMMARY_PAGE_LENGTH + 1,
+	)
+	truncated = len(rows) > MARGIN_SUMMARY_PAGE_LENGTH
+	if truncated:
+		rows = rows[:MARGIN_SUMMARY_PAGE_LENGTH]
+	return rows, truncated
 

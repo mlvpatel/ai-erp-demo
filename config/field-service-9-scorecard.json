@@ -106,7 +106,7 @@
       "decision_logic": "Finance-only profitability fields remain hidden from technicians; alerts explain risk without changing billing records.",
       "validation_gate": "Negative permission tests prove technicians cannot view or mutate finance fields; evidence chain exposes categories to managers only; browser coverage proves the Desk summary button is manager/finance-only.",
       "feedback_loop": "Manager can send a job back for clarification or approve a finance handoff with known risk.",
-      "failure_handling": "Missing cost data creates a visible exception instead of inventing margin; summary responses and the Desk dialog flag when the page limit truncates the filtered set.",
+      "failure_handling": "Missing cost data creates a visible exception instead of inventing margin; summary responses and the Desk dialog flag scan truncation and high-risk queue caps; truncation is true only when more than the page limit exists.",
       "optimization_step": "Add partner-reviewed leakage analytics after UAT; keep classification deterministic (no AI).",
       "scalability_note": "Profitability reports must use indexed filters and avoid unrestricted cross-tenant search.",
       "evidence_paths": [

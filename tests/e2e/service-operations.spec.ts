@@ -19,11 +19,18 @@ const assignmentSubjectPrefix = "AI ERP E2E Assignment";
 
 if (!password) throw new Error("E2E_USER_PASSWORD is required");
 
-// Dates must stay relative. The site runs in a UTC+x timezone, so a hardcoded
-// date silently becomes "in the past" for server-side validation such as the
-// Cannot Close closure due date.
+// Dates must stay relative. The demo site timezone is Europe/Berlin
+// (see demo_seed); UTC ISO calendar dates disagree with site today() near
+// local midnight and can make closure_due_date look like the past.
 function offsetDate(days: number) {
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  const siteTz = process.env.E2E_SITE_TIMEZONE || "Europe/Berlin";
+  const when = new Date(Date.now() + days * 86_400_000);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: siteTz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(when);
 }
 
 async function login(client: APIRequestContext, user: string) {
