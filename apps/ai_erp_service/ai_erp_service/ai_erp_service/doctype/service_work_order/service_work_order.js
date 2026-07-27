@@ -130,8 +130,149 @@ frappe.ui.form.on("Service Work Order", {
 				export_evidence_packet(frm);
 			});
 		}
+
+		if (is_manager || is_finance) {
+			frm.add_custom_button(__("Margin Leakage Summary"), () => {
+				show_margin_leakage_summary();
+			});
+		}
 	},
 });
+
+const MARGIN_RISK_LABELS = {
+	missing_billable_time: "Missing billable time",
+	zero_rate_labor: "Zero-rate labor",
+	missing_part_bill_rate: "Missing part bill rate",
+	part_cost_above_bill_rate: "Part cost above bill rate",
+	unknown_cost_basis: "Unknown cost basis",
+	warranty_risk: "Warranty risk",
+	failed_inspection: "Failed inspection",
+	unresolved_exception: "Unresolved exception",
+	repeat_visit_risk: "Repeat visit risk",
+};
+
+function margin_risk_label(category) {
+	return __(MARGIN_RISK_LABELS[category] || category);
+}
+
+function show_margin_leakage_summary(risk_category) {
+	frappe.call({
+		method: "ai_erp_service.margin_risk.margin_leakage_summary",
+		args: { risk_category: risk_category || "" },
+		freeze: true,
+		freeze_message: __("Loading margin leakage summary..."),
+		callback(response) {
+			if (!response.message) {
+				return;
+			}
+			render_margin_leakage_summary(response.message, risk_category || "");
+		},
+	});
+}
+
+function render_margin_leakage_summary(summary, selected_category) {
+	const escape = frappe.utils.escape_html;
+	const counts = summary.category_counts || {};
+	const categories = summary.available_categories || Object.keys(MARGIN_RISK_LABELS);
+	const count_rows = categories
+		.map((category) => {
+			const count = counts[category] || 0;
+			return `<tr>
+				<th scope="row">${escape(margin_risk_label(category))}</th>
+				<td>${count}</td>
+			</tr>`;
+		})
+		.join("");
+	const order_rows = (summary.high_risk_orders || [])
+		.map(
+			(row) => `<tr>
+				<td>
+					<a href="/app/service-work-order/${encodeURIComponent(row.name)}">
+						${escape(row.name)}
+					</a>
+				</td>
+				<td>${escape(row.customer || "")}</td>
+				<td>${escape(row.status || "")}</td>
+				<td>${escape(String(row.margin_percent))}</td>
+				<td>${escape((row.risks || []).map(margin_risk_label).join(", "))}</td>
+			</tr>`,
+		)
+		.join("");
+	const truncation = summary.truncated
+		? `<div class="alert alert-warning" role="status">
+			${__(
+				"Showing the first {0} work orders. Narrow the filter or date range; counts may understate the full queue.",
+				[summary.page_limit || 500],
+			)}
+		</div>`
+		: "";
+	const html = `
+		<div class="margin-leakage-summary" role="region" aria-label="${__("Margin Leakage Summary")}">
+			<p>
+				<strong>${__("Orders scanned")}:</strong> ${summary.total_orders || 0}
+				${
+					selected_category
+						? ` · <strong>${__("Filter")}:</strong> ${escape(margin_risk_label(selected_category))}`
+						: ""
+				}
+			</p>
+			${truncation}
+			<h5>${__("Category counts")}</h5>
+			<table class="table table-bordered table-condensed">
+				<tbody>${count_rows}</tbody>
+			</table>
+			<h5>${__("High-risk work orders")}</h5>
+			<table class="table table-bordered table-condensed">
+				<thead>
+					<tr>
+						<th>${__("Work Order")}</th>
+						<th>${__("Customer")}</th>
+						<th>${__("Status")}</th>
+						<th>${__("Margin %")}</th>
+						<th>${__("Risks")}</th>
+					</tr>
+				</thead>
+				<tbody>
+					${
+						order_rows ||
+						`<tr><td colspan="5" class="text-muted">${__("No high-risk work orders in this filter.")}</td></tr>`
+					}
+				</tbody>
+			</table>
+			<p class="text-muted">
+				${__("Deterministic categories only. This view does not change billing records.")}
+			</p>
+		</div>
+	`;
+
+	const category_options = categories
+		.map((category) => margin_risk_label(category))
+		.join("\n");
+	const dialog = new frappe.ui.Dialog({
+		title: __("Margin Leakage Summary"),
+		size: "extra-large",
+		fields: [
+			{
+				fieldtype: "Select",
+				fieldname: "risk_category",
+				label: __("Risk category filter"),
+				options: `\n${category_options}`,
+				default: selected_category ? margin_risk_label(selected_category) : "",
+			},
+			{ fieldtype: "HTML", fieldname: "summary_html" },
+		],
+		primary_action_label: __("Apply Filter"),
+		primary_action(values) {
+			const label = (values && values.risk_category) || "";
+			const next_category =
+				categories.find((category) => margin_risk_label(category) === label) || "";
+			dialog.hide();
+			show_margin_leakage_summary(next_category);
+		},
+	});
+	dialog.fields_dict.summary_html.$wrapper.html(html);
+	dialog.show();
+}
 
 function show_technician_suggestions(frm, suggestions) {
 	const escape = frappe.utils.escape_html;
