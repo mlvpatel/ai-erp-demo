@@ -736,3 +736,59 @@ test("manager can open the permission-scoped profitability report", async ({ pag
   await expect.poll(() => page.evaluate(() => (window as any).frappe?.get_route?.()[0])).toBe("query-report");
   await expect(page.getByText("Margin Risks")).toBeVisible();
 });
+
+test("margin leakage summary is manager or finance only on the work-order desk", async ({ browser }) => {
+  const technicianSession = await newSession(technician);
+  const financeSession = await newSession(finance);
+  const managerBrowser = await rolePage(browser, manager);
+  const technicianBrowser = await rolePage(browser, technician);
+  const financeBrowser = await rolePage(browser, finance);
+  try {
+    const technicianOrders = await matchingWorkOrders(technicianSession);
+    expect(technicianOrders.length).toBeGreaterThan(0);
+    const workOrderName = technicianOrders[0].name;
+
+    await openForm(managerBrowser.page, "service-work-order", workOrderName);
+    await clickAction(managerBrowser.page, "Margin Leakage Summary");
+    const managerDialog = managerBrowser.page.locator(".modal:visible").last();
+    await expect(managerDialog).toContainText("Category counts");
+    await expect(managerDialog).toContainText("High-risk work orders");
+    await expect(managerDialog).toContainText("Failed inspection");
+    await expect(managerDialog.getByRole("button", { name: "Apply Filter" })).toBeVisible();
+    await managerDialog.locator(".btn-modal-close").click();
+    await expect(managerDialog).toBeHidden();
+
+    const invoiced = await getList(
+      financeSession,
+      "Service Work Order",
+      ["name", "sales_invoice"],
+      [["sales_invoice", "is", "set"]],
+    );
+    expect(invoiced.length).toBeGreaterThan(0);
+    await openForm(financeBrowser.page, "service-work-order", invoiced[0].name);
+    await clickAction(financeBrowser.page, "Margin Leakage Summary");
+    const financeDialog = financeBrowser.page.locator(".modal:visible").last();
+    await expect(financeDialog).toContainText("Category counts");
+    await expect(financeDialog).toContainText("Deterministic categories only");
+    await financeDialog.locator(".btn-modal-close").click();
+    await expect(financeDialog).toBeHidden();
+
+    await openForm(technicianBrowser.page, "service-work-order", workOrderName);
+    await expect(
+      technicianBrowser.page.getByRole("button", { name: "Margin Leakage Summary", exact: true }),
+    ).toHaveCount(0);
+    const menu = technicianBrowser.page.getByRole("button", { name: "Menu", exact: true });
+    if (await menu.isVisible()) {
+      await menu.click();
+      await expect(technicianBrowser.page.getByText("Margin Leakage Summary", { exact: true })).toHaveCount(0);
+    }
+  } finally {
+    await Promise.all([
+      technicianSession.dispose(),
+      financeSession.dispose(),
+      managerBrowser.context.close(),
+      technicianBrowser.context.close(),
+      financeBrowser.context.close(),
+    ]);
+  }
+});
