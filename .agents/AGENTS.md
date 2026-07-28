@@ -27,8 +27,8 @@
    - Multi-tenant site isolation (`tenant_isolation`) must be strictly preserved.
 
 6. **Git & Commit Attribution Rules**:
-   - Author: `mlvpatel <mlvpatel@users.noreply.github.com>`
-   - Committer: `mlvpatel <mlvpatel@users.noreply.github.com>`
+   - Default author and committer: `mlvpatel <mlvpatel@users.noreply.github.com>`.
+   - When the repo owner wants GitHub Contributors credit for Cursor, author may be `Cursor Agent <cursoragent@cursor.com>` (committer stays `mlvpatel`); use a merge commit so authorship survives.
    - NO AI, LLM, bot, assistant, or generated-by attribution strings in commit messages or code comments.
 
 7. **Prose (BEhuMan)**:
