@@ -18,7 +18,8 @@
 
 1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.0 / Target: 10.0)
    - *Status*: Partly Implemented. Timeline replay uses Version-based closeout
-     timestamps and datetime sort keys (not `modified` / string sort).
+     timestamps (filtered by Closeout Submitted marker, not an unfiltered
+     first-50 page) and datetime sort keys (not `modified` / string sort).
 
 2. **Cannot-Close Recovery Coach** (Current: 7.8 / Target: 9.0)
    - *Status*: Partly Implemented. Overdue escalation, cited recovery drafts,
@@ -28,7 +29,8 @@
 3. **Margin Leakage Guardian** (Current: 7.8 / Target: 9.0)
    - *Status*: Partly Implemented. Managers and finance can open a Desk
      summary dialog (category counts, capped high-risk queue, truncation
-     notice). Partner-reviewed analytics and UAT remain open.
+     notice). Scan truncation uses limit+1 detection; high-risk queue cap is
+     flagged separately. Partner-reviewed analytics and UAT remain open.
 
 4. **Provenance-Based Repair Memory** (Current: 6.5 / Target: 9.0)
    - *Status*: Partly Implemented. Template renderers keep only citation-backed

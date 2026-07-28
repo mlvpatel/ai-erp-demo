@@ -108,11 +108,13 @@ window. Classification never invents a margin: missing cost data becomes an
 unknown-cost category instead of a number.
 
 Managers and finance users can open **Margin Leakage Summary** from a Service
-Work Order. The dialog shows category counts, a capped high-risk queue, and an
-optional single-category filter. When the scan hits the 500-row page limit, the
-dialog states that counts may understate the full queue. Technicians cannot
-call the summary API or see the button. The summary never changes billing
-records.
+Work Order. The dialog shows category counts, a capped high-risk queue (worst
+margin first), and an optional single-category filter. When the scan hits the
+500-row page limit, or the high-risk list hits its 50-row cap, the dialog states
+that counts or the queue may understate the full set. The scan orders by newest
+creation first and only flags truncation when more than the page limit exists.
+Technicians cannot call the summary API or see the button. The summary never
+changes billing records.
 
 ## Billing controls
 
