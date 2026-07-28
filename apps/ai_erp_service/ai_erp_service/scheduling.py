@@ -5,6 +5,7 @@ from uuid import uuid4
 import frappe
 from ai_erp_core.proposals import request_scheduling_explanation as store_scheduling_explanation
 from frappe import _
+from frappe.utils import flt
 
 from ai_erp_service.ai_drafts import _source
 from ai_erp_service.ai_erp_service.doctype.service_technician_capability.service_technician_capability import (
@@ -215,11 +216,13 @@ def _parts_readiness(work_order, technicians):
 		if not warehouse or not row.item:
 			return {tech: False for tech in technicians}
 		key = (row.item, warehouse)
-		required_by_bin[key] = required_by_bin.get(key, 0) + (row.qty or 0)
+		required_by_bin[key] = required_by_bin.get(key, 0) + flt(row.qty)
 
 	has_all = True
 	for (item, warehouse), req_qty in required_by_bin.items():
-		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty") or 0
+		bin_qty = flt(
+			frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty")
+		)
 		if bin_qty < req_qty:
 			has_all = False
 			break

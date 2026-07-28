@@ -811,10 +811,103 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user(self.finance_user)
 		finance_summary = margin_leakage_summary()
 		self.assertIn("category_counts", finance_summary)
+		self.assertIn("high_risk_truncated", finance_summary)
+		self.assertIn("high_risk_limit", finance_summary)
 
 		frappe.set_user(self.technician)
 		with self.assertRaises(frappe.PermissionError):
 			profitability_report({})
+
+	def test_margin_leakage_summary_truncation_and_high_risk_caps(self):
+		from ai_erp_service import margin_risk as margin_risk_mod
+		from ai_erp_service.margin_risk import margin_leakage_summary
+
+		self._make_work_order("Margin truncation order A")
+		self._make_work_order("Margin truncation order B")
+		self._make_work_order("Margin truncation order C")
+
+		frappe.set_user(self.manager)
+		with patch.object(margin_risk_mod, "MARGIN_SUMMARY_PAGE_LENGTH", 1):
+			summary = margin_leakage_summary()
+		self.assertTrue(summary["truncated"])
+		self.assertEqual(summary["total_orders"], 1)
+		self.assertEqual(summary["page_limit"], 1)
+
+		# Exactly page_limit rows must not claim truncation (fetch uses limit+1).
+		exact_rows = [
+			frappe._dict(
+				name=f"EXACT-{index}",
+				status="Draft",
+				hourly_rate=0,
+				warranty_status="Out of Warranty",
+				inspection_result="",
+				service_asset="",
+				service_location=self.location,
+				creation=now_datetime(),
+				projected_margin_percent=40,
+				customer=self.customer,
+			)
+			for index in range(2)
+		]
+		with patch.object(margin_risk_mod, "MARGIN_SUMMARY_PAGE_LENGTH", 2):
+			with patch.object(
+				margin_risk_mod,
+				"_load_summary_work_orders",
+				return_value=(exact_rows, False),
+			):
+				exact = margin_leakage_summary()
+		self.assertFalse(exact["truncated"])
+		self.assertEqual(exact["total_orders"], 2)
+
+		risky_rows = [
+			frappe._dict(
+				name=f"RISK-{index}",
+				status="Closeout Submitted",
+				hourly_rate=0,
+				warranty_status="Unknown",
+				inspection_result="Failed",
+				service_asset="",
+				service_location=self.location,
+				creation=now_datetime(),
+				projected_margin_percent=5,
+				customer=self.customer,
+				margin_risks="failed_inspection, warranty_risk",
+			)
+			for index in range(3)
+		]
+		with patch.object(margin_risk_mod, "MARGIN_HIGH_RISK_LIMIT", 1):
+			with patch.object(
+				margin_risk_mod,
+				"_load_summary_work_orders",
+				return_value=(risky_rows, False),
+			):
+				with patch.object(
+					margin_risk_mod,
+					"annotate_margin_risks",
+					side_effect=lambda rows: rows,
+				):
+					capped = margin_leakage_summary()
+		self.assertTrue(capped["high_risk_truncated"])
+		self.assertEqual(capped["high_risk_limit"], 1)
+		self.assertEqual(len(capped["high_risk_orders"]), 1)
+
+	def test_margin_unit_costs_keep_highest_split_line_rate(self):
+		from ai_erp_service.margin_risk import _unit_costs
+
+		parts_by_order = {
+			"WO-1": [
+				frappe._dict(stock_entry="SE-1", item="ITEM-A", bill_rate=10),
+			]
+		}
+		with patch(
+			"ai_erp_service.margin_risk.frappe.get_all",
+			return_value=[
+				frappe._dict(parent="SE-1", item_code="ITEM-A", basic_rate=8),
+				frappe._dict(parent="SE-1", item_code="ITEM-A", basic_rate=12),
+			],
+		):
+			costs = _unit_costs(parts_by_order)
+		self.assertEqual(costs[("SE-1", "ITEM-A")], 12.0)
 
 	def test_evidence_packet_is_manager_only_and_carries_no_draft_content(self):
 		from ai_erp_service.evidence import get_evidence_packet
@@ -1130,6 +1223,47 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 
 		parsed = [get_datetime(event["timestamp"]) for event in second]
 		self.assertEqual(parsed, sorted(parsed))
+
+	def test_evidence_timeline_closeout_queries_version_by_status_marker(self):
+		from ai_erp_service import evidence as evidence_mod
+
+		work_order = self._make_work_order("Timeline closeout version filter work order")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Closeout with filtered Version lookup."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		version_calls = []
+		real_get_all = frappe.get_all
+
+		def tracking_get_all(*args, **kwargs):
+			doctype = args[0] if args else kwargs.get("doctype")
+			if doctype == "Version":
+				version_calls.append(kwargs)
+			return real_get_all(*args, **kwargs)
+
+		with patch.object(frappe, "get_all", side_effect=tracking_get_all):
+			timeline = evidence_mod.get_evidence_timeline(work_order.name)
+
+		self.assertTrue(version_calls)
+		filters = version_calls[0].get("filters") or {}
+		self.assertEqual(filters.get("data"), ("like", "%Closeout Submitted%"))
+		closeout = next(event for event in timeline if event["stage"] == "Closeout")
+		self.assertTrue(closeout["timestamp"])
 
 	def test_scheduling_explanation_is_draft_only_cited_and_cannot_assign(self):
 		from ai_erp_service.scheduling import request_scheduling_explanation

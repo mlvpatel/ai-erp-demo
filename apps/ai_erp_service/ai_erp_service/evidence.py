@@ -401,12 +401,18 @@ def _closeout_timeline_timestamp(work_order):
 	Falling back to modified would move the Closeout event whenever the document
 	is saved later, which breaks replay chronology.
 	"""
+	# Filter on the closeout status string so early edit noise does not push the
+	# real Closeout Submitted Version past an unfiltered first-page limit.
 	versions = frappe.get_all(
 		"Version",
-		filters={"ref_doctype": "Service Work Order", "docname": work_order.name},
+		filters={
+			"ref_doctype": "Service Work Order",
+			"docname": work_order.name,
+			"data": ("like", "%Closeout Submitted%"),
+		},
 		fields=["creation", "data"],
 		order_by="creation asc",
-		limit_page_length=50,
+		limit_page_length=100,
 	)
 	for version in versions:
 		if _version_marks_closeout(version.get("data")):

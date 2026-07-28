@@ -151,21 +151,52 @@ const MARGIN_RISK_LABELS = {
 	repeat_visit_risk: "Repeat visit risk",
 };
 
+let margin_leakage_request = null;
+let margin_leakage_dialog = null;
+
 function margin_risk_label(category) {
 	return __(MARGIN_RISK_LABELS[category] || category);
 }
 
+function margin_risk_option_label(category) {
+	// Keep Select options in source English so Frappe translates once at render.
+	return MARGIN_RISK_LABELS[category] || category;
+}
+
+function resolve_margin_risk_category(label, categories) {
+	if (!label) {
+		return "";
+	}
+	return (
+		categories.find((category) => {
+			const raw = margin_risk_option_label(category);
+			return raw === label || __(raw) === label;
+		}) || ""
+	);
+}
+
 function show_margin_leakage_summary(risk_category) {
-	frappe.call({
+	if (margin_leakage_request) {
+		return;
+	}
+	margin_leakage_request = frappe.call({
 		method: "ai_erp_service.margin_risk.margin_leakage_summary",
 		args: { risk_category: risk_category || "" },
 		freeze: true,
 		freeze_message: __("Loading margin leakage summary..."),
 		callback(response) {
+			margin_leakage_request = null;
 			if (!response.message) {
+				frappe.show_alert({
+					message: __("Margin leakage summary returned no data."),
+					indicator: "orange",
+				});
 				return;
 			}
 			render_margin_leakage_summary(response.message, risk_category || "");
+		},
+		error() {
+			margin_leakage_request = null;
 		},
 	});
 }
@@ -179,7 +210,7 @@ function render_margin_leakage_summary(summary, selected_category) {
 			const count = counts[category] || 0;
 			return `<tr>
 				<th scope="row">${escape(margin_risk_label(category))}</th>
-				<td>${count}</td>
+				<td>${escape(String(count))}</td>
 			</tr>`;
 		})
 		.join("");
@@ -187,29 +218,42 @@ function render_margin_leakage_summary(summary, selected_category) {
 		.map(
 			(row) => `<tr>
 				<td>
-					<a href="/app/service-work-order/${encodeURIComponent(row.name)}">
-						${escape(row.name)}
+					<a href="/app/service-work-order/${encodeURIComponent(row.name || "")}">
+						${escape(row.name || "")}
 					</a>
 				</td>
 				<td>${escape(row.customer || "")}</td>
 				<td>${escape(row.status || "")}</td>
-				<td>${escape(String(row.margin_percent))}</td>
+				<td>${escape(String(row.margin_percent ?? ""))}</td>
 				<td>${escape((row.risks || []).map(margin_risk_label).join(", "))}</td>
 			</tr>`,
 		)
 		.join("");
 	const truncation = summary.truncated
 		? `<div class="alert alert-warning" role="status">
-			${__(
-				"Showing the first {0} work orders. Narrow the filter or date range; counts may understate the full queue.",
-				[summary.page_limit || 500],
+			${escape(
+				__(
+					"Showing the first {0} work orders. Narrow the filter or date range; counts may understate the full queue.",
+					[summary.page_limit || 500],
+				),
 			)}
 		</div>`
 		: "";
+	const high_risk_truncation = summary.high_risk_truncated
+		? `<div class="alert alert-warning" role="status">
+			${escape(
+				__(
+					"Showing the {0} highest-risk work orders in this scan. Narrow the category filter to see more.",
+					[summary.high_risk_limit || 50],
+				),
+			)}
+		</div>`
+		: "";
+	const region_label = escape(__("Margin Leakage Summary"));
 	const html = `
-		<div class="margin-leakage-summary" role="region" aria-label="${__("Margin Leakage Summary")}">
+		<div class="margin-leakage-summary" role="region" aria-label="${region_label}">
 			<p>
-				<strong>${__("Orders scanned")}:</strong> ${summary.total_orders || 0}
+				<strong>${__("Orders scanned")}:</strong> ${escape(String(summary.total_orders || 0))}
 				${
 					selected_category
 						? ` · <strong>${__("Filter")}:</strong> ${escape(margin_risk_label(selected_category))}`
@@ -217,6 +261,7 @@ function render_margin_leakage_summary(summary, selected_category) {
 				}
 			</p>
 			${truncation}
+			${high_risk_truncation}
 			<h5>${__("Category counts")}</h5>
 			<table class="table table-bordered table-condensed">
 				<tbody>${count_rows}</tbody>
@@ -245,9 +290,11 @@ function render_margin_leakage_summary(summary, selected_category) {
 		</div>
 	`;
 
-	const category_options = categories
-		.map((category) => margin_risk_label(category))
-		.join("\n");
+	const category_options = categories.map(margin_risk_option_label).join("\n");
+	if (margin_leakage_dialog) {
+		margin_leakage_dialog.hide();
+		margin_leakage_dialog = null;
+	}
 	const dialog = new frappe.ui.Dialog({
 		title: __("Margin Leakage Summary"),
 		size: "extra-large",
@@ -257,19 +304,20 @@ function render_margin_leakage_summary(summary, selected_category) {
 				fieldname: "risk_category",
 				label: __("Risk category filter"),
 				options: `\n${category_options}`,
-				default: selected_category ? margin_risk_label(selected_category) : "",
+				default: selected_category ? margin_risk_option_label(selected_category) : "",
 			},
 			{ fieldtype: "HTML", fieldname: "summary_html" },
 		],
 		primary_action_label: __("Apply Filter"),
 		primary_action(values) {
 			const label = (values && values.risk_category) || "";
-			const next_category =
-				categories.find((category) => margin_risk_label(category) === label) || "";
+			const next_category = resolve_margin_risk_category(label, categories);
 			dialog.hide();
+			margin_leakage_dialog = null;
 			show_margin_leakage_summary(next_category);
 		},
 	});
+	margin_leakage_dialog = dialog;
 	dialog.fields_dict.summary_html.$wrapper.html(html);
 	dialog.show();
 }
