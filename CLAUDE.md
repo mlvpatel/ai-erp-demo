@@ -22,9 +22,10 @@ locally it mirrors the same set for Claude Code. Cursor loads the same
 
 ## Hard rules
 
-- Commit only as `mlvpatel <mlvpatel@users.noreply.github.com>` (author and
-  committer). No AI, LLM, bot, assistant, or generated-by attribution in
-  commits, including trailers.
+- Default commit identity: `mlvpatel <mlvpatel@users.noreply.github.com>`
+  (author and committer). Owner may set author to
+  `Cursor Agent <cursoragent@cursor.com>` for GitHub Contributors credit;
+  committer stays mlvpatel. No AI/LLM/bot trailers in commit messages.
 - Never claim production ready, human UAT approved, legally approved, GDPR
   compliant, or full multi-industry ERP without separate recorded evidence.
 - AI is proposal-only: it must never post accounting, stock, payroll,
