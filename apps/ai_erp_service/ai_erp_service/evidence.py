@@ -41,7 +41,7 @@ def get_evidence_chain(name):
 		sections["finance"] = _finance_section(work_order)
 
 	section_hashes = {key: content_hash(value) for key, value in sorted(sections.items())}
-	return {
+	chain = {
 		"schema_version": 1,
 		"work_order": work_order.name,
 		"generated_for": frappe.session.user,
@@ -50,6 +50,14 @@ def get_evidence_chain(name):
 		"section_hashes": section_hashes,
 		"chain_hash": content_hash(section_hashes),
 	}
+	# Compact stage narrative for Desk replay; packet export still builds the
+	# fuller citation-backed narrative from loaded proposal sources.
+	chain["ledger_narrative"] = _ledger_narrative(
+		chain,
+		_proposal_citation_stubs(sections["ai_proposals"]),
+		sections.get("finance") or {},
+	)
+	return chain
 
 
 @frappe.whitelist()
@@ -233,6 +241,20 @@ def _margin_risk_categories(work_order):
 	return [risk.strip() for risk in (row.margin_risks or "").split(",") if risk.strip()]
 
 
+def _proposal_citation_stubs(proposals):
+	"""Count citation rows without loading full proposal draft content."""
+	names = [row.get("name") for row in proposals or [] if row.get("name")]
+	if not names:
+		return []
+	rows = frappe.get_all(
+		"AI Proposal Source",
+		filters={"parent": ("in", names)},
+		fields=["parent"],
+		limit_page_length=500,
+	)
+	return [{"proposal": row.parent} for row in rows]
+
+
 def _ledger_narrative(chain, citations, finance):
 	"""Build a finished, publication-safe ledger narrative without draft text."""
 	completeness = chain["completeness"]
@@ -264,13 +286,19 @@ def _ledger_narrative(chain, citations, finance):
 				f"{len(citations)} citation row(s)."
 			),
 		},
-		{
-			"stage": "finance_handoff",
-			"summary": (
-				f"Invoice {finance.get('sales_invoice') or 'not drafted'}; "
-				f"margin risks: {', '.join(finance.get('margin_risks') or []) or 'none'}."
-			),
-		},
+	]
+	# Finance stage only when the chain already exposed the finance section.
+	if "finance" in sections:
+		stages.append(
+			{
+				"stage": "finance_handoff",
+				"summary": (
+					f"Invoice {finance.get('sales_invoice') or 'not drafted'}; "
+					f"margin risks: {', '.join(finance.get('margin_risks') or []) or 'none'}."
+				),
+			}
+		)
+	stages.append(
 		{
 			"stage": "completeness",
 			"summary": (
@@ -278,8 +306,8 @@ def _ledger_narrative(chain, citations, finance):
 				if completeness.get("complete")
 				else f"missing: {', '.join(completeness.get('missing') or []) or 'none'}"
 			),
-		},
-	]
+		}
+	)
 	return {
 		"headline": "Request → execution → cited proposals → finance handoff",
 		"stages": stages,

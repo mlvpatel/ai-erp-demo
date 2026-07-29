@@ -711,6 +711,15 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			set(manager_chain["section_hashes"]),
 			set(manager_chain["sections"]),
 		)
+		self.assertIn("ledger_narrative", manager_chain)
+		manager_stages = [row["stage"] for row in manager_chain["ledger_narrative"]["stages"]]
+		self.assertIn("finance_handoff", manager_stages)
+		self.assertIn("completeness", manager_stages)
+		self.assertIn("Request → execution", manager_chain["ledger_narrative"]["headline"])
+
+		technician_stages = [row["stage"] for row in technician_chain["ledger_narrative"]["stages"]]
+		self.assertNotIn("finance_handoff", technician_stages)
+		self.assertIn("execution", technician_stages)
 
 		frappe.set_user(self.finance_user)
 		finance_chain = get_evidence_chain(work_order.name)
@@ -1348,6 +1357,45 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertTrue(
 			any("Scheduling suggestion rejected" in (row.content or "") for row in comments)
 		)
+
+	def test_suggestion_feedback_summary_is_dispatcher_only_and_aggregates_categories(self):
+		from ai_erp_service.scheduling import (
+			record_suggestion_feedback,
+			suggest_technicians,
+			suggestion_feedback_summary,
+		)
+
+		dispatcher = self._make_role_user(
+			"service.dispatcher.feedback.summary@example.test",
+			("Service Dispatcher",),
+		)
+		target = self._make_work_order("Suggestion feedback summary work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.save()
+
+		frappe.set_user(dispatcher)
+		record_suggestion_feedback(target.name, self.technician, "Parts not ready")
+		record_suggestion_feedback(target.name, self.technician, "Workload conflict")
+		record_suggestion_feedback(target.name, self.technician, "Parts not ready")
+
+		frappe.set_user(self.technician)
+		with self.assertRaises(frappe.PermissionError):
+			suggestion_feedback_summary(target.name)
+
+		frappe.set_user(dispatcher)
+		summary = suggestion_feedback_summary(target.name)
+		self.assertEqual(summary["scope"], target.name)
+		self.assertEqual(summary["total"], 3)
+		self.assertEqual(summary["category_counts"]["Parts not ready"], 2)
+		self.assertEqual(summary["category_counts"]["Workload conflict"], 1)
+		self.assertFalse(summary["truncated"])
+
+		suggestions = suggest_technicians(target.name)
+		self.assertEqual(suggestions["feedback_summary"]["total"], 3)
+		self.assertEqual(suggestions["feedback_summary"]["category_counts"]["Parts not ready"], 2)
 
 	def test_scheduling_capability_match_excludes_and_ranks_without_assigning(self):
 		from ai_erp_service.scheduling import suggest_technicians

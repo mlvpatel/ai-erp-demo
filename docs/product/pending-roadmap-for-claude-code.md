@@ -132,6 +132,12 @@ branch you are shipping):
 - Manager-facing margin-risk surfacing on evidence replay/packet.
 - Deeper synthetic retrieval abstention/leakage tests.
 - Evidence packet ledger-narrative polish and mobile focus/a11y CSS depth.
+- Scheduling rejection feedback category rollup in Suggest Technicians /
+  `suggestion_feedback_summary` (no auto-rescoring).
+- Evidence Replay Desk surface for compact ledger narrative stages
+  (finance_handoff role-scoped).
+- Recovery refusal edges: parts-hold guidance, uncited-history drop,
+  injection/contact redaction.
 - Scorecard/memory resync (demo average remains below 9).
 
 The following work remains to approach an average 9/10 field-service product.
