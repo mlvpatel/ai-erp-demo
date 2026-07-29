@@ -77,3 +77,7 @@ If sensitive data is committed or pasted:
 3. Rotate any exposed secret.
 4. Remove the data from the working tree and history before publication.
 5. Add a regression check or documentation update if the leak path can recur.
+
+For the broader demo legal-readiness package (inventory, counsel templates,
+go/no-go checklist), see `docs/compliance/README.md`. Those files do not make
+the repository GDPR compliant.

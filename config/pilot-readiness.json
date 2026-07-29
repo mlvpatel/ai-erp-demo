@@ -23,6 +23,11 @@
   "uat_doc": "docs/runbooks/service-operations-synthetic-uat.md",
   "evidence_template": "docs/compliance/service-operations-pilot-evidence-template.md",
   "gdpr_gate": "docs/compliance/eu-italy-gdpr-readiness.md",
+  "privacy_inventory": "docs/compliance/privacy-data-flow-inventory.md",
+  "dpa_template": "docs/compliance/dpa-template.md",
+  "dpia_template": "docs/compliance/dpia-template.md",
+  "go_no_go_checklist": "docs/compliance/pilot-go-no-go-checklist.md",
+  "pii_handling_notes": "docs/compliance/pii-handling-notes.md",
   "aws_reference": "docs/architecture/aws-production-reference.md",
   "automated_evidence": [
     {
