@@ -118,6 +118,9 @@ without fresh evidence:
 - Live OpenAI evaluation gate and private safe aggregate recording (blocked on
   credentials + private aggregate storage).
 - Design-partner validation, human UAT, legal/support/go-no-go gates (external).
+  In-repo demo legal-readiness package exists under `docs/compliance/`
+  (privacy inventory, PII notes, DPA/DPIA templates, go/no-go checklist). Those
+  artifacts are not counsel sign-off, GDPR compliance, or pilot approval.
 - Offline mobile drafts: intentionally not shipped (IndexedDB helper gated off).
 - Parts readiness uses service-location / part source warehouses; van-stock
   technician profiles are not modeled.
@@ -884,12 +887,21 @@ These cannot be completed by code alone:
 - on-call/escalation path
 - accountable pilot go/no-go
 
+Agent-completable package (already in `docs/compliance/`; keep truthful):
+
+- `privacy-data-flow-inventory.md`
+- `pii-handling-notes.md`
+- `dpa-template.md` and `dpia-template.md` (templates for counsel, not signed)
+- `pilot-go-no-go-checklist.md` (empty human sign-off fields)
+- `eu-italy-gdpr-readiness.md` and `service-operations-pilot-evidence-template.md`
+
 Acceptance criteria:
 
 - Human sign-off records exist.
 - `automated_complete`, `deployment_evidence_complete`, and
   `pilot_approved` remain separate states.
 - No synthetic test is presented as human approval.
+- Presence of compliance templates must not be scored as legal approval.
 
 ## Configured demos pending work
 

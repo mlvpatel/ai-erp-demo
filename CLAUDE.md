@@ -28,6 +28,8 @@ locally it mirrors the same set for Claude Code. Cursor loads the same
   committer stays mlvpatel. No AI/LLM/bot trailers in commit messages.
 - Never claim production ready, human UAT approved, legally approved, GDPR
   compliant, or full multi-industry ERP without separate recorded evidence.
+  Demo legal-readiness artifacts live under `docs/compliance/`; they are not
+  counsel sign-off.
 - AI is proposal-only: it must never post accounting, stock, payroll,
   permissions, compliance records, or customer messages. Deterministic ERP
   code and authorized humans change business state.

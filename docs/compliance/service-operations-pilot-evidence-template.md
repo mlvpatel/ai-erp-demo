@@ -50,6 +50,15 @@ Do not store contracts, DPIAs, signatures, legal opinions, employee/customer
 details, or identity documents in Git. Record only an approved reference and
 decision date after review.
 
+Counsel-facing templates (unsigned):
+
+- `docs/compliance/dpa-template.md`
+- `docs/compliance/dpia-template.md`
+- `docs/compliance/privacy-data-flow-inventory.md`
+- `docs/compliance/pilot-go-no-go-checklist.md`
+
+Sign-off index (private evidence references only):
+
 - Controller/processors, purposes, legal basis, and RoPA:
 - DPA/subprocessor/transfer and DPIA/LIA decision:
 - OpenAI EU data-control eligibility:
@@ -57,4 +66,5 @@ decision date after review.
 - Design-partner workflow validation:
 - Role mapping and finance segregation:
 - Human UAT signatures:
+- Support / on-call owner:
 - Accountable owner pilot go/no-go:

@@ -4,7 +4,9 @@ Documentation is part of the product. Use the folders below instead of creating
 unstructured notes at the repository root.
 
 - `adr/`: one short decision per material architectural choice.
-- `compliance/`: engineering readiness gates that require human/legal approval.
+- `compliance/`: demo legal-readiness package (inventory, PII notes, DPA/DPIA
+  templates, GDPR gate, pilot evidence, go/no-go checklist). Templates and
+  gates are not legal approval or GDPR compliance.
 - `discovery/`: evidence from research, interviews, and technical spikes.
 - `product/`: target users, scope, KPIs, and roadmap.
 - `architecture/`: context, container, component, and data-boundary diagrams.
@@ -41,6 +43,9 @@ Start with:
   public walkthrough.
 - [`runbooks/production-demo.md`](runbooks/production-demo.md) to run the
   production images locally as a production-style synthetic demo.
+- `compliance/README.md` before discussing legal, GDPR, DPA/DPIA, support
+  ownership, or pilot go/no-go. Start with the privacy inventory and templates;
+  do not claim compliance from those files alone.
 - `security/threat-model.md` and `security/data-classification.md` before
   adding AI workflows, integrations, fixtures, or industry packs.
 - `security/ai-workflow-review.md` before adding or expanding an AI-assisted

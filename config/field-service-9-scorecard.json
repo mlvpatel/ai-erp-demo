@@ -27,7 +27,7 @@
     ],
     "deferred": [
       "Human design-partner validation.",
-      "Production deployment, legal approval, support ownership, live provider evaluation, and exact capacity evidence.",
+      "Production deployment, counsel-signed legal approval, support ownership, live provider evaluation, and exact capacity evidence. In-repo compliance templates are not those approvals.",
       "Distribution and manufacturing promotion beyond configured_demo.",
       "Offline IndexedDB technician drafts (intentionally gated off)."
     ]
@@ -220,19 +220,24 @@
       "id": "governed-demo-to-pilot-release",
       "title": "Governed demo-to-pilot release",
       "implementation_state": "partly_implemented",
-      "current_score": 7.0,
+      "current_score": 7.2,
       "target_score": 9.0,
       "role_owner": "Repository Maintainer",
       "input": "Static gates, Docker gates, browser evidence, release report, deployment manifests, capacity, restore, UAT, legal, and support records.",
       "output": "Truthful release state: demo ready, automated complete, deployment evidence complete, or pilot approved.",
-      "decision_logic": "External pilot gates remain false until reviewed evidence exists; demo readiness does not imply production readiness.",
+      "decision_logic": "External pilot gates remain false until reviewed evidence exists; demo readiness does not imply production readiness. Compliance templates are inventory and counsel worksheets, not legal approval.",
       "validation_gate": "Quality gates and pilot readiness checks separate synthetic automation from human approvals and deployment evidence.",
       "feedback_loop": "Failed gates update backlog, roadmap, and traceability before another release attempt.",
       "failure_handling": "Missing AWS, OpenAI, legal, support, UAT, or design-partner evidence blocks pilot approval but not local demo release.",
-      "optimization_step": "Add fresh-clone evidence packaging and PR evidence refresh for every release candidate.",
+      "optimization_step": "Demo legal-readiness package exists under docs/compliance (privacy inventory, PII notes, DPA/DPIA templates, go/no-go checklist). Counsel-signed DPA/DPIA, support owner, UAT, and accountable go/no-go remain external.",
       "scalability_note": "Release evidence must remain synthetic or approved redacted data and must not include local Bench state.",
       "evidence_paths": [
         "config/pilot-readiness.json",
+        "docs/compliance/README.md",
+        "docs/compliance/privacy-data-flow-inventory.md",
+        "docs/compliance/dpa-template.md",
+        "docs/compliance/dpia-template.md",
+        "docs/compliance/pilot-go-no-go-checklist.md",
         "docs/product/requirements-traceability.md",
         "config/release-readiness.json"
       ]
