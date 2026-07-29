@@ -13,6 +13,8 @@ Read these before changing anything:
 5. `docs/product/pending-roadmap-for-claude-code.md`: the phase-by-phase
    continuation plan.
 6. `docs/workflows/quality-gates.md`: which gate to run for which change.
+7. `docs/product/demo-version-loop.md` and `docs/product/demo-version-stack.md`
+   (Demo Version path + pin-accurate stack; `config/demo-version.json`).
 
 Other skills under `.agents/skills/` cover discovery, security/PII, connectors,
 architecture, QA, and tech-stack constraints. When `.claude/skills/` is present

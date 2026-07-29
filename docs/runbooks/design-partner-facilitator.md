@@ -34,7 +34,12 @@ Do **not**:
 - use real customer, employee, or production data
 
 Demo claim for the room: **private zero-cost local synthetic service-operations
-demo with draft-only AI proposals**.
+Demo Version with draft-only AI proposals** (`config/demo-version.json`).
+
+Loop graph (AI propose vs ERP/human commit):
+[`docs/product/demo-version-loop.md`](../product/demo-version-loop.md).
+Pin-accurate stack:
+[`docs/product/demo-version-stack.md`](../product/demo-version-stack.md).
 
 ## Scorecard levers this walkthrough covers
 

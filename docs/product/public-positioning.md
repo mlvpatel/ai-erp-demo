@@ -1,5 +1,12 @@
 # Public positioning
 
+## Demo Version label
+
+Current product shape is a **Demo Version** local synthetic demo
+(`config/demo-version.json`, loop in `demo-version-loop.md`, stack in
+`demo-version-stack.md`). That label is not a public SemVer release and does
+not imply production readiness.
+
 ## One-line description
 
 AI ERP Demo is an open-source, AI-assisted ERP starter built on ERPNext/Frappe,
