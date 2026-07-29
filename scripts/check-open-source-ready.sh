@@ -78,6 +78,7 @@ require_file scripts/check-first-public-issues.py
 require_file scripts/check-mvp-acceptance.py
 require_file scripts/check-fresh-clone-demo.py
 require_file scripts/check-demo-script.py
+require_file scripts/check-demo-version.py
 require_file scripts/check-authorization-matrix.py
 require_file scripts/check-transaction-safety.py
 require_file scripts/check-audit-evidence.py
@@ -105,6 +106,7 @@ require_file config/transaction-safety.json
 require_file config/audit-evidence.json
 require_file config/fresh-clone-demo.json
 require_file config/demo-script.json
+require_file config/demo-version.json
 require_file config/release-readiness.json
 require_file config/release-policy.json
 require_file config/industry-pack-lifecycle.json
@@ -132,6 +134,8 @@ require_file docs/architecture/system-boundaries.md
 require_file docs/architecture/domain-data-model.md
 require_file docs/product/public-positioning.md
 require_file docs/product/requirements-traceability.md
+require_file docs/product/demo-version-loop.md
+require_file docs/product/demo-version-stack.md
 require_file docs/discovery/open-source-erp-scan-2026-07.md
 require_file docs/discovery/discovery-design-plan.md
 require_file docs/discovery/service-operations-interview-guide.md

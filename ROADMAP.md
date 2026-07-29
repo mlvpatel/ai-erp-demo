@@ -4,10 +4,13 @@ AI ERP Demo grows by proving one safe workflow at a time. ERPNext/Frappe owns
 the transactional ERP foundation; this repository adds industry packs,
 governed AI proposals, contracts, and contributor-friendly automation.
 
-## Now: zero-cost local synthetic demo
+## Now: zero-cost local synthetic Demo Version
 
-Goal: publish a reproducible private demo that runs on a maintainer's computer
-without AWS, a hosted model, or billable provider credentials.
+Goal: publish a reproducible private Demo Version that runs on a maintainer's
+computer without AWS, a hosted model, or billable provider credentials.
+
+Entry points: `config/demo-version.json`,
+`docs/product/demo-version-loop.md`, `docs/product/demo-version-stack.md`.
 
 - Frappe/ERPNext development stack with pinned upstream commits.
 - `ai_erp_core` shared AI proposal ledger.

@@ -1,5 +1,8 @@
 # AI ERP Demo
 
+**Demo Version** `2026.07.30-demo` — private zero-cost local synthetic product
+label (`config/demo-version.json`). Not a production release tag.
+
 A governed, AI-assisted field-service ERP built as custom Frappe apps on top of
 ERPNext. The product turns a customer service request into assigned technician
 work, verified execution evidence, a margin-aware closeout, and exactly one
@@ -8,6 +11,11 @@ draft Sales Invoice, without ever letting AI post a business transaction.
 The project currently ships as a private, zero-cost, local synthetic demo. It
 runs entirely on one machine with a deterministic AI provider, so no cloud
 account, hosted model, or billable credential is required to evaluate it.
+
+Facilitator map of the end-to-end path:
+[`docs/product/demo-version-loop.md`](docs/product/demo-version-loop.md).
+What the stack actually runs:
+[`docs/product/demo-version-stack.md`](docs/product/demo-version-stack.md).
 
 ## Why this exists
 
@@ -131,11 +139,16 @@ Design boundaries that hold everywhere:
 
 ## Technology stack
 
+Pin-accurate Demo Version facts (commits, digests, provider default) live in
+[`docs/product/demo-version-stack.md`](docs/product/demo-version-stack.md).
+Architecture rationale:
+[`docs/architecture/tech-stack-2026-07.md`](docs/architecture/tech-stack-2026-07.md).
+
 | Layer | Choice | Reason |
 | --- | --- | --- |
 | ERP core | ERPNext v16 on Frappe v16, pinned by commit | Mature open-source accounting, stock, permissions, and workflow engine |
 | Custom apps | Python 3, Frappe app framework | Extends the ERP without forking upstream |
-| AI control plane | Python 3.14, FastAPI, Pydantic strict models, httpx | Stateless typed boundary that fails closed |
+| AI control plane | Python 3.14, FastAPI, httpx, draft-only OpenAPI contract | Stateless typed boundary that fails closed |
 | Data | MariaDB, Redis | Frappe-native persistence, cache, and queues |
 | Contracts | OpenAPI 3.1, versioned event schemas | Compatibility is testable and reviewable |
 | Browser tests | Playwright with a pinned Chromium | Role journeys are proven through the real UI |
@@ -236,8 +249,10 @@ scripts/dev.sh e2e-test
 ```
 
 The guided walkthrough for the service-operations demo path is in
-`docs/runbooks/local-demo.md`, and the presentation script with expected
-screens is in `docs/runbooks/demo-script.md`. The AI provider defaults to the
+`docs/runbooks/local-demo.md`, the presentation script with expected screens is
+in `docs/runbooks/demo-script.md`, and the design-partner facilitator path is
+in `docs/runbooks/design-partner-facilitator.md` (loop graph:
+`docs/product/demo-version-loop.md`). The AI provider defaults to the
 deterministic zero-cost template; the hosted-model adapter stays inactive
 unless explicitly configured and is never required for the demo.
 

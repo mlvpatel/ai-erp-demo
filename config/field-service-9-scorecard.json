@@ -19,7 +19,8 @@
       "Draft invoices are finance-triggered, idempotent, and draft-only.",
       "AI closeout proposals are cited, immutable, review-only, and non-posting.",
       "Evidence replay and export packet are available on Service Work Order Desk as a single client path.",
-      "Replay harness fixtures cover closeout, repair memory, scheduling explanation, and exception recovery."
+      "Replay harness fixtures cover closeout, repair memory, scheduling explanation, and exception recovery.",
+      "Demo Version loop and stack docs label the synthetic product without production claims."
     ],
     "assumed": [
       "Small and midsize field-service teams value evidence replay more than generic chatbot breadth.",
@@ -220,7 +221,7 @@
       "id": "governed-demo-to-pilot-release",
       "title": "Governed demo-to-pilot release",
       "implementation_state": "partly_implemented",
-      "current_score": 7.2,
+      "current_score": 7.3,
       "target_score": 9.0,
       "role_owner": "Repository Maintainer",
       "input": "Static gates, Docker gates, browser evidence, release report, deployment manifests, capacity, restore, UAT, legal, and support records.",
@@ -229,9 +230,12 @@
       "validation_gate": "Quality gates and pilot readiness checks separate synthetic automation from human approvals and deployment evidence.",
       "feedback_loop": "Failed gates update backlog, roadmap, and traceability before another release attempt.",
       "failure_handling": "Missing AWS, OpenAI, legal, support, UAT, or design-partner evidence blocks pilot approval but not local demo release.",
-      "optimization_step": "Demo legal-readiness package exists under docs/compliance (privacy inventory, PII notes, DPA/DPIA templates, go/no-go checklist). Counsel-signed DPA/DPIA, support owner, UAT, and accountable go/no-go remain external.",
+      "optimization_step": "Demo Version packaging now includes config/demo-version.json plus loop and stack docs linked from README, AGENTS, and the facilitator runbook. Counsel-signed DPA/DPIA, support owner, UAT, and accountable go/no-go remain external.",
       "scalability_note": "Release evidence must remain synthetic or approved redacted data and must not include local Bench state.",
       "evidence_paths": [
+        "config/demo-version.json",
+        "docs/product/demo-version-loop.md",
+        "docs/product/demo-version-stack.md",
         "config/pilot-readiness.json",
         "docs/compliance/README.md",
         "docs/compliance/privacy-data-flow-inventory.md",

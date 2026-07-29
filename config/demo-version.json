@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "demo_version": "2026.07.30-demo",
+  "label": "Demo Version",
+  "claim_boundary": "This identifier labels the local synthetic field-service demo product. It is not a production release tag, SemVer public release, or readiness claim.",
+  "product_shape": "Version-based private demo of a governed AI-assisted field-service ERP on ERPNext/Frappe, with a draft-only AI control plane.",
+  "data_mode": "synthetic_only",
+  "ai_mode": "proposal_only",
+  "default_provider": "template",
+  "requires_live_openai": false,
+  "requires_aws_apply": false,
+  "scorecard_average": 7.4,
+  "scorecard_path": "config/field-service-9-scorecard.json",
+  "pilot_readiness_path": "config/pilot-readiness.json",
+  "loop_doc": "docs/product/demo-version-loop.md",
+  "stack_doc": "docs/product/demo-version-stack.md",
+  "facilitator_runbook": "docs/runbooks/design-partner-facilitator.md",
+  "forbidden_claims": [
+    "production ready",
+    "human UAT approved",
+    "GDPR compliant",
+    "full multi-industry ERP",
+    "shipped 9/10 product"
+  ]
+}

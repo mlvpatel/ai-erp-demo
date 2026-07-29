@@ -53,6 +53,7 @@ This checks:
 - audit evidence consistency,
 - fresh-clone demo runbook and `demo-info` output-safety consistency,
 - public demo script consistency,
+- Demo Version packaging consistency (`config/demo-version.json`),
 - release-readiness blocker manifest consistency,
 - release policy and versioning consistency,
 - owner-decision template consistency,

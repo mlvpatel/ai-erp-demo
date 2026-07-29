@@ -107,6 +107,9 @@ echo "==> Fresh-clone demo"
 echo "==> Demo script"
 "$python_bin" scripts/check-demo-script.py
 
+echo "==> Demo Version packaging"
+"$python_bin" scripts/check-demo-version.py
+
 echo "==> Release readiness manifest"
 "$python_bin" scripts/check-release-readiness.py
 
