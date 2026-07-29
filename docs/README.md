@@ -16,6 +16,10 @@ unstructured notes at the repository root.
 
 Start with:
 
+- `product/demo-version-loop.md` for the Demo Version field-service path graph
+  (AI proposes vs ERP/human commit).
+- `product/demo-version-stack.md` for pin-accurate stack and AI integration
+  facts (`config/demo-version.json`).
 - `architecture/tech-stack-2026-07.md` for the July 2026 stack decision.
 - `architecture/system-context-and-repository-map.md` for the contributor-facing
   product context and folder responsibility map.

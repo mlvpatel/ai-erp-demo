@@ -4,8 +4,15 @@ Dates use `YYYY-MM-DD`.
 
 ## Unreleased
 
-No public release has been tagged. The project currently ships as a private,
-zero-cost, local synthetic demo of a governed, AI-assisted field-service ERP.
+### Demo Version product packaging
+
+- Labelled the local synthetic product as Demo Version `2026.07.30-demo` in
+  `config/demo-version.json`.
+- Added facilitator loop graph and pin-accurate stack/AI boundary docs under
+  `docs/product/demo-version-*.md`, linked from README, AGENTS, docs index,
+  roadmap, and the design-partner facilitator runbook.
+- Scorecard lever `governed-demo-to-pilot-release` evidence paths updated for
+  those docs; demo average remains 7.4 / 10.
 
 ## Release policy
 

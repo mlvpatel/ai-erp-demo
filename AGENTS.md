@@ -11,6 +11,9 @@ Start here before changing this repository.
    commit messages, summaries, and other written deliverables).
 5. `docs/product/pending-roadmap-for-claude-code.md`: phase-by-phase continuation plan.
 6. `docs/workflows/quality-gates.md`: which gate to run for which change.
+7. `docs/product/demo-version-loop.md` + `docs/product/demo-version-stack.md`:
+   Demo Version path graph and pin-accurate stack/AI boundary
+   (`config/demo-version.json`).
 
 Additional skills live under `.agents/skills/` (mirrored for Claude Code under
 `.claude/skills/` and for Cursor under `.cursor/skills/` when those trees are

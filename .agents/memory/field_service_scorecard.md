@@ -6,6 +6,8 @@
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
   deferred or blocked.
+- Demo Version label: `2026.07.30-demo` (`config/demo-version.json`). Loop and
+  stack docs improve discoverability only; they do not raise the average.
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
@@ -54,8 +56,8 @@
      readable validation copy; browser tests assert accessible names at
      390 by 844. IndexedDB offline drafts remain intentionally gated off.
 
-8. **Governed Demo-to-Pilot Release** (Current: 7.2 / Target: 9.0)
-   - *Status*: Partly Implemented. Demo gates pass. Demo legal-readiness
-     package exists under `docs/compliance/` (inventory, DPA/DPIA templates,
-     go/no-go checklist). External pilot/legal/UAT sign-off remains pending;
-     artifacts are not compliance.
+8. **Governed Demo-to-Pilot Release** (Current: 7.3 / Target: 9.0)
+   - *Status*: Partly Implemented. Demo Version packaging
+     (`config/demo-version.json`, loop + stack docs) and demo gates pass. Demo
+     legal-readiness package exists under `docs/compliance/`. External
+     pilot/legal/UAT sign-off remains pending; artifacts are not compliance.

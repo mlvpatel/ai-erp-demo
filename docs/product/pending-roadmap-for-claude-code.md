@@ -11,7 +11,9 @@ Last known project state:
   foundation (#8), Production readiness (#7)
 - ADRs through `0011-repair-memory-proposal-type.md` exist (also 0009
   scheduling explanation, 0010 exception recovery)
-- Current release claim: private zero-cost local synthetic demo
+- Current release claim: private zero-cost local synthetic **Demo Version**
+  (`config/demo-version.json`; loop `docs/product/demo-version-loop.md`; stack
+  `docs/product/demo-version-stack.md`)
 - Current product target: governed AI-native field-service ERP for maintenance,
   installation, and repair firms with 10 to 100 technicians
 - Scorecard: see `config/field-service-9-scorecard.json` — current demo average
@@ -944,6 +946,12 @@ Light manufacturing pending:
 - Promote only after design-partner validation.
 
 ## Documentation pending work
+
+Keep Demo Version discoverability current when the loop or stack pins change:
+
+- `config/demo-version.json`
+- `docs/product/demo-version-loop.md`
+- `docs/product/demo-version-stack.md`
 
 Update these whenever behavior changes:
 
