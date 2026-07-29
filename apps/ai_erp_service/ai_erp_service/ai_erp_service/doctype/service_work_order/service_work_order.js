@@ -347,6 +347,28 @@ function show_technician_suggestions(frm, suggestions) {
 	const excluded = suggestions.excluded
 		.map((row) => `<li>${escape(row.technician)}: ${escape(row.reason)}</li>`)
 		.join("");
+	const feedback = suggestions.feedback_summary || {};
+	const category_counts = feedback.category_counts || {};
+	const feedback_rows = Object.keys(category_counts)
+		.filter((category) => category_counts[category] > 0)
+		.map(
+			(category) =>
+				`<li>${escape(category)}: ${category_counts[category]}</li>`,
+		)
+		.join("");
+	const feedback_html = feedback.total
+		? `<div class="scheduling-feedback-summary" role="region" aria-label="${__(
+				"Rejection feedback",
+			)}">
+			<p><strong>${__("Recorded rejection feedback")}:</strong> ${feedback.total}</p>
+			<ul>${feedback_rows}</ul>
+			<p class="text-muted">
+				${__("Feedback informs future ranking review; it does not auto-assign.")}
+			</p>
+		</div>`
+		: `<p class="text-muted scheduling-feedback-summary">
+			${__("No rejection feedback recorded on this work order yet.")}
+		</p>`;
 	const dialog = new frappe.ui.Dialog({
 		title: __("Technician Suggestions"),
 		size: "large",
@@ -379,6 +401,7 @@ function show_technician_suggestions(frm, suggestions) {
 			<tbody>${rows || `<tr><td colspan="4">${__("No available technician")}</td></tr>`}</tbody>
 		</table>
 		${excluded ? `<p>${__("Excluded")}:</p><ul>${excluded}</ul>` : ""}
+		${feedback_html}
 		<p>${escape(suggestions.assignment_note)}</p>
 		<p class="text-muted">
 			${__("Explain Schedule creates a draft-only cited proposal; it cannot assign a technician.")}
@@ -544,6 +567,26 @@ function render_evidence_replay(chain, timeline) {
 			</div>`
 			: "";
 
+	const narrative = chain.ledger_narrative || {};
+	const narrative_stages = (narrative.stages || [])
+		.map(
+			(stage) => `
+		<li class="ledger-narrative-stage" tabindex="0">
+			<strong>${escape(stage.stage)}</strong>
+			<span>${escape(stage.summary)}</span>
+		</li>`,
+		)
+		.join("");
+	const narrative_html = narrative_stages
+		? `<div class="ledger-narrative" role="region" aria-label="${__("Ledger narrative")}">
+			<h5>${__("Ledger narrative")}</h5>
+			<p class="ledger-narrative-headline">${escape(
+				narrative.headline || __("Request → execution → cited proposals → finance handoff"),
+			)}</p>
+			<ol class="ledger-narrative-stages">${narrative_stages}</ol>
+		</div>`
+		: "";
+
 	const html = `
 		<div class="evidence-replay-container" role="region" aria-label="${__("Evidence Replay")}">
 			<div class="evidence-header">
@@ -564,6 +607,7 @@ function render_evidence_replay(chain, timeline) {
 					: ""
 			}
 			${margin_html}
+			${narrative_html}
 			<h5>${__("Ledger Summary")}</h5>
 			<table class="table table-bordered"><tbody>${summary_html}</tbody></table>
 			<h5>${__("Chronological Evidence Timeline")}</h5>

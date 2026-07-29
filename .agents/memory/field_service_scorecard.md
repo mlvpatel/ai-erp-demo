@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.3 / 10
+- **Current Demo Average Score**: 7.4 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -16,15 +16,15 @@
 
 ## Feature Breakdown & Gap Status
 
-1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.0 / Target: 10.0)
-   - *Status*: Partly Implemented. Timeline replay uses Version-based closeout
-     timestamps (filtered by Closeout Submitted marker, not an unfiltered
-     first-50 page) and datetime sort keys (not `modified` / string sort).
+1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.2 / Target: 10.0)
+   - *Status*: Partly Implemented. Desk Evidence Replay shows compact ledger
+     narrative stages; finance_handoff is role-scoped. Timeline replay uses
+     Version-based closeout timestamps. Partner packet review remains open.
 
-2. **Cannot-Close Recovery Coach** (Current: 7.8 / Target: 9.0)
+2. **Cannot-Close Recovery Coach** (Current: 8.0 / Target: 9.0)
    - *Status*: Partly Implemented. Overdue escalation, cited recovery drafts,
-     and exception-recovery replay fixtures exist. Broader refusal corpora and
-     partner UX review remain open.
+     parts-hold guidance, uncited-history drop, and injection/contact redaction
+     coverage exist. Partner UX review remains open.
 
 3. **Margin Leakage Guardian** (Current: 7.8 / Target: 9.0)
    - *Status*: Partly Implemented. Managers and finance can open a Desk
@@ -43,9 +43,11 @@
      history entry and use `@today` relative dates. Live provider replay
      aggregates remain deferred.
 
-6. **Bounded Scheduling Optimizer** (Current: 7.3 / Target: 9.0)
+6. **Bounded Scheduling Optimizer** (Current: 7.5 / Target: 9.0)
    - *Status*: Partly Implemented. Parts readiness sums duplicate items and
-     honors per-row `source_warehouse` (aligned with `issue_parts`).
+     honors per-row `source_warehouse`. Suggestion dialog and
+     `suggestion_feedback_summary` roll up rejection categories without
+     auto-assigning or auto-rescoring.
 
 7. **Mobile Field Execution** (Current: 6.1 / Target: 9.0)
    - *Status*: Partly Implemented. Online mobile CSS enforces 44px targets and

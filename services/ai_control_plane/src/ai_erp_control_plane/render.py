@@ -164,12 +164,14 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 		"",
 		f"Work order: {work_order.name} ({work_order.status})",
 		f"Closure exception: {exception.name} ({exception.status})",
-		f"Reason: {exception.reason}",
+		f"Reason: {quote_inline(exception.reason)}",
 	]
 	if exception.due_date:
 		lines.append(f"Closure due: {exception.due_date}")
 	if work_order.inspection_result:
-		lines.append(f"Inspection result: {work_order.inspection_result}")
+		lines.append(f"Inspection result: {quote_inline(work_order.inspection_result)}")
+	if work_order.cannot_close_reason:
+		lines.append(f"Cannot-close note: {quote_inline(work_order.cannot_close_reason)}")
 
 	history, omitted = cited_history(request.related_history, request.sources)
 	guidance = RECOVERY_GUIDANCE.get(exception.reason)

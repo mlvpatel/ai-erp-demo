@@ -451,6 +451,8 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     const managerDialog = managerBrowser.page.locator(".modal:visible").last();
     await expect(managerDialog).toContainText("Evidence complete");
     await expect(managerDialog).toContainText("AI proposal status");
+    await expect(managerDialog).toContainText("Ledger narrative");
+    await expect(managerDialog).toContainText("finance_handoff");
     await expect(managerDialog).toContainText("Projected margin percent");
     await expect(managerDialog).toContainText("Chain hash");
     const managerClose = managerDialog.locator(".btn-modal-close");
@@ -469,6 +471,8 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     const technicianDialog = technicianBrowser.page.locator(".modal:visible").last();
     await expect(technicianDialog).toContainText("Evidence complete");
     await expect(technicianDialog).toContainText("Parts issued");
+    await expect(technicianDialog).toContainText("Ledger narrative");
+    await expect(technicianDialog).not.toContainText("finance_handoff");
     await expect(technicianDialog).not.toContainText("Projected margin percent");
     await expect(technicianDialog).not.toContainText("Invoice handoff");
     await expect(technicianDialog.locator(".btn-modal-close")).toBeVisible();
