@@ -113,7 +113,17 @@ def main() -> int:
     if actual_gate_ids != required_gate_ids:
         failures.append("pending gate set is incomplete or contains an unknown gate")
 
-    doc_fields = ("uat_doc", "evidence_template", "gdpr_gate", "aws_reference")
+    doc_fields = (
+        "uat_doc",
+        "evidence_template",
+        "gdpr_gate",
+        "privacy_inventory",
+        "dpa_template",
+        "dpia_template",
+        "go_no_go_checklist",
+        "pii_handling_notes",
+        "aws_reference",
+    )
     combined_docs = ""
     for field in doc_fields:
         path = value.get(field)
@@ -129,6 +139,9 @@ def main() -> int:
         "Design-partner approval: pending",
         "Real data: prohibited",
         "neither GDPR compliance nor production approval",
+        "Status: **template only**",
+        "Status: engineering inventory for the local synthetic demo",
+        "Status: human gate index for a future production pilot",
     ):
         if phrase not in combined_docs:
             failures.append(f"pilot documents missing caveat: {phrase}")

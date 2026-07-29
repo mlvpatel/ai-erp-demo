@@ -41,6 +41,14 @@ data minimization, not a substitute for a lawful basis or provider agreement.
    backup expiry or post-restore re-erasure satisfies the approved schedule.
 6. Send the controller-approved response and retain only necessary evidence.
 
+## Related templates
+
+- Data-flow inventory: `docs/compliance/privacy-data-flow-inventory.md`
+- DPA outline for counsel: `docs/compliance/dpa-template.md`
+- DPIA outline for counsel/DPO: `docs/compliance/dpia-template.md`
+- Human go/no-go index: `docs/compliance/pilot-go-no-go-checklist.md`
+- PII engineering notes: `docs/compliance/pii-handling-notes.md`
+
 ## Launch decision
 
 Real data remains blocked until every row has a named owner, approved evidence,

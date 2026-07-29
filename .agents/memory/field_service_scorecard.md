@@ -54,6 +54,8 @@
      readable validation copy; browser tests assert accessible names at
      390 by 844. IndexedDB offline drafts remain intentionally gated off.
 
-8. **Governed Demo-to-Pilot Release** (Current: 7.0 / Target: 9.0)
-   - *Status*: Partly Implemented. Demo gates pass; external pilot/legal/UAT
-     evidence remains pending.
+8. **Governed Demo-to-Pilot Release** (Current: 7.2 / Target: 9.0)
+   - *Status*: Partly Implemented. Demo gates pass. Demo legal-readiness
+     package exists under `docs/compliance/` (inventory, DPA/DPIA templates,
+     go/no-go checklist). External pilot/legal/UAT sign-off remains pending;
+     artifacts are not compliance.
