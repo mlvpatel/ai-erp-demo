@@ -118,6 +118,7 @@ def suggest_technicians(name):
 		"candidates": candidates[:CANDIDATE_LIMIT],
 		"excluded": excluded,
 		"assignment_note": "Suggestions only. Assignment happens through the dispatcher-saved form.",
+		"feedback_summary": _feedback_summary_for_work_order(work_order.name),
 	}
 
 
@@ -285,13 +286,16 @@ def request_scheduling_explanation(name):
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
 
 
-REJECTION_REASON_CATEGORIES = {
+REJECTION_REASON_CATEGORIES = (
 	"Wrong skill or territory",
 	"Parts not ready",
 	"Workload conflict",
 	"Customer preference",
 	"Other",
-}
+)
+FEEDBACK_MARKER = "Scheduling suggestion rejected for"
+FEEDBACK_SUMMARY_LIMIT = 200
+FEEDBACK_RECENT_LIMIT = 5
 
 
 @frappe.whitelist()
@@ -312,7 +316,7 @@ def record_suggestion_feedback(name, technician, reason_category, note=None):
 	work_order.check_permission("write")
 	safe_note = (note or "").strip()[:500]
 	content = (
-		f"Scheduling suggestion rejected for {technician}. "
+		f"{FEEDBACK_MARKER} {technician}. "
 		f"Reason: {reason_category}."
 		+ (f" Note: {safe_note}" if safe_note else "")
 	)
@@ -323,6 +327,112 @@ def record_suggestion_feedback(name, technician, reason_category, note=None):
 		"reason_category": reason_category,
 		"recorded": True,
 	}
+
+
+@frappe.whitelist()
+def suggestion_feedback_summary(name=None):
+	"""Return rejection-category counts for ranking feedback review.
+
+	With a work-order name, counts that order's recorded rejections. Without a
+	name, counts the newest bounded site-wide feedback comments. Never assigns
+	technicians or changes ranking scores automatically.
+	"""
+	require_any_role(
+		DISPATCHER_ROLES, _("Only a dispatcher or manager can view scheduling feedback.")
+	)
+	filters = {
+		"comment_type": "Info",
+		"reference_doctype": "Service Work Order",
+		"content": ("like", f"%{FEEDBACK_MARKER}%"),
+	}
+	if name:
+		work_order = frappe.get_doc("Service Work Order", name)
+		work_order.check_permission("read")
+		filters["reference_name"] = work_order.name
+		scope = work_order.name
+	else:
+		scope = "site"
+	rows = frappe.get_all(
+		"Comment",
+		filters=filters,
+		fields=["content", "creation", "reference_name"],
+		order_by="creation desc",
+		limit_page_length=FEEDBACK_SUMMARY_LIMIT,
+	)
+	summary = _aggregate_feedback_rows(rows)
+	summary["scope"] = scope
+	summary["scanned"] = len(rows)
+	summary["truncated"] = len(rows) >= FEEDBACK_SUMMARY_LIMIT
+	return summary
+
+
+def _feedback_summary_for_work_order(work_order_name):
+	"""Aggregate rejection feedback already stored on one work order."""
+	rows = frappe.get_all(
+		"Comment",
+		filters={
+			"comment_type": "Info",
+			"reference_doctype": "Service Work Order",
+			"reference_name": work_order_name,
+			"content": ("like", f"%{FEEDBACK_MARKER}%"),
+		},
+		fields=["content", "creation", "reference_name"],
+		order_by="creation desc",
+		limit_page_length=FEEDBACK_SUMMARY_LIMIT,
+	)
+	summary = _aggregate_feedback_rows(rows)
+	summary["scope"] = work_order_name
+	summary["scanned"] = len(rows)
+	summary["truncated"] = len(rows) >= FEEDBACK_SUMMARY_LIMIT
+	return summary
+
+
+def _aggregate_feedback_rows(rows):
+	"""Parse Comment bodies into category counts and a short recent list."""
+	category_counts = {category: 0 for category in REJECTION_REASON_CATEGORIES}
+	recent = []
+	total = 0
+	for row in rows:
+		parsed = _parse_feedback_comment(row.content or "")
+		if not parsed:
+			continue
+		total += 1
+		category = parsed["reason_category"]
+		if category in category_counts:
+			category_counts[category] += 1
+		else:
+			category_counts["Other"] = category_counts.get("Other", 0) + 1
+		if len(recent) < FEEDBACK_RECENT_LIMIT:
+			recent.append(
+				{
+					"work_order": row.reference_name,
+					"technician": parsed["technician"],
+					"reason_category": category,
+					"created": str(row.creation),
+				}
+			)
+	return {
+		"total": total,
+		"category_counts": category_counts,
+		"recent": recent,
+	}
+
+
+def _parse_feedback_comment(content):
+	"""Extract technician and reason category from a recorded rejection comment."""
+	if FEEDBACK_MARKER not in content:
+		return None
+	after_marker = content.split(FEEDBACK_MARKER, 1)[1].strip()
+	technician = after_marker.split(".", 1)[0].strip()
+	reason_category = "Other"
+	if "Reason: " in content:
+		reason_text = content.split("Reason: ", 1)[1]
+		reason_category = reason_text.split(".", 1)[0].strip() or "Other"
+	if reason_category not in REJECTION_REASON_CATEGORIES:
+		reason_category = "Other"
+	if not technician:
+		return None
+	return {"technician": technician, "reason_category": reason_category}
 
 
 def _scheduling_explanation_payload(work_order, suggestions):

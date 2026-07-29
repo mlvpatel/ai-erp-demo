@@ -11,7 +11,7 @@
   "process_owner": "Service Manager",
   "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
   "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
-  "current_demo_average_score": 7.3,
+  "current_demo_average_score": 7.4,
   "target_average_score": 9.1,
   "requirements_status": {
     "verified": [
@@ -54,7 +54,7 @@
       "id": "verifiable-evidence-to-cash-ledger",
       "title": "Verifiable evidence-to-cash ledger",
       "implementation_state": "partly_implemented",
-      "current_score": 8.0,
+      "current_score": 8.2,
       "target_score": 10.0,
       "role_owner": "Service Manager",
       "input": "Service request, work order assignment, technician time, parts, closeout notes, evidence, stock issue link, AI proposal, and invoice draft link.",
@@ -63,7 +63,7 @@
       "validation_gate": "Automated tests prove idempotent stock issue, idempotent draft invoice, role separation, and audit links.",
       "feedback_loop": "Failed closeout or missing evidence routes back to technician or manager with an owned exception.",
       "failure_handling": "Retries return existing linked records; partial or duplicate state blocks release.",
-      "optimization_step": "Design-partner review of the compact replay narrative and packet export before pilot packaging; closeout timeline timestamps now prefer Version transition time over document modified.",
+      "optimization_step": "Desk Evidence Replay now shows the compact ledger narrative stages; finance_handoff appears only for roles that can see finance. Partner review of packet export before pilot packaging remains open.",
       "scalability_note": "Permission-scoped lists and reports must pass the full private capacity profile before pilot activation.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/evidence.py",
@@ -76,7 +76,7 @@
       "id": "cannot-close-recovery-coach",
       "title": "Cannot-close recovery coach",
       "implementation_state": "partly_implemented",
-      "current_score": 7.8,
+      "current_score": 8.0,
       "target_score": 9.0,
       "role_owner": "Service Manager",
       "input": "Work order status, closeout fields, exception reason, downstream owner, due date, and escalation age.",
@@ -85,7 +85,7 @@
       "validation_gate": "Scheduled-job, permission, and replay-bundle tests prove overdue escalation, human ownership, and draft-only recovery.",
       "feedback_loop": "Manager assigns the next human action or sends the work order back to technician execution.",
       "failure_handling": "Notification failure leaves the exception open and visible in manager queues.",
-      "optimization_step": "Add more synthetic refusal cases and manager UX polish after design-partner feedback.",
+      "optimization_step": "Synthetic refusal coverage now includes parts-hold guidance, uncited-history drop, and injection/contact redaction in recovery drafts. Partner UX review remains open.",
       "scalability_note": "Exception queues must remain filterable by owner, due date, customer, and technician at capacity.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/recovery.py",
@@ -175,7 +175,7 @@
       "id": "bounded-scheduling-optimizer",
       "title": "Bounded scheduling optimizer",
       "implementation_state": "partly_implemented",
-      "current_score": 7.3,
+      "current_score": 7.5,
       "target_score": 9.0,
       "role_owner": "Dispatcher",
       "input": "Technician availability, skills, territory, service location, SLA, work priority, duration, and parts readiness.",
@@ -184,7 +184,7 @@
       "validation_gate": "Tests prove cross-technician visibility, role checks, conflict handling, deterministic tie-breakers, skill/territory capability matching, Explain Schedule drafts, rejection feedback capture, summed duplicate-part readiness, and per-row warehouse checks aligned with issue_parts.",
       "feedback_loop": "Dispatcher rejection captures reason categories for future ranking improvement.",
       "failure_handling": "Missing availability, location, skill, or parts data produces an exclusion reason instead of a hidden assignment.",
-      "optimization_step": "Add richer optimizer feedback analytics and partner-reviewed candidate UX after design-partner review.",
+      "optimization_step": "Suggestion dialog and suggestion_feedback_summary now roll up rejection categories without auto-scoring. Partner-reviewed candidate UX remains open.",
       "scalability_note": "Scheduling search must stay bounded by date window, territory, role, and candidate count.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/scheduling.py",

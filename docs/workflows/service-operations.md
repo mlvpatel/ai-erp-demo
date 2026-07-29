@@ -47,8 +47,10 @@
   chain hash make two replays of the same visible state comparable.
 - The Evidence Replay button on the Service Work Order form renders that chain
   in a compact dialog: completeness, missing evidence, open exceptions, parts
-  issued, AI proposal status, and, for manager and accounts roles only, the
-  invoice handoff state with a link to the draft Sales Invoice.
+  issued, AI proposal status, the compact ledger narrative stages, and, for
+  manager and accounts roles only, the invoice handoff state with a link to the
+  draft Sales Invoice. Finance handoff narrative stages appear only when the
+  finance section is visible to the current role.
 - The manager-only Evidence Packet button exports the chain as a sanitized
   JSON file through `ai_erp_service.evidence.get_evidence_packet`: identifiers,
   hashes, statuses, citation ids, stock and invoice links, and unresolved
@@ -69,7 +71,11 @@ and then on the technician id. Technicians with overlapping scheduled work are
 listed as excluded with the reason. A missing schedule window aborts instead of
 guessing availability. Suggestions never assign anyone: the dispatcher applies
 a suggestion into the form and the normal permission-checked save performs the
-assignment.
+assignment. Rejection feedback is stored as work-order comments and shown as
+category counts in the suggestion dialog; it never auto-assigns or changes
+scores by itself. Dispatchers can also call
+`ai_erp_service.scheduling.suggestion_feedback_summary` for a bounded per-order
+or site-wide category rollup.
 
 A dispatcher can also request a draft explanation of the current ranking. The
 explanation is stored as a cited, draft-only AI Proposal with no ERP side
@@ -93,10 +99,12 @@ abstention instead of a suggestion.
 On a Cannot Close work order with an open closure exception, a service manager
 can request Draft Recovery Steps. The proposal maps the exception reason to a
 fixed recovery checklist, lists declared parts that are not yet issued, and
-cites permission-scoped prior work at the same asset or location. An
-uncategorized reason with no visible history produces a stated abstention. The
-draft cannot close the work order or resolve the exception; the manager owns
-the recovery action and records the outcome through review.
+cites permission-scoped prior work at the same asset or location. Uncited prior
+rows are dropped with an omission note. Instruction-like or contact-shaped free
+text in cannot-close notes and cited history is sanitized before it reaches the
+draft. An uncategorized reason with no visible history produces a stated
+abstention. The draft cannot close the work order or resolve the exception; the
+manager owns the recovery action and records the outcome through review.
 
 ## Margin leakage categories
 
