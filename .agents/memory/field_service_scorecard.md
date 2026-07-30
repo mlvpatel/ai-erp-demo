@@ -14,6 +14,10 @@
 - Phase A packet polish moved verifiable-evidence-to-cash-ledger 8.2 → 8.4
   (manager/accounts export, incomplete narrative, timeline exceptions,
   idempotency rows, role-scoped e2e). Partner review still required for ≥9.0.
+- Phase B margin Desk depth moved margin-leakage-guardian 7.8 → 8.2
+  (category evidence in ledger, Desk status/date filters, Accounts report
+  access, truncation honesty). Partner UX review still required for ≥9.0;
+  scheduling polish remains for the broader Phase B ~8.5 path.
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
@@ -36,11 +40,13 @@
      parts-hold guidance, uncited-history drop, and injection/contact redaction
      coverage exist. Partner UX review remains open.
 
-3. **Margin Leakage Guardian** (Current: 7.8 / Target: 9.0)
-   - *Status*: Partly Implemented. Managers and finance can open a Desk
-     summary dialog (category counts, capped high-risk queue, truncation
-     notice). Scan truncation uses limit+1 detection; high-risk queue cap is
-     flagged separately. Partner-reviewed analytics and UAT remain open.
+3. **Margin Leakage Guardian** (Current: 8.2 / Target: 9.0)
+   - *Status*: Partly Implemented. Managers and finance open a Desk summary
+     with category counts, evidence snippets, status/date filters, capped
+     high-risk queue, and truncation notices. Evidence chain/packet carry
+     `margin_risk_details` (discount/zero-rate hours, neighbors, unknown cost
+     items). Profitability report allows Accounts roles and warns on page
+     truncation. Partner-reviewed analytics and UAT remain open.
 
 4. **Provenance-Based Repair Memory** (Current: 6.5 / Target: 9.0)
    - *Status*: Partly Implemented. Template renderers keep only citation-backed
