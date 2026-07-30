@@ -102,22 +102,23 @@ vs any generic copilot.
 
 1. Finish manager Evidence Replay / packet polish:
    `apps/ai_erp_service/.../evidence.py`, Desk JS, compact ledger stages,
-   finance_handoff only for permitted roles.
+   finance_handoff only for permitted roles. (landed)
 2. Add negative permission + e2e coverage for technician vs manager vs
-   accounts packet views (`tests/e2e/service-operations.spec.ts`).
+   accounts packet views (`tests/e2e/service-operations.spec.ts`). (landed)
 3. Proposal v2 safe metadata gaps (roadmap Phase 3C): policy category,
    citation hashes, token/duration where already returned, concurrent
-   idempotency proof on `input_context_hash`.
+   idempotency proof on `input_context_hash`. (landed)
 4. Expand replay fixtures under `tests/fixtures/replay-bundles/` so every
    registered type in `config/ai-workflow-registry.json` has a cited bundle
-   with `@today` relative dates.
+   with `@today` relative dates; evidence packets include finance and invoice
+   handoff packaging. (landed)
 
 **Success evidence:** `service-test`, `e2e-test`, `contract-test`,
 `test_replay_harness.py`, quality gates green; scorecard notes updated with
 paths, not invented partner scores.
 
-**Scorecard levers:** verifiable-evidence-to-cash-ledger (8.2),
-safe-agent-replay (8.0).
+**Scorecard levers:** verifiable-evidence-to-cash-ledger (8.6),
+safe-agent-replay (8.3).
 
 **Blocked-on-user:** partner packet review for ≥9.0 on those levers.
 

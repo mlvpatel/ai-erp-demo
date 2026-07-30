@@ -7,10 +7,11 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "proposal_type",
   "proposal_status",
   "policy_outcome",
+  "policy_category",
   "policy_reason",
   "reference_section",
   "reference_doctype",
@@ -66,6 +67,15 @@
    "in_list_view": 1,
    "label": "Policy Outcome",
    "options": "Draft Only",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "draft_only",
+   "fieldname": "policy_category",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Policy Category",
    "read_only": 1,
    "reqd": 1
   },

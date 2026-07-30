@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 8.0 / 10
+- **Current Demo Average Score**: 8.1 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -11,9 +11,11 @@
 - Agent-executable uniqueness / governance / security build order:
   `docs/product/improvement-plan-unique-governed-secure.md` (~8.5 ceiling
   without keys, partners, counsel, or AWS).
-- Phase A packet polish moved verifiable-evidence-to-cash-ledger 8.2 → 8.4
-  (manager/accounts export, incomplete narrative, timeline exceptions,
-  idempotency rows, role-scoped e2e). Partner review still required for ≥9.0.
+- Residual Phase A proposal metadata moved verifiable-evidence-to-cash-ledger
+  8.4 → 8.6 and safe-agent-replay 8.0 → 8.3 (policy_category, citation hashes,
+  token/duration in packet/timeline, concurrent context-hash reuse proof,
+  invoice-handoff evidence packet, harness depth). Partner packet review still
+  required for ≥9.0.
 - Phase B margin Desk depth moved margin-leakage-guardian 7.8 → 8.2
   (category evidence in ledger, Desk status/date filters, Accounts report
   access, truncation honesty). Partner UX review still required for ≥9.0.
@@ -43,12 +45,14 @@
 
 ## Feature Breakdown & Gap Status
 
-1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.4 / Target: 10.0)
+1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.6 / Target: 10.0)
    - *Status*: Partly Implemented. Desk Evidence Replay shows compact ledger
      narrative stages (incomplete headline when gaps remain); finance_handoff
-     is role-scoped. Timeline includes exceptions and proposal context-hash
-     stubs. Managers and accounts can export the sanitized packet with
-     idempotency rows; technicians cannot. Partner packet review remains open.
+     is role-scoped. Timeline includes exceptions, proposal context-hash stubs,
+     policy_category, and token/duration when present. Managers and accounts
+     can export the sanitized packet with idempotency rows, citation hashes,
+     and policy categories; technicians cannot. Concurrent context-hash reuse
+     is covered in service tests. Partner packet review remains open.
 
 2. **Cannot-Close Recovery Coach** (Current: 8.2 / Target: 9.0)
    - *Status*: Partly Implemented. Overdue escalation, cited recovery drafts,
@@ -71,10 +75,12 @@
      citation match covers seeded Desk drafts. Live provider aggregate eval is
      still blocked on credentials.
 
-5. **Safe Agent Replay** (Current: 8.0 / Target: 9.0)
+5. **Safe Agent Replay** (Current: 8.3 / Target: 9.0)
    - *Status*: Partly Implemented. Four draft-only replay fixtures cite every
-     history entry and use `@today` relative dates. Live provider replay
-     aggregates remain deferred.
+     history entry and use `@today` relative dates. Finance and invoice handoff
+     evidence packets deepen harness coverage; approve review events stay
+     draft_only with no mutation fields. Live provider replay aggregates remain
+     deferred.
 
 6. **Bounded Scheduling Optimizer** (Current: 8.5 / Target: 9.0)
    - *Status*: Partly Implemented. Capability profiles include optional

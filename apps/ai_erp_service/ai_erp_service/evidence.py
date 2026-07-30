@@ -104,7 +104,13 @@ def get_evidence_packet(name):
 		"proposals": sections["ai_proposals"],
 		"proposal_idempotency": _proposal_idempotency(sections["ai_proposals"]),
 		"policy_decisions": sorted({row["policy_outcome"] for row in sections["ai_proposals"]}),
+		"policy_categories": sorted(
+			{row.get("policy_category") for row in sections["ai_proposals"] if row.get("policy_category")}
+		),
 		"citations": citations,
+		"citation_hashes": sorted(
+			{row["content_hash"] for row in citations if row.get("content_hash")}
+		),
 		"stock_entries": finance.get("stock_entries", []),
 		"sales_invoice": finance.get("sales_invoice", ""),
 		"margin_risks": finance.get("margin_risks", []),
@@ -202,10 +208,14 @@ def _proposal_section(work_order):
 			"name",
 			"proposal_status",
 			"policy_outcome",
+			"policy_category",
 			"model_provider",
 			"model_name",
 			"input_context_hash",
 			"output_hash",
+			"provider_input_tokens",
+			"provider_output_tokens",
+			"provider_duration_ms",
 			"reviewed_by",
 		],
 		order_by="name asc",
@@ -241,17 +251,26 @@ def _margin_finance_fields(work_order):
 	}
 
 def _proposal_citation_stubs(proposals):
-	"""Count citation rows without loading full proposal draft content."""
+	"""Return citation hashes without loading proposal draft content."""
 	names = [row.get("name") for row in proposals or [] if row.get("name")]
 	if not names:
 		return []
 	rows = frappe.get_all(
 		"AI Proposal Source",
 		filters={"parent": ("in", names)},
-		fields=["parent"],
+		fields=["parent", "source_doctype", "source_name", "source_field", "content_hash"],
 		limit_page_length=500,
 	)
-	return [{"proposal": row.parent} for row in rows]
+	return [
+		{
+			"proposal": row.parent,
+			"source_doctype": row.source_doctype,
+			"source_name": row.source_name,
+			"source_field": row.source_field,
+			"content_hash": row.content_hash,
+		}
+		for row in rows
+	]
 
 
 def _proposal_idempotency(proposals):
@@ -265,6 +284,10 @@ def _proposal_idempotency(proposals):
 				"input_context_hash": context_hash,
 				"output_hash": proposal.get("output_hash") or "",
 				"policy_outcome": proposal.get("policy_outcome") or "",
+				"policy_category": proposal.get("policy_category") or "",
+				"provider_input_tokens": proposal.get("provider_input_tokens"),
+				"provider_output_tokens": proposal.get("provider_output_tokens"),
+				"provider_duration_ms": proposal.get("provider_duration_ms"),
 				"reuse_note": (
 					"Identical input_context_hash returns this proposal without a new provider call."
 					if context_hash
@@ -458,21 +481,37 @@ def get_evidence_timeline(name):
 				"name",
 				"proposal_type",
 				"proposal_status",
+				"policy_category",
 				"creation",
 				"reviewed_by",
 				"input_context_hash",
 				"output_hash",
+				"provider_duration_ms",
+				"provider_input_tokens",
+				"provider_output_tokens",
 			],
 		)
 		for prop in proposals:
 			context_hash = (prop.input_context_hash or "")[:16]
 			hash_note = f"; context {context_hash}…" if context_hash else ""
+			category = prop.policy_category or "draft_only"
+			duration = prop.provider_duration_ms
+			token_note = ""
+			if prop.provider_input_tokens is not None or prop.provider_output_tokens is not None:
+				token_note = (
+					f"; tokens in={prop.provider_input_tokens or 0} "
+					f"out={prop.provider_output_tokens or 0}"
+				)
+			duration_note = f"; {int(duration)}ms" if duration is not None else ""
 			timeline.append({
 				"stage": "AI Proposal",
 				"label": _("AI Proposal {0}").format(prop.proposal_type),
 				"timestamp": str(prop.creation),
 				"actor": prop.reviewed_by or _("AI System"),
-				"details": f"Status: {prop.proposal_status}{hash_note}",
+				"details": (
+					f"Status: {prop.proposal_status}; policy {category}"
+					f"{hash_note}{token_note}{duration_note}"
+				),
 			})
 
 	if work_order.sales_invoice and (has_any_role(MANAGER_ROLES) or has_any_role(FINANCE_ROLES)):

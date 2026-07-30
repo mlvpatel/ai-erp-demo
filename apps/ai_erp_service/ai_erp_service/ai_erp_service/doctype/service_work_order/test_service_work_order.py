@@ -540,6 +540,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			proposal.save()
 
 		proposal.reload()
+		self.assertEqual(proposal.policy_category, "draft_only")
 		proposal.review("Approved", "Reviewed against cited field evidence.")
 		proposal.reload()
 		work_order.reload()
@@ -547,8 +548,103 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(proposal.reviewed_by, "Administrator")
 		self.assertEqual(work_order.status, "Closeout Submitted")
 		self.assertEqual(work_order.closeout_notes, "Tightened the mount and confirmed normal operation.")
+		self.assertFalse(work_order.sales_invoice)
 		self.assertEqual(frappe.db.count("Sales Invoice"), invoices_before)
 		self.assertEqual(frappe.db.count("Stock Entry"), stock_entries_before)
+
+	def test_concurrent_identical_context_reuses_one_proposal_without_second_provider_call(self):
+		"""Prove deadlock recovery + context-hash reuse converge on one proposal."""
+		work_order = self._make_work_order("Concurrent proposal idempotency")
+		self._schedule(work_order, self.technician)
+		frappe.set_user(self.technician)
+		work_order.reload()
+		work_order.status = "In Progress"
+		work_order.save()
+		work_order.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		work_order.closeout_notes = "Verified airflow after filter change."
+		work_order.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		work_order.status = "Closeout Submitted"
+		work_order.save()
+
+		def control_plane_response(payload, route=None):
+			return {
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {
+					"decision": "draft_only",
+					"allowed_action": "none",
+					"category": "draft_only",
+					"reason": "Draft only; human review has no ERP side effect.",
+				},
+				"model": {
+					"provider": "test-control-plane",
+					"name": "test-closeout-model",
+					"prompt_version": "service-closeout-summary@v1",
+				},
+				"audit": {
+					"response_id_hash": "a" * 64,
+					"input_tokens": 11,
+					"output_tokens": 7,
+					"duration_ms": 33,
+					"redaction_count": 0,
+				},
+				"draft_content": "Draft: filter changed; airflow verified.",
+				"sources": payload["sources"],
+			}
+
+		with patch("ai_erp_core.proposals._post_to_control_plane", side_effect=control_plane_response) as control_plane:
+			first = request_closeout_summary(work_order.name)
+			proposal_name = first["name"]
+
+			# Simulate a concurrent waiter that hit snapshot deadlock, then saw
+			# the committed proposal on the fresh snapshot without calling provider.
+			original_get_value = frappe.db.get_value
+			calls = {"count": 0}
+
+			def get_value_with_deadlock(*args, **kwargs):
+				if kwargs.get("for_update") and calls["count"] == 0:
+					calls["count"] += 1
+					raise frappe.QueryDeadlockError("synthetic concurrent context lock")
+				if kwargs.get("for_update"):
+					return proposal_name
+				return original_get_value(*args, **kwargs)
+
+			with (
+				patch("frappe.db.get_value", side_effect=get_value_with_deadlock),
+				patch("frappe.db.rollback") as rollback,
+				patch("ai_erp_core.proposals._lock_reference"),
+			):
+				second = request_closeout_summary(work_order.name)
+
+			self.assertEqual(control_plane.call_count, 1)
+			self.assertEqual(second["name"], proposal_name)
+			rollback.assert_called()
+
+		proposal = frappe.get_doc("AI Proposal", proposal_name)
+		self.assertEqual(proposal.policy_category, "draft_only")
+		self.assertEqual(proposal.provider_input_tokens, 11)
+		self.assertEqual(proposal.provider_output_tokens, 7)
+		self.assertEqual(proposal.provider_duration_ms, 33)
+		self.assertEqual(
+			frappe.db.count(
+				"AI Proposal",
+				{
+					"reference_doctype": "Service Work Order",
+					"reference_name": work_order.name,
+					"input_context_hash": proposal.input_context_hash,
+				},
+			),
+			1,
+		)
 
 	def test_closeout_draft_history_retrieval_is_permission_scoped_and_cited(self):
 		other_technician = self._make_role_user(
@@ -1039,12 +1135,20 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 				"policy": {
 					"decision": "draft_only",
 					"allowed_action": "none",
+					"category": "draft_only",
 					"reason": "Draft only; human review has no ERP side effect.",
 				},
 				"model": {
 					"provider": "test-control-plane",
 					"name": "test-closeout-model",
 					"prompt_version": "service-closeout-summary@v1",
+				},
+				"audit": {
+					"response_id_hash": "b" * 64,
+					"input_tokens": 21,
+					"output_tokens": 9,
+					"duration_ms": 55,
+					"redaction_count": 0,
 				},
 				"draft_content": draft_text,
 				"sources": payload["sources"],
@@ -1059,7 +1163,10 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user(packet_manager)
 		packet = get_evidence_packet(work_order.name)
 		self.assertEqual(packet["policy_decisions"], ["Draft Only"])
+		self.assertEqual(packet["policy_categories"], ["draft_only"])
 		self.assertIn("closeout_notes", {row["source_field"] for row in packet["citations"]})
+		self.assertTrue(packet["citation_hashes"])
+		self.assertTrue(all(len(value) == 64 for value in packet["citation_hashes"]))
 		self.assertEqual(packet["unresolved_exceptions"], [])
 		self.assertIn("stock_entries", packet)
 		self.assertIn("sales_invoice", packet)
@@ -1072,6 +1179,10 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertTrue(packet["proposal_idempotency"])
 		self.assertEqual(len(packet["proposal_idempotency"][0]["input_context_hash"]), 64)
 		self.assertIn("Identical input_context_hash", packet["proposal_idempotency"][0]["reuse_note"])
+		self.assertEqual(packet["proposal_idempotency"][0]["policy_category"], "draft_only")
+		self.assertEqual(packet["proposal_idempotency"][0]["provider_duration_ms"], 55)
+		self.assertEqual(packet["proposals"][0]["provider_input_tokens"], 21)
+		self.assertEqual(packet["proposals"][0]["provider_output_tokens"], 9)
 
 		serialized = frappe.as_json(packet)
 		self.assertNotIn(draft_text, serialized)

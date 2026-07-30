@@ -1,16 +1,16 @@
 {
-  "name": "finance_handoff_packet",
+  "name": "invoice_handoff_packet",
   "packet_kind": "evidence_to_cash_ledger",
   "proposal_type": null,
-  "notes": "Synthetic evidence-packet fixture for finance-handoff replay packaging. No AI draft text, prompts, or provider responses.",
+  "notes": "Synthetic evidence-packet fixture for invoice-handoff replay packaging after Invoice Ready. No AI draft text, prompts, or provider responses.",
   "packet": {
     "schema_version": 1,
     "packet_kind": "evidence_to_cash_ledger",
-    "title": "Evidence-to-cash ledger for WO-2026-FIN-00001",
-    "generated_for": "service.manager@example.test",
+    "title": "Evidence-to-cash ledger for WO-2026-INV-00001",
+    "generated_for": "service.accounts@example.test",
     "work_order": {
-      "name": "WO-2026-FIN-00001",
-      "subject": "Synthetic pump seal replacement",
+      "name": "WO-2026-INV-00001",
+      "subject": "Synthetic condenser fan replacement",
       "status": "Invoice Ready",
       "customer": "SYNTHETIC-CUSTOMER",
       "assigned_technician": "service.technician@example.test"
@@ -21,11 +21,11 @@
       "stages": [
         {
           "stage": "request_identity",
-          "summary": "Invoice Ready work order WO-2026-FIN-00001 for customer SYNTHETIC-CUSTOMER."
+          "summary": "Invoice Ready work order WO-2026-INV-00001 for customer SYNTHETIC-CUSTOMER."
         },
         {
           "stage": "execution",
-          "summary": "1 time entries; 1 part rows."
+          "summary": "2 time entries; 1 part rows."
         },
         {
           "stage": "exceptions",
@@ -33,11 +33,11 @@
         },
         {
           "stage": "ai_proposals",
-          "summary": "1 draft-only proposal(s); 1 citation row(s)."
+          "summary": "1 draft-only proposal(s); 2 citation row(s)."
         },
         {
           "stage": "finance_handoff",
-          "summary": "Invoice SINV-DRAFT-SYNTH-00001; margin risks: none."
+          "summary": "Invoice SINV-DRAFT-SYNTH-00002; margin risks: none."
         },
         {
           "stage": "completeness",
@@ -58,30 +58,30 @@
     },
     "proposals": [
       {
-        "name": "AIP-SYNTH-00001",
-        "proposal_status": "Pending Review",
+        "name": "AIP-SYNTH-00002",
+        "proposal_status": "Approved",
         "policy_outcome": "Draft Only",
         "policy_category": "draft_only",
         "model_provider": "development-template",
         "model_name": "development-template",
-        "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
-        "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
-        "provider_input_tokens": 90,
-        "provider_output_tokens": 25,
-        "provider_duration_ms": 42,
-        "reviewed_by": ""
+        "input_context_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "output_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+        "provider_input_tokens": 120,
+        "provider_output_tokens": 40,
+        "provider_duration_ms": 85,
+        "reviewed_by": "service.manager@example.test"
       }
     ],
     "proposal_idempotency": [
       {
-        "proposal": "AIP-SYNTH-00001",
-        "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
-        "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "proposal": "AIP-SYNTH-00002",
+        "input_context_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "output_hash": "6666666666666666666666666666666666666666666666666666666666666666",
         "policy_outcome": "Draft Only",
         "policy_category": "draft_only",
-        "provider_input_tokens": 90,
-        "provider_output_tokens": 25,
-        "provider_duration_ms": 42,
+        "provider_input_tokens": 120,
+        "provider_output_tokens": 40,
+        "provider_duration_ms": 85,
         "reuse_note": "Identical input_context_hash returns this proposal without a new provider call."
       }
     ],
@@ -89,18 +89,26 @@
     "policy_categories": ["draft_only"],
     "citations": [
       {
-        "proposal": "AIP-SYNTH-00001",
+        "proposal": "AIP-SYNTH-00002",
         "source_doctype": "Service Work Order",
-        "source_name": "WO-2026-FIN-00001",
+        "source_name": "WO-2026-INV-00001",
         "source_field": "closeout_notes",
-        "content_hash": "4444444444444444444444444444444444444444444444444444444444444444"
+        "content_hash": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      {
+        "proposal": "AIP-SYNTH-00002",
+        "source_doctype": "Service Work Order",
+        "source_name": "WO-2026-INV-00001",
+        "source_field": "inspection_notes",
+        "content_hash": "8888888888888888888888888888888888888888888888888888888888888888"
       }
     ],
     "citation_hashes": [
-      "4444444444444444444444444444444444444444444444444444444444444444"
+      "7777777777777777777777777777777777777777777777777777777777777777",
+      "8888888888888888888888888888888888888888888888888888888888888888"
     ],
-    "stock_entries": ["MAT-STE-SYNTH-00001"],
-    "sales_invoice": "SINV-DRAFT-SYNTH-00001",
+    "stock_entries": ["MAT-STE-SYNTH-00002"],
+    "sales_invoice": "SINV-DRAFT-SYNTH-00002",
     "margin_risks": [],
     "unresolved_exceptions": [],
     "completeness": {
