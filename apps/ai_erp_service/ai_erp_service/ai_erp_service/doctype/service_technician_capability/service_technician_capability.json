@@ -11,6 +11,7 @@
   "technician",
   "skills",
   "territories",
+  "van_warehouse",
   "active",
   "notes"
  ],
@@ -42,6 +43,15 @@
    "reqd": 1
   },
   {
+   "description": "Optional van or technician warehouse used for scheduling parts-readiness only. Issue Parts still debits each part row source_warehouse.",
+   "fieldname": "van_warehouse",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Van Warehouse",
+   "options": "Warehouse"
+  },
+  {
    "default": "1",
    "fieldname": "active",
    "fieldtype": "Check",
@@ -57,7 +67,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-24 19:30:00.000000",
+ "modified": "2026-07-30 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI ERP Service",
  "name": "Service Technician Capability",

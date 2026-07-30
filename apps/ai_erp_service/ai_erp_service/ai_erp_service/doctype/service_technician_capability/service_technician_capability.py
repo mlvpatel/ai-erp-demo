@@ -31,3 +31,8 @@ class ServiceTechnicianCapability(Document):
 		# Store a canonical sorted CSV so matching and demos stay deterministic.
 		self.skills = ", ".join(sorted(skills))
 		self.territories = ", ".join(sorted(territories))
+		if self.van_warehouse:
+			if not frappe.db.exists("Warehouse", self.van_warehouse):
+				frappe.throw(_("Van Warehouse must be an existing Warehouse."))
+			if frappe.db.get_value("Warehouse", self.van_warehouse, "is_group"):
+				frappe.throw(_("Van Warehouse cannot be a group warehouse."))

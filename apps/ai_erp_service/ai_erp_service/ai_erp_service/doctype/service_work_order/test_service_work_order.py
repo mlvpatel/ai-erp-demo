@@ -1252,13 +1252,14 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		target.save()
 
 		ready = _parts_readiness(target, [self.technician])
-		self.assertTrue(ready[self.technician])
+		self.assertTrue(ready[self.technician]["ready"])
+		self.assertEqual(ready[self.technician]["source"], "primary")
 
 		frappe.db.set_value("Service Location", self.location, "default_warehouse", "")
 		target.reload()
 		# Fall back to part source_warehouse when location default is unset.
 		ready_from_parts = _parts_readiness(target, [self.technician])
-		self.assertTrue(ready_from_parts[self.technician])
+		self.assertTrue(ready_from_parts[self.technician]["ready"])
 
 		frappe.set_user(dispatcher)
 		suggestions = suggest_technicians(target.name)
@@ -1299,14 +1300,14 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		target.save()
 
 		ready = _parts_readiness(target, [self.technician])
-		self.assertFalse(ready[self.technician])
+		self.assertFalse(ready[self.technician]["ready"])
 
 		bin_name = frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse})
 		self.assertTrue(bin_name)
 		frappe.db.set_value("Bin", bin_name, "actual_qty", 6)
 		target.reload()
 		ready_after_restock = _parts_readiness(target, [self.technician])
-		self.assertTrue(ready_after_restock[self.technician])
+		self.assertTrue(ready_after_restock[self.technician]["ready"])
 		frappe.db.set_value("Service Location", self.location, "default_warehouse", "")
 
 	def test_evidence_timeline_closeout_ignores_later_modified(self):
@@ -1575,6 +1576,186 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		capability = frappe.get_doc("Service Technician Capability", capability_name)
 		with self.assertRaises(frappe.PermissionError):
 			capability.check_permission("read")
+
+	def test_parts_readiness_uses_van_warehouse_when_primary_bin_is_short(self):
+		from ai_erp_service.scheduling import _parts_readiness, suggest_technicians
+
+		item, empty_primary = self._make_stocked_item()
+		company = frappe.db.get_value("Warehouse", empty_primary, "company")
+		van_warehouse = frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": f"Van Stock WH {frappe.generate_hash(length=6)}",
+				"company": company,
+			}
+		).insert(ignore_permissions=True).name
+		# Drain the primary bin so only van stock can satisfy readiness.
+		primary_bin = frappe.db.get_value(
+			"Bin", {"item_code": item, "warehouse": empty_primary}
+		)
+		self.assertTrue(primary_bin)
+		frappe.db.set_value("Bin", primary_bin, "actual_qty", 0)
+		make_stock_entry(
+			item_code=item,
+			qty=2,
+			to_warehouse=van_warehouse,
+			rate=10,
+			purpose="Material Receipt",
+			company=company,
+		)
+
+		van_tech = self._make_role_user(
+			"service.technician.van@example.test", ("Service Technician",)
+		)
+		no_van_tech = self._make_role_user(
+			"service.technician.novan@example.test", ("Service Technician",)
+		)
+		dispatcher = self._make_role_user(
+			"service.dispatcher.van@example.test", ("Service Dispatcher",)
+		)
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{
+				"doctype": "Service Technician Capability",
+				"technician": van_tech,
+				"skills": "HVAC",
+				"territories": "North",
+				"van_warehouse": van_warehouse,
+				"active": 1,
+			}
+		).insert()
+		frappe.get_doc(
+			{
+				"doctype": "Service Technician Capability",
+				"technician": no_van_tech,
+				"skills": "HVAC",
+				"territories": "North",
+				"active": 1,
+			}
+		).insert()
+
+		target = self._make_work_order("Van stock readiness work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.required_skill = "HVAC"
+		target.service_territory = "North"
+		target.service_priority = "High"
+		target.append(
+			"parts",
+			{"item": item, "qty": 1, "bill_rate": 25, "source_warehouse": empty_primary},
+		)
+		target.save()
+
+		ready = _parts_readiness(
+			target,
+			[van_tech, no_van_tech],
+			{van_tech: van_warehouse, no_van_tech: ""},
+		)
+		self.assertTrue(ready[van_tech]["ready"])
+		self.assertEqual(ready[van_tech]["source"], "van")
+		self.assertFalse(ready[no_van_tech]["ready"])
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		van_row = next(row for row in suggestions["candidates"] if row["technician"] == van_tech)
+		no_van_row = next(
+			row for row in suggestions["candidates"] if row["technician"] == no_van_tech
+		)
+		self.assertIn("parts_ready:van_stock", van_row["reasons"])
+		self.assertIn("sla_priority:High", van_row["reasons"])
+		self.assertIn(f"van_warehouse:{van_warehouse}", van_row["reasons"])
+		self.assertNotIn("parts_ready:true", no_van_row["reasons"])
+		self.assertNotIn("parts_ready:van_stock", no_van_row["reasons"])
+		self.assertGreater(van_row["score"], no_van_row["score"])
+		target.reload()
+		self.assertFalse(target.assigned_technician)
+
+	def test_scheduling_tie_breakers_prefer_lower_workload_then_technician_id(self):
+		from ai_erp_service.scheduling import suggest_technicians
+
+		# Lexicographically ordered ids so the sort key is checkable.
+		alpha = self._make_role_user(
+			"service.technician.alpha@example.test", ("Service Technician",)
+		)
+		bravo = self._make_role_user(
+			"service.technician.bravo@example.test", ("Service Technician",)
+		)
+		dispatcher = self._make_role_user(
+			"service.dispatcher.tiebreak@example.test", ("Service Dispatcher",)
+		)
+		# Capability gate keeps the top-5 list to these two technicians only.
+		frappe.set_user("Administrator")
+		for technician in (alpha, bravo):
+			frappe.get_doc(
+				{
+					"doctype": "Service Technician Capability",
+					"technician": technician,
+					"skills": "TieBreakSkill",
+					"territories": "TieBreakTerritory",
+					"active": 1,
+				}
+			).insert()
+
+		# Non-overlapping open work for alpha raises workload without exclusion.
+		busy = self._make_work_order("Tie-break busy work order")
+		busy.reload()
+		busy_start = add_to_date(now_datetime(), days=3)
+		busy.assigned_technician = alpha
+		busy.scheduled_start = busy_start
+		busy.scheduled_end = add_to_date(busy_start, hours=2)
+		busy.status = "Scheduled"
+		busy.save()
+
+		target = self._make_work_order("Tie-break target work order")
+		target.reload()
+		start = now_datetime()
+		target.scheduled_start = start
+		target.scheduled_end = add_to_date(start, hours=2)
+		target.required_skill = "TieBreakSkill"
+		target.service_territory = "TieBreakTerritory"
+		target.save()
+
+		frappe.set_user(dispatcher)
+		suggestions = suggest_technicians(target.name)
+		ranked = [row["technician"] for row in suggestions["candidates"]]
+		self.assertEqual(ranked, [bravo, alpha])
+		self.assertGreater(
+			next(row["workload"] for row in suggestions["candidates"] if row["technician"] == alpha),
+			next(row["workload"] for row in suggestions["candidates"] if row["technician"] == bravo),
+		)
+
+		# Close alpha's open work; equal workload then breaks ties on id ascending.
+		frappe.set_user("Administrator")
+		busy.reload()
+		busy.status = "In Progress"
+		busy.save()
+		busy.append(
+			"time_entries",
+			{
+				"technician": alpha,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		busy.closeout_notes = "Closed for tie-break reset."
+		busy.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		busy.status = "Closeout Submitted"
+		busy.save()
+		busy.status = "Closed"
+		busy.save()
+
+		frappe.set_user(dispatcher)
+		equal_workload = suggest_technicians(target.name)
+		self.assertEqual(
+			[row["technician"] for row in equal_workload["candidates"]],
+			[alpha, bravo],
+		)
+		self.assertEqual(equal_workload, suggest_technicians(target.name))
+		target.reload()
+		self.assertFalse(target.assigned_technician)
 
 	def test_related_history_retrieval_abstains_without_asset_or_location(self):
 		from ai_erp_service.retrieval import related_work_history
