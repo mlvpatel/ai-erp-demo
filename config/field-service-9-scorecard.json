@@ -11,7 +11,7 @@
   "process_owner": "Service Manager",
   "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
   "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
-  "current_demo_average_score": 7.5,
+  "current_demo_average_score": 7.6,
   "target_average_score": 9.1,
   "requirements_status": {
     "verified": [
@@ -20,6 +20,7 @@
       "AI closeout proposals are cited, immutable, review-only, and non-posting.",
       "Evidence replay and export packet are available on Service Work Order Desk as a single client path.",
       "Replay harness fixtures cover closeout, repair memory, scheduling explanation, and exception recovery.",
+      "Synthetic repair-memory history corpus and retrieval abstention edges are covered without live OpenAI.",
       "Demo Version loop and stack docs label the synthetic product without production claims."
     ],
     "assumed": [
@@ -127,16 +128,16 @@
       "id": "provenance-based-repair-memory",
       "title": "Provenance-based repair memory",
       "implementation_state": "partly_implemented",
-      "current_score": 6.5,
+      "current_score": 7.6,
       "target_score": 9.0,
       "role_owner": "AI Approver",
       "input": "Role-visible historical work orders, source citations, closeout outcomes, parts, assets, and failure patterns.",
       "output": "Cited suggestions or abstentions for likely fix, missing evidence, and next diagnostic step.",
-      "decision_logic": "Retrieval is permission-scoped and the AI must abstain when source evidence is weak or invisible to the role. Template renderers drop uncited history and redact contact or credential-shaped free text before writing draft_content.",
-      "validation_gate": "Contract, provider, safety, and retrieval-edge tests prove redaction, schema adherence, citation requirements, refusal, and no hidden-source leakage.",
+      "decision_logic": "Retrieval is permission-scoped (asset or location, never customer alone) and the AI must abstain when source evidence is weak or invisible to the role. Template renderers keep only citation-backed actionable history, drop weak subject-only rows, and redact contact or credential-shaped free text before writing draft_content.",
+      "validation_gate": "Contract, provider, safety, retrieval-edge, synthetic corpus, and browser citation-match tests prove redaction, schema adherence, citation requirements, refusal, weak-evidence abstention, and no hidden-source leakage without live OpenAI.",
       "feedback_loop": "Approver rejection creates evaluation examples and updates retrieval quality notes.",
       "failure_handling": "Provider, cache, timeout, malformed output, or unsafe content failures return a safe unavailable/refusal category.",
-      "optimization_step": "Expand synthetic history corpora and live OpenAI aggregate eval once credentials exist.",
+      "optimization_step": "Live OpenAI aggregate eval once credentials exist; partner UX review still required for ≥9.0.",
       "scalability_note": "Retrieval must be bounded by tenant, role, source type, time range, and result count.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/repair_memory.py",
@@ -145,6 +146,9 @@
         "services/ai_control_plane/src/ai_erp_control_plane/render.py",
         "services/ai_control_plane/tests/test_safety.py",
         "services/ai_control_plane/tests/test_retrieval_edges.py",
+        "tests/fixtures/repair-memory-corpus/synthetic_history.json",
+        "tests/fixtures/replay-bundles/repair_memory.json",
+        "tests/e2e/service-operations.spec.ts",
         "config/ai-data-boundary.json",
         "config/ai-workflow-registry.json",
         "services/ai_control_plane/tests/test_render.py"

@@ -95,9 +95,12 @@ can request Draft Repair Memory. The draft reorganizes cited, role-visible
 prior work at the same asset or location: prior closeout notes become the
 likely-fix section, parts used across prior visits are listed with occurrence
 counts, and a failed or follow-up inspection in the history becomes a
-missing-diagnostic warning. Only supplied cited facts can appear, so the draft
-cannot invent parts, and a requester with no visible history receives a stated
-abstention instead of a suggestion.
+missing-diagnostic warning. Customer alone is never a retrieval key. Only
+supplied cited facts can appear, so the draft cannot invent parts. A requester
+with no visible history, or with cited history that has no closeout notes,
+parts, or follow-up inspection outcome, receives a stated abstention instead of
+a suggestion. Contact-shaped and instruction-shaped free text in cited notes is
+redacted or neutralized before it reaches the draft.
 
 ## Exception recovery drafts
 

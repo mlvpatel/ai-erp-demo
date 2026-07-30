@@ -1,4 +1,9 @@
-"""Cited repair-memory drafts from permission-scoped prior work."""
+"""Cited repair-memory drafts from permission-scoped prior work.
+
+Payload builders send only role-visible history facts. The control-plane
+template provider cites those rows, abstains when evidence is missing or weak,
+and never posts ERP state.
+"""
 
 from uuid import uuid4
 

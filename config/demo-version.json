@@ -9,7 +9,7 @@
   "default_provider": "template",
   "requires_live_openai": false,
   "requires_aws_apply": false,
-  "scorecard_average": 7.4,
+  "scorecard_average": 7.6,
   "scorecard_path": "config/field-service-9-scorecard.json",
   "pilot_readiness_path": "config/pilot-readiness.json",
   "loop_doc": "docs/product/demo-version-loop.md",
