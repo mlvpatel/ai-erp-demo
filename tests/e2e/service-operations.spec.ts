@@ -430,6 +430,71 @@ test("concurrent AI draft requests converge on one cited proposal", async () => 
   }
 });
 
+test("repair memory draft cites seeded history in the browser", async ({ browser }) => {
+  const technicianSession = await newSession(technician);
+  const managerSession = await newSession(manager);
+  const technicianBrowser = await rolePage(browser, technician);
+  try {
+    const currentCandidates = await matchingWorkOrders(technicianSession);
+    const current = currentCandidates.find(
+      (record) =>
+        record.subject.startsWith("AI ERP E2E Repair Memory Current") &&
+        record.status === "Scheduled",
+    );
+    expect(current).toBeTruthy();
+
+    const currentDoc = await getDoc(managerSession, "Service Work Order", current!.name);
+    const historyCandidates = await getList(
+      managerSession,
+      "Service Work Order",
+      ["name", "subject", "status"],
+      [
+        ["service_location", "=", currentDoc.service_location],
+        ["status", "=", "Closed"],
+        ["name", "!=", current!.name],
+      ],
+    );
+    expect(historyCandidates).toHaveLength(1);
+    const history = historyCandidates[0];
+    expect(history.subject.startsWith("AI ERP E2E Repair Memory History")).toBeTruthy();
+
+    await openForm(technicianBrowser.page, "service-work-order", current!.name);
+    await clickAction(technicianBrowser.page, "Draft Repair Memory");
+    await expect
+      .poll(() => technicianBrowser.page.evaluate(() => (window as any).cur_frm?.doctype || ""))
+      .toBe("AI Proposal");
+
+    const proposalName = await technicianBrowser.page.evaluate(
+      () => (window as any).cur_frm.doc.name as string,
+    );
+    const proposal = await getDoc(managerSession, "AI Proposal", proposalName);
+    expect(proposal.proposal_type).toBe("Repair Memory");
+    expect(proposal.proposal_status).toBe("Draft");
+    expect(proposal.policy_outcome).toBe("Draft Only");
+    expect(proposal.draft_content).toContain(history!.name);
+    expect(proposal.draft_content).toContain("Likely fix based on cited prior work");
+    expect(proposal.draft_content).toContain("Synthetic prior fix");
+    expect(proposal.draft_content).not.toContain("owner@example.test");
+
+    const historyCitations = (proposal.sources || []).filter(
+      (source: { source_field: string; source_name: string }) => source.source_field === "history",
+    );
+    expect(historyCitations.map((source: { source_name: string }) => source.source_name)).toEqual([
+      history!.name,
+    ]);
+
+    await expect(technicianBrowser.page.locator(`[data-fieldname="draft_content"]`)).toContainText(
+      history!.name,
+    );
+  } finally {
+    await Promise.all([
+      technicianSession.dispose(),
+      managerSession.dispose(),
+      technicianBrowser.context.close(),
+    ]);
+  }
+});
+
 test("evidence replay stays role-scoped across desktop and mobile viewports", async ({ browser }) => {
   const technicianSession = await newSession(technician);
   const financeSession = await newSession(finance);

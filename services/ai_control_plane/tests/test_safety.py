@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from ai_erp_control_plane.safety import (
 	INJECTION_MARKER,
 	REDACTION_MARKER,
+	actionable_repair_history,
 	cited_history,
 	cited_record_names,
+	has_actionable_repair_facts,
 	neutralize,
 	omission_note,
 	quote_block,
@@ -19,6 +21,14 @@ from ai_erp_control_plane.safety import (
 @dataclass(frozen=True)
 class _Named:
 	name: str
+
+
+@dataclass(frozen=True)
+class _History:
+	name: str
+	closeout_notes: str = ""
+	parts: tuple = ()
+	inspection_result: str = ""
 
 
 class TestRedaction(unittest.TestCase):
@@ -109,6 +119,27 @@ class TestProvenance(unittest.TestCase):
 		self.assertEqual(omission_note(0), [])
 		self.assertIn("1 prior record was omitted", omission_note(1)[-1])
 		self.assertIn("2 prior records were omitted", omission_note(2)[-1])
+
+	def test_omission_note_can_report_weak_cited_rows(self):
+		note = omission_note(0, weak=1)
+		self.assertIn("Evidence note", note)
+		self.assertIn("1 cited prior record was omitted", note[-1])
+		combined = omission_note(1, weak=2)
+		self.assertIn("1 prior record was omitted", combined[2])
+		self.assertIn("2 cited prior records were omitted", combined[3])
+
+	def test_actionable_repair_history_drops_subject_only_rows(self):
+		entries = [
+			_History("SVC-WO-1", closeout_notes="Replaced seal."),
+			_History("SVC-WO-2"),
+			_History("SVC-WO-3", parts=(object(),)),
+			_History("SVC-WO-4", inspection_result="Failed"),
+		]
+		kept, weak = actionable_repair_history(entries)
+		self.assertEqual([entry.name for entry in kept], ["SVC-WO-1", "SVC-WO-3", "SVC-WO-4"])
+		self.assertEqual(weak, 1)
+		self.assertFalse(has_actionable_repair_facts(_History("SVC-WO-2")))
+		self.assertTrue(has_actionable_repair_facts(_History("SVC-WO-4", inspection_result="Needs Follow-up")))
 
 
 if __name__ == "__main__":

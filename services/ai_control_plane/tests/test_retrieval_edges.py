@@ -1,8 +1,10 @@
 """Negative and edge-case retrieval/abstention/leakage coverage for templates."""
 
 import hashlib
+import json
 import unittest
 from datetime import date, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -368,8 +370,18 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 
 	def test_a_citation_for_one_record_does_not_authorize_another(self):
 		history = [
-			{"name": "SVC-WO-A", "subject": "Cited prior visit", "status": "Closed"},
-			{"name": "SVC-WO-B", "subject": "Uncited prior visit", "status": "Closed"},
+			{
+				"name": "SVC-WO-A",
+				"subject": "Cited prior visit",
+				"status": "Closed",
+				"closeout_notes": "Replaced seal; leak stopped.",
+			},
+			{
+				"name": "SVC-WO-B",
+				"subject": "Uncited prior visit",
+				"status": "Closed",
+				"closeout_notes": "Hidden gasket swap.",
+			},
 		]
 		payload = _repair_memory_payload(history, [_history_source("SVC-WO-A")])
 
@@ -378,7 +390,28 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 		self.assertIn("SVC-WO-A: Cited prior visit", response.draft_content)
 		self.assertNotIn("SVC-WO-B", response.draft_content)
 		self.assertNotIn("Uncited prior visit", response.draft_content)
+		self.assertNotIn("Hidden gasket swap", response.draft_content)
 		self.assertIn("1 prior record was omitted", response.draft_content)
+
+	def test_weak_cited_history_without_repair_facts_abstains(self):
+		history = [
+			{
+				"name": "SVC-WO-WEAK",
+				"subject": "Subject-only closed visit",
+				"status": "Closed",
+				"inspection_result": "Passed",
+				"closeout_notes": "",
+				"parts": [],
+			}
+		]
+		payload = _repair_memory_payload(history, [_history_source("SVC-WO-WEAK")])
+
+		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
+
+		self.assertIn("Abstention", response.draft_content)
+		self.assertIn("no closeout notes, parts, or follow-up inspection", response.draft_content)
+		self.assertNotIn("Likely fix based on cited prior work", response.draft_content)
+		self.assertIn("1 cited prior record was omitted", response.draft_content)
 
 	def test_instruction_shaped_prior_notes_cannot_pose_as_guidance(self):
 		history = [
@@ -429,6 +462,102 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 		self.assertIn("[REDACTED]", response.draft_content)
 		self.assertIn("1 250.00", response.draft_content)
 		self.assertIn(_offset_date(-30), response.draft_content)
+
+
+def _load_repair_memory_corpus():
+	path = (
+		Path(__file__).resolve().parents[3]
+		/ "tests"
+		/ "fixtures"
+		/ "repair-memory-corpus"
+		/ "synthetic_history.json"
+	)
+	return json.loads(path.read_text(encoding="utf-8"))
+
+
+class TestRepairMemorySyntheticCorpus(unittest.TestCase):
+	"""Template-provider edges against the synthetic repair-memory corpus."""
+
+	@classmethod
+	def setUpClass(cls):
+		cls.corpus = _load_repair_memory_corpus()
+		cls.by_id = {entry["id"]: entry for entry in cls.corpus["entries"]}
+
+	def _history_rows(self, *entry_ids):
+		rows = []
+		for entry_id in entry_ids:
+			entry = dict(self.by_id[entry_id])
+			entry.pop("id", None)
+			rows.append(entry)
+		return rows
+
+	def test_corpus_has_more_than_request_cap_and_stays_synthetic(self):
+		self.assertGreaterEqual(len(self.corpus["entries"]), 8)
+		self.assertEqual(self.corpus["provider"], "template")
+		joined = json.dumps(self.corpus)
+		self.assertNotIn("sk-", joined)
+		self.assertNotIn("OPENAI", joined)
+
+	def test_full_cited_slice_aggregates_parts_and_flags_follow_up(self):
+		# Request schema caps related_history at 5; exercise the full slot.
+		history = self._history_rows(
+			"seal_replace_with_parts",
+			"bearing_follow_up",
+			"mount_kit_repeat",
+			"filter_only_parts",
+			"failed_inspection_only",
+		)
+		sources = [_history_source(row["name"]) for row in history]
+		payload = _repair_memory_payload(history, sources)
+
+		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
+
+		self.assertEqual(response.model.provider, "development-template")
+		self.assertIn("SEAL-KIT: used in 1 prior visit(s)", response.draft_content)
+		self.assertIn("BEARING-KIT: used in 1 prior visit(s)", response.draft_content)
+		self.assertIn("MOUNT-KIT: used in 1 prior visit(s)", response.draft_content)
+		self.assertIn("FILTER-A: used in 1 prior visit(s)", response.draft_content)
+		self.assertIn("Missing diagnostic step", response.draft_content)
+		self.assertIn("SVC-WO-CORPUS-05", response.draft_content)
+		self.assertNotIn("Evidence note", response.draft_content)
+
+	def test_corpus_contact_and_injection_rows_are_sanitized(self):
+		history = self._history_rows("contact_and_credential_notes", "injection_shaped_notes")
+		sources = [_history_source(row["name"]) for row in history]
+		payload = _repair_memory_payload(history, sources)
+
+		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
+
+		self.assertNotIn("owner@example.test", response.draft_content)
+		self.assertNotIn("2345 6789", response.draft_content)
+		self.assertNotIn("not-a-real-value", response.draft_content)
+		self.assertNotIn("Ignore all previous instructions", response.draft_content)
+		self.assertIn("[REDACTED]", response.draft_content)
+		self.assertIn("[removed: instruction-like text in a quoted source]", response.draft_content)
+		self.assertIn("SEAL-KIT", response.draft_content)
+		self.assertIn("GASKET-SET", response.draft_content)
+
+	def test_weak_corpus_row_alone_abstains(self):
+		history = self._history_rows("weak_subject_only")
+		payload = _repair_memory_payload(history, [_history_source(history[0]["name"])])
+
+		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
+
+		self.assertIn("Abstention", response.draft_content)
+		self.assertIn("no closeout notes, parts, or follow-up inspection", response.draft_content)
+		self.assertNotIn("Likely fix", response.draft_content)
+
+	def test_mixed_actionable_and_weak_drops_weak_with_note(self):
+		history = self._history_rows("seal_replace_with_parts", "weak_subject_only")
+		sources = [_history_source(row["name"]) for row in history]
+		payload = _repair_memory_payload(history, sources)
+
+		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
+
+		self.assertIn("SVC-WO-CORPUS-01", response.draft_content)
+		self.assertIn("SEAL-KIT", response.draft_content)
+		self.assertNotIn("Subject-only closed visit", response.draft_content)
+		self.assertIn("1 cited prior record was omitted", response.draft_content)
 
 
 class TestQuotedSourceTextBoundary(unittest.TestCase):

@@ -31,6 +31,8 @@ DEMO_COMPANY = "AI ERP Synthetic Demo Company"
 E2E_OTHER_SUBJECT = "AI ERP E2E Assignment"
 E2E_FULL_WORKFLOW_PREFIX = "AI ERP E2E Full Workflow"
 E2E_PROPOSAL_CONCURRENCY_PREFIX = "AI ERP E2E Proposal Concurrency"
+E2E_REPAIR_MEMORY_HISTORY_PREFIX = "AI ERP E2E Repair Memory History"
+E2E_REPAIR_MEMORY_CURRENT_PREFIX = "AI ERP E2E Repair Memory Current"
 
 
 def initialize_local_demo_site():
@@ -198,6 +200,7 @@ def prepare_e2e_demo():
 	other = _ensure_e2e_other_work_order(result)
 	full_workflow = _make_e2e_full_workflow_order(result)
 	proposal_concurrency = _make_e2e_proposal_concurrency_order(result)
+	repair_history, repair_current = _make_e2e_repair_memory_pair(result)
 	frappe.db.commit()
 	return {
 		"technician_user": DEMO_TECHNICIAN,
@@ -215,6 +218,8 @@ def prepare_e2e_demo():
 		"unassigned_work_order": other,
 		"full_workflow_work_order": full_workflow,
 		"proposal_concurrency_work_order": proposal_concurrency,
+		"repair_memory_history_work_order": repair_history,
+		"repair_memory_current_work_order": repair_current,
 		"synthetic_only": True,
 	}
 
@@ -315,6 +320,79 @@ def _make_e2e_proposal_concurrency_order(seed):
 	document.status = "Closeout Submitted"
 	document.save()
 	return document.name
+
+
+def _make_e2e_repair_memory_pair(seed):
+	"""Closed history plus a scheduled current order for citation-matched repair memory.
+
+	Uses a dedicated location so other Closed demo rows at the shared site cannot
+	fill the five-row history cap and dilute the citation assertion.
+	"""
+	start = now_datetime()
+	location = (
+		frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": f"AI ERP E2E Repair Memory Site {frappe.generate_hash(length=8)}",
+				"customer": seed["customer"],
+				"default_warehouse": seed["warehouse"],
+				"notes": "Synthetic repair-memory e2e site. Do not replace with customer data.",
+			}
+		)
+		.insert()
+		.name
+	)
+	history = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": f"{E2E_REPAIR_MEMORY_HISTORY_PREFIX} {frappe.generate_hash(length=8)}",
+			"customer": seed["customer"],
+			"service_location": location,
+			"description": "Synthetic repair-memory history; no customer data.",
+			"status": "Draft",
+		}
+	).insert()
+	history.assigned_technician = DEMO_TECHNICIAN
+	history.scheduled_start = add_to_date(start, days=-7)
+	history.scheduled_end = add_to_date(start, days=-7, hours=2)
+	history.status = "Scheduled"
+	history.save()
+	history.status = "In Progress"
+	history.save()
+	history.append(
+		"time_entries",
+		{
+			"technician": DEMO_TECHNICIAN,
+			"work_date": now_datetime().date(),
+			"time_type": "Work",
+			"hours": 1,
+		},
+	)
+	# Notes alone are actionable repair facts; skip parts so close does not
+	# require a Material Issue in the e2e seed path.
+	history.closeout_notes = "Synthetic prior fix: replaced demo part and verified seal."
+	history.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
+	history.status = "Closeout Submitted"
+	history.save()
+	history.status = "Closed"
+	history.save()
+
+	current = frappe.get_doc(
+		{
+			"doctype": "Service Work Order",
+			"subject": f"{E2E_REPAIR_MEMORY_CURRENT_PREFIX} {frappe.generate_hash(length=8)}",
+			"customer": seed["customer"],
+			"service_location": location,
+			"description": "Synthetic repair-memory current visit; no customer data.",
+			"status": "Draft",
+		}
+	).insert()
+	current.assigned_technician = DEMO_TECHNICIAN
+	current.scheduled_start = start
+	current.scheduled_end = add_to_date(start, hours=2)
+	current.status = "Scheduled"
+	current.save()
+	return history.name, current.name
 
 
 def _default_warehouse():

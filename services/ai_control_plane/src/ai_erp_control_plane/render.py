@@ -12,7 +12,14 @@ from .models import (
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
-from .safety import cited_history, omission_note, quote_block, quote_inline
+from .safety import (
+	REPAIR_FOLLOW_UP_RESULTS,
+	actionable_repair_history,
+	cited_history,
+	omission_note,
+	quote_block,
+	quote_inline,
+)
 
 POLICY_REASON = "This response is a cited draft only; a human review records no ERP action."
 
@@ -222,9 +229,6 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 	)
 
 
-INSPECTION_FOLLOW_UP_RESULTS = {"Failed", "Needs Follow-up"}
-
-
 def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryProposalResponse:
 	"""Reorganize cited prior work into repair memory; supplied facts only."""
 	work_order = request.work_order
@@ -233,16 +237,20 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 		"",
 		f"Work order: {work_order.name} ({work_order.status})",
 	]
-	history, omitted = cited_history(request.related_history, request.sources)
+	cited, omitted = cited_history(request.related_history, request.sources)
+	history, weak = actionable_repair_history(cited)
 	if not history:
-		lines.extend(
-			[
-				"",
-				"Abstention",
+		if cited and weak:
+			abstention_reason = (
+				"Cited prior work at this asset or location has no closeout notes, "
+				"parts, or follow-up inspection outcome, so no repair suggestion is made."
+			)
+		else:
+			abstention_reason = (
 				"No cited completed prior work at this asset or location is visible to the "
-				"requesting role, so no repair suggestion is made.",
-			]
-		)
+				"requesting role, so no repair suggestion is made."
+			)
+		lines.extend(["", "Abstention", abstention_reason])
 	else:
 		lines.extend(["", "Likely fix based on cited prior work"])
 		for entry in history:
@@ -257,7 +265,7 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 			lines.extend(["", "Parts likely required (occurrences in prior visits)"])
 			for item, count in sorted(part_counts.items()):
 				lines.append(f"- {item}: used in {count} prior visit(s)")
-		if any(entry.inspection_result in INSPECTION_FOLLOW_UP_RESULTS for entry in history):
+		if any(entry.inspection_result in REPAIR_FOLLOW_UP_RESULTS for entry in history):
 			lines.extend(
 				[
 					"",
@@ -266,7 +274,7 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 					"outstanding diagnostic before repeating the repair.",
 				]
 			)
-	lines.extend(omission_note(omitted))
+	lines.extend(omission_note(omitted, weak=weak))
 	lines.extend(
 		[
 			"",

@@ -104,6 +104,11 @@ def cited_record_names(sources: Iterable[Any]) -> frozenset[str]:
 	return frozenset(source.name for source in sources)
 
 
+# Follow-up inspection outcomes count as actionable repair memory even when
+# closeout notes and parts are empty: they justify a missing-diagnostic warning.
+REPAIR_FOLLOW_UP_RESULTS = frozenset({"Failed", "Needs Follow-up"})
+
+
 def cited_history(
 	entries: Sequence[Any], sources: Iterable[Any]
 ) -> tuple[list[Any], int]:
@@ -118,12 +123,56 @@ def cited_history(
 	return kept, len(entries) - len(kept)
 
 
-def omission_note(omitted: int) -> list[str]:
-	"""Render a reviewer-visible note when uncited prior records were dropped."""
-	if not omitted:
-		return []
-	if omitted == 1:
-		sentence = "1 prior record was omitted because the request supplied no citation for it."
-	else:
-		sentence = f"{omitted} prior records were omitted because the request supplied no citation for them."
-	return ["", "Evidence note", sentence]
+def has_actionable_repair_facts(entry: Any) -> bool:
+	"""True when a cited history row carries a reuseable repair fact.
+
+	Subject and status alone are not enough to propose a likely fix. A row is
+	actionable when it has closeout notes, declared parts, or a failed /
+	follow-up inspection outcome.
+	"""
+	notes = (getattr(entry, "closeout_notes", None) or "").strip()
+	if notes:
+		return True
+	parts = getattr(entry, "parts", None) or ()
+	if parts:
+		return True
+	inspection = (getattr(entry, "inspection_result", None) or "").strip()
+	return inspection in REPAIR_FOLLOW_UP_RESULTS
+
+
+def actionable_repair_history(entries: Sequence[Any]) -> tuple[list[Any], int]:
+	"""Keep citation-backed rows that carry repair facts; count weak drops."""
+	kept = [entry for entry in entries if has_actionable_repair_facts(entry)]
+	return kept, len(entries) - len(kept)
+
+
+def omission_note(omitted: int, *, weak: int = 0) -> list[str]:
+	"""Render reviewer-visible notes for uncited or weak prior records."""
+	lines: list[str] = []
+	if omitted:
+		if omitted == 1:
+			sentence = (
+				"1 prior record was omitted because the request supplied no citation for it."
+			)
+		else:
+			sentence = (
+				f"{omitted} prior records were omitted because the request "
+				"supplied no citation for them."
+			)
+		lines.extend(["", "Evidence note", sentence])
+	if weak:
+		if weak == 1:
+			sentence = (
+				"1 cited prior record was omitted because it had no closeout notes, "
+				"parts, or follow-up inspection outcome."
+			)
+		else:
+			sentence = (
+				f"{weak} cited prior records were omitted because they had no "
+				"closeout notes, parts, or follow-up inspection outcome."
+			)
+		if not lines:
+			lines.extend(["", "Evidence note", sentence])
+		else:
+			lines.append(sentence)
+	return lines
