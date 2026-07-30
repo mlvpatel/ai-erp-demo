@@ -17,6 +17,7 @@
     },
     "ledger_narrative": {
       "headline": "Request → execution → cited proposals → finance handoff",
+      "incomplete": false,
       "stages": [
         {
           "stage": "request_identity",
@@ -65,6 +66,15 @@
         "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
         "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
         "reviewed_by": ""
+      }
+    ],
+    "proposal_idempotency": [
+      {
+        "proposal": "AIP-SYNTH-00001",
+        "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "policy_outcome": "Draft Only",
+        "reuse_note": "Identical input_context_hash returns this proposal without a new provider call."
       }
     ],
     "policy_decisions": ["Draft Only"],

@@ -125,7 +125,7 @@ frappe.ui.form.on("Service Work Order", {
 			});
 		}
 
-		if (is_manager) {
+		if (is_manager || is_finance) {
 			frm.add_custom_button(__("Evidence Packet"), () => {
 				export_evidence_packet(frm);
 			});
@@ -568,21 +568,27 @@ function render_evidence_replay(chain, timeline) {
 			: "";
 
 	const narrative = chain.ledger_narrative || {};
+	const narrative_incomplete = Boolean(narrative.incomplete) || !completeness.complete;
 	const narrative_stages = (narrative.stages || [])
 		.map(
 			(stage) => `
-		<li class="ledger-narrative-stage" tabindex="0">
+		<li class="ledger-narrative-stage${
+			stage.stage === "completeness" && narrative_incomplete ? " is-incomplete" : ""
+		}" tabindex="0">
 			<strong>${escape(stage.stage)}</strong>
 			<span>${escape(stage.summary)}</span>
 		</li>`,
 		)
 		.join("");
+	const default_headline = narrative_incomplete
+		? __("Incomplete evidence chain")
+		: __("Request → execution → cited proposals → finance handoff");
 	const narrative_html = narrative_stages
-		? `<div class="ledger-narrative" role="region" aria-label="${__("Ledger narrative")}">
+		? `<div class="ledger-narrative${
+				narrative_incomplete ? " ledger-narrative-incomplete" : ""
+			}" role="region" aria-label="${__("Ledger narrative")}">
 			<h5>${__("Ledger narrative")}</h5>
-			<p class="ledger-narrative-headline">${escape(
-				narrative.headline || __("Request → execution → cited proposals → finance handoff"),
-			)}</p>
+			<p class="ledger-narrative-headline">${escape(narrative.headline || default_headline)}</p>
 			<ol class="ledger-narrative-stages">${narrative_stages}</ol>
 		</div>`
 		: "";
