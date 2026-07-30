@@ -1,7 +1,7 @@
 # Improvement plan: unique, current, governed, secured
 
 Plan for raising the field-service Demo Version without copying SaaS
-copilots. Current demo average: **7.4 / 10**
+copilots. Current demo average: **7.5 / 10**
 (`config/field-service-9-scorecard.json`). Agent-only ceiling toward **~8.5**
 is reachable without keys, partners, counsel, or AWS. Full **9.1** still
 needs live eval, design-partner scores, and human pilot gates.

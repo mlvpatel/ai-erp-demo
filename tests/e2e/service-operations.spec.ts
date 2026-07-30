@@ -433,6 +433,7 @@ test("concurrent AI draft requests converge on one cited proposal", async () => 
 test("evidence replay stays role-scoped across desktop and mobile viewports", async ({ browser }) => {
   const technicianSession = await newSession(technician);
   const financeSession = await newSession(finance);
+  const managerSession = await newSession(manager);
   const managerBrowser = await rolePage(browser, manager);
   const technicianBrowser = await rolePage(browser, technician, { width: 390, height: 844 });
   const financeBrowser = await rolePage(browser, finance);
@@ -445,6 +446,27 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     );
     expect(target).toBeTruthy();
     const workOrderName = target!.name;
+
+    const technicianPacketDenied = await call(
+      technicianSession,
+      "ai_erp_service.evidence.get_evidence_packet",
+      { name: workOrderName },
+    );
+    expect(technicianPacketDenied.ok()).toBeFalsy();
+
+    const technicianChainResponse = await call(
+      technicianSession,
+      "ai_erp_service.evidence.get_evidence_chain",
+      { name: workOrderName },
+    );
+    expect(technicianChainResponse.ok()).toBeTruthy();
+    const technicianChain = (await technicianChainResponse.json()).message as Record<string, any>;
+    expect(technicianChain.sections.finance).toBeUndefined();
+    expect(
+      (technicianChain.ledger_narrative?.stages || []).some(
+        (stage: { stage: string }) => stage.stage === "finance_handoff",
+      ),
+    ).toBeFalsy();
 
     await openForm(managerBrowser.page, "service-work-order", workOrderName);
     await clickAction(managerBrowser.page, "Evidence Replay");
@@ -465,6 +487,18 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await clickAction(managerBrowser.page, "Evidence Packet");
     const download = await downloadEvent;
     expect(download.suggestedFilename()).toBe(`evidence-packet-${workOrderName}.json`);
+
+    const managerPacketResponse = await call(
+      managerSession,
+      "ai_erp_service.evidence.get_evidence_packet",
+      { name: workOrderName },
+    );
+    expect(managerPacketResponse.ok()).toBeTruthy();
+    const managerPacket = (await managerPacketResponse.json()).message as Record<string, any>;
+    expect(managerPacket.packet_kind).toBe("evidence_to_cash_ledger");
+    expect(managerPacket.proposal_idempotency?.length).toBeGreaterThan(0);
+    expect(managerPacket.proposal_idempotency[0].input_context_hash).toHaveLength(64);
+    expect(managerPacket.chain_hash).toHaveLength(64);
 
     await openForm(technicianBrowser.page, "service-work-order", workOrderName);
     await clickAction(technicianBrowser.page, "Evidence Replay");
@@ -495,8 +529,39 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await clickAction(financeBrowser.page, "Evidence Replay");
     const financeDialog = financeBrowser.page.locator(".modal:visible").last();
     await expect(financeDialog).toContainText("Invoice handoff");
+    await expect(financeDialog).toContainText("finance_handoff");
+    await expect(financeDialog).toContainText("Ledger narrative");
     await expect(financeDialog).toContainText(invoicedWorkOrder.sales_invoice);
-    await financeDialog.getByRole("button", { name: "Open Draft Invoice", exact: true }).click();
+    await financeDialog.locator(".btn-modal-close").click();
+    await expect(financeDialog).toBeHidden();
+
+    const financeDownloadEvent = financeBrowser.page.waitForEvent("download");
+    await clickAction(financeBrowser.page, "Evidence Packet");
+    const financeDownload = await financeDownloadEvent;
+    expect(financeDownload.suggestedFilename()).toBe(
+      `evidence-packet-${invoicedWorkOrder.name}.json`,
+    );
+
+    const financePacketResponse = await call(
+      financeSession,
+      "ai_erp_service.evidence.get_evidence_packet",
+      { name: invoicedWorkOrder.name },
+    );
+    expect(financePacketResponse.ok()).toBeTruthy();
+    const financePacket = (await financePacketResponse.json()).message as Record<string, any>;
+    expect(financePacket.sales_invoice).toBe(invoicedWorkOrder.sales_invoice);
+    expect(financePacket.packet_kind).toBe("evidence_to_cash_ledger");
+    expect(Array.isArray(financePacket.proposal_idempotency)).toBeTruthy();
+    expect(
+      (financePacket.ledger_narrative?.stages || []).some(
+        (stage: { stage: string }) => stage.stage === "finance_handoff",
+      ),
+    ).toBeTruthy();
+
+    await openForm(financeBrowser.page, "service-work-order", invoicedWorkOrder.name);
+    await clickAction(financeBrowser.page, "Evidence Replay");
+    const financeInvoiceDialog = financeBrowser.page.locator(".modal:visible").last();
+    await financeInvoiceDialog.getByRole("button", { name: "Open Draft Invoice", exact: true }).click();
     await expect
       .poll(() => financeBrowser.page.evaluate(() => (window as any).cur_frm?.doctype || ""))
       .toBe("Sales Invoice");
@@ -507,6 +572,7 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     await Promise.all([
       technicianSession.dispose(),
       financeSession.dispose(),
+      managerSession.dispose(),
       managerBrowser.context.close(),
       technicianBrowser.context.close(),
       financeBrowser.context.close(),
