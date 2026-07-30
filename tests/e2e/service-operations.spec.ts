@@ -1,4 +1,4 @@
-import { APIRequestContext, Browser, expect, Page, request as requestFactory, test } from "@playwright/test";
+import { APIRequestContext, Browser, expect, Locator, Page, request as requestFactory, test } from "@playwright/test";
 import path from "node:path";
 
 const technician = "service.technician@example.test";
@@ -174,6 +174,71 @@ async function getList(
   return (await response.json()).message as Array<Record<string, any>>;
 }
 
+async function accessibleName(locator: Locator) {
+  return locator.evaluate((element) => {
+    const labeledBy = element.getAttribute("aria-labelledby");
+    if (labeledBy) {
+      return labeledBy
+        .split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent?.trim() || "")
+        .join(" ")
+        .trim();
+    }
+    const ariaLabel = element.getAttribute("aria-label");
+    if (ariaLabel) return ariaLabel.trim();
+    const control = element.closest(".frappe-control");
+    const label = control?.querySelector(".control-label, label");
+    return (label?.textContent || "").trim();
+  });
+}
+
+async function expectTouchTarget(locator: Locator, label: string) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box, `${label} must render a measurable touch target`).toBeTruthy();
+  expect(box!.height, `${label} touch height`).toBeGreaterThanOrEqual(44);
+}
+
+async function uploadCloseoutEvidence(page: Page) {
+  await field(page, "closeout_evidence").getByRole("button", { name: "Attach" }).click();
+  const uploadDialog = page.locator(".modal:visible").filter({
+    has: page.getByRole("heading", { name: "Upload" }),
+  });
+  await expect(uploadDialog).toBeVisible();
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await uploadDialog.getByRole("button", { name: "My Device" }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(path.resolve(__dirname, "../fixtures/synthetic-closeout-evidence.txt"));
+  await uploadDialog.getByRole("button", { name: "Upload", exact: true }).click();
+  await expect(uploadDialog).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).cur_frm?.doc?.closeout_evidence || ""))
+    .toContain("synthetic-closeout-evidence.txt");
+}
+
+async function addChildViaForm(
+  page: Page,
+  tableField: string,
+  values: Record<string, string | number>,
+) {
+  await page.evaluate(
+    ({ tableField, values }) => {
+      const frm = (window as any).cur_frm;
+      frm.add_child(tableField, values);
+      frm.refresh_field(tableField);
+    },
+    { tableField, values },
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (name) => ((window as any).cur_frm?.doc?.[name] || []).length,
+        tableField,
+      ),
+    )
+    .toBeGreaterThan(0);
+}
+
 test("technician and dispatcher receive different permission-scoped queues", async ({ page }) => {
   await loginPage(page, technician);
   await page.goto("/app/service-work-order");
@@ -195,12 +260,19 @@ test("technician and dispatcher receive different permission-scoped queues", asy
 
 test("dispatcher assigns scheduled work through visible form controls", async ({ browser }) => {
   const dispatcherSession = await newSession(dispatcher);
+  const managerSession = await newSession(manager);
   const records = await matchingWorkOrders(dispatcherSession);
   const target = records.find(
     (record) => record.subject.startsWith(assignmentSubjectPrefix) && record.status === "Draft",
   );
   expect(target).toBeTruthy();
-  await dispatcherSession.dispose();
+  // Far unique window avoids overlapping_scheduled_work left by prior e2e runs.
+  const assignmentDoc = await getDoc(managerSession, "Service Work Order", target!.name);
+  assignmentDoc.scheduled_start = `${offsetDate(28)} 09:00:00`;
+  assignmentDoc.scheduled_end = `${offsetDate(28)} 10:00:00`;
+  assignmentDoc.sla_due_at = `${offsetDate(29)} 18:00:00`;
+  await saveDoc(managerSession, assignmentDoc);
+  await Promise.all([dispatcherSession.dispose(), managerSession.dispose()]);
 
   const { page } = await rolePage(browser, dispatcher);
   await openForm(page, "service-work-order", target!.name);
@@ -671,74 +743,76 @@ test("technician mobile journey guides validation and cannot-close without finan
   const technicianSession = await newSession(technician);
   const technicianBrowser = await rolePage(browser, technician, { width: 390, height: 844 });
   try {
-    const subject = `AI ERP E2E Mobile ${Date.now()}`;
-    const insertResponse = await call(managerSession, "frappe.client.insert", {
+    const location = await getDoc(managerSession, "Service Location", "SVC-LOC-.00001");
+    const warehouse = location.default_warehouse as string;
+    expect(warehouse).toBeTruthy();
+
+    const closeoutSubject = `AI ERP E2E Mobile Closeout ${Date.now()}`;
+    const closeoutInsert = await call(managerSession, "frappe.client.insert", {
       doc: JSON.stringify({
         doctype: "Service Work Order",
-        subject,
+        subject: closeoutSubject,
         customer: "AI ERP Demo Customer",
         service_location: "SVC-LOC-.00001",
         status: "Draft",
+        inspection_required: 1,
       }),
     });
-    expect(insertResponse.ok()).toBeTruthy();
-    const inserted = (await insertResponse.json()).message as Record<string, any>;
-    inserted.assigned_technician = technician;
-    inserted.scheduled_start = `${offsetDate(1)} 09:00:00`;
-    inserted.scheduled_end = `${offsetDate(1)} 11:00:00`;
-    inserted.closure_owner = manager;
-    inserted.closure_due_date = offsetDate(7);
-    inserted.status = "Scheduled";
-    await saveDoc(managerSession, inserted);
-    const workOrderName = inserted.name as string;
+    expect(closeoutInsert.ok()).toBeTruthy();
+    const closeoutDoc = (await closeoutInsert.json()).message as Record<string, any>;
+    closeoutDoc.assigned_technician = technician;
+    closeoutDoc.scheduled_start = `${offsetDate(1)} 09:00:00`;
+    closeoutDoc.scheduled_end = `${offsetDate(1)} 11:00:00`;
+    closeoutDoc.closure_owner = manager;
+    closeoutDoc.closure_due_date = offsetDate(7);
+    closeoutDoc.status = "Scheduled";
+    await saveDoc(managerSession, closeoutDoc);
+    const closeoutName = closeoutDoc.name as string;
 
     const page = technicianBrowser.page;
     await page.goto("/app/service-work-order");
     await expect(page).not.toHaveTitle(/Login/);
-    await expect(page.getByText(subject).first()).toBeVisible();
+    await expect(page.getByText(closeoutSubject).first()).toBeVisible();
+    const listRow = page.locator(".list-row-container, .list-row").filter({ hasText: closeoutSubject }).first();
+    await expect(listRow).toBeVisible();
+    const listBox = await listRow.boundingBox();
+    expect(listBox, "assigned list row must be measurable").toBeTruthy();
+    expect(listBox!.height).toBeGreaterThanOrEqual(44);
 
-    await openForm(page, "service-work-order", workOrderName);
+    await openForm(page, "service-work-order", closeoutName);
+
+    const offlineProbe = await page.evaluate(() => {
+      const win = window as any;
+      const scripts = Array.from(document.scripts).map((script) => script.src || "");
+      return {
+        helpersLoaded: scripts.some((src) => src.includes("mobile_helpers")),
+        offlineFlag: win.AI_ERP_OFFLINE_DRAFTS ?? null,
+        saveOffline: typeof win.save_offline_draft,
+      };
+    });
+    expect(offlineProbe.helpersLoaded).toBeFalsy();
+    expect(offlineProbe.offlineFlag).toBeNull();
+    expect(offlineProbe.saveOffline).toBe("undefined");
+    await expect(page.locator(".offline-draft-banner")).toHaveCount(0);
 
     const saveButton = page.locator("button.primary-action").filter({ hasText: /^Save$/ }).first();
-    await expect(saveButton).toBeVisible();
-    const saveBox = await saveButton.boundingBox();
-    expect(saveBox, "Save must render a measurable touch target").toBeTruthy();
-    expect(saveBox!.height).toBeGreaterThanOrEqual(44);
+    await expectTouchTarget(saveButton, "Save");
 
     const statusSelect = field(page, "status").locator("select").first();
-    await expect(statusSelect).toBeVisible();
-    const statusAccessibleName = await statusSelect.evaluate((element) => {
-      const labeledBy = element.getAttribute("aria-labelledby");
-      if (labeledBy) {
-        return labeledBy
-          .split(/\s+/)
-          .map((id) => document.getElementById(id)?.textContent?.trim() || "")
-          .join(" ")
-          .trim();
-      }
-      const ariaLabel = element.getAttribute("aria-label");
-      if (ariaLabel) return ariaLabel.trim();
-      const control = element.closest(".frappe-control");
-      const label = control?.querySelector(".control-label, label");
-      return (label?.textContent || "").trim();
-    });
-    expect(statusAccessibleName.toLowerCase()).toContain("status");
-
-    const statusBox = await statusSelect.boundingBox();
-    expect(statusBox, "Status select must render a measurable touch target").toBeTruthy();
-    expect(statusBox!.height).toBeGreaterThanOrEqual(44);
-
+    await expectTouchTarget(statusSelect, "Status select");
+    expect((await accessibleName(statusSelect)).toLowerCase()).toContain("status");
     await statusSelect.focus();
     await expect(statusSelect).toBeFocused();
     await page.keyboard.press("Tab");
+
     await setSelectField(page, "status", "In Progress");
     await saveForm(page);
 
     await setSelectField(page, "status", "Closeout Submitted");
     await saveButton.click();
-    const validationDialog = page.locator(".modal:visible").last();
-    await expect(validationDialog).toContainText("time entry is required");
-    const validationBody = validationDialog.locator(".modal-body, .msgprint").first();
+    const timeValidation = page.locator(".modal:visible").last();
+    await expect(timeValidation).toContainText("time entry is required");
+    const validationBody = timeValidation.locator(".modal-body, .msgprint").first();
     await expect(validationBody).toBeVisible();
     const validationMetrics = await validationBody.evaluate((element) => {
       const styles = window.getComputedStyle(element);
@@ -754,23 +828,135 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(validationMetrics.width).toBeGreaterThan(200);
     expect(validationMetrics.height).toBeGreaterThan(24);
     expect(validationMetrics.text.toLowerCase()).toContain("time entry is required");
-    await validationDialog.locator(".btn-modal-close").click();
-    await expect(validationDialog).toBeHidden();
+    await timeValidation.locator(".btn-modal-close").click();
+    await expect(timeValidation).toBeHidden();
 
     await setSelectField(page, "status", "In Progress");
+    await addChildViaForm(page, "time_entries", {
+      technician,
+      work_date: offsetDate(0),
+      time_type: "Work",
+      hours: 1,
+    });
+    await expect
+      .poll(() => page.evaluate(() => ((window as any).cur_frm?.doc?.time_entries || []).length))
+      .toBeGreaterThan(0);
+    const timeAddRow = field(page, "time_entries").locator(".grid-add-row").first();
+    await expectTouchTarget(timeAddRow, "Time Entries Add row");
+
+    await addChildViaForm(page, "parts", {
+      item: "AI-ERP-DEMO-PART",
+      qty: 1,
+      source_warehouse: warehouse,
+    });
+    await expect
+      .poll(() => page.evaluate(() => ((window as any).cur_frm?.doc?.parts || []).length))
+      .toBeGreaterThan(0);
+    const partsAddRow = field(page, "parts").locator(".grid-add-row").first();
+    await expectTouchTarget(partsAddRow, "Parts Used Add row");
+
+    await setTextField(page, "closeout_notes", "Synthetic mobile closeout completed.");
+    const attachButton = field(page, "closeout_evidence").getByRole("button", { name: "Attach" });
+    await expectTouchTarget(attachButton, "Closeout Evidence Attach");
+    await uploadCloseoutEvidence(page);
+
+    await setSelectField(page, "status", "Closeout Submitted");
+    await saveButton.click();
+    const inspectionValidation = page.locator(".modal:visible").last();
+    await expect(inspectionValidation).toContainText("Inspection Result is required");
+    const inspectionBody = inspectionValidation.locator(".modal-body, .msgprint").first();
+    const inspectionMetrics = await inspectionBody.evaluate((element) => {
+      const styles = window.getComputedStyle(element);
+      return {
+        fontSize: Number.parseFloat(styles.fontSize),
+        text: (element.textContent || "").trim(),
+      };
+    });
+    expect(inspectionMetrics.fontSize).toBeGreaterThanOrEqual(16);
+    expect(inspectionMetrics.text.toLowerCase()).toContain("inspection result is required");
+    await inspectionValidation.locator(".btn-modal-close").click();
+    await expect(inspectionValidation).toBeHidden();
+
+    await setSelectField(page, "status", "In Progress");
+    const inspectionSelect = field(page, "inspection_result").locator("select").first();
+    await expectTouchTarget(inspectionSelect, "Inspection Result");
+    expect((await accessibleName(inspectionSelect)).toLowerCase()).toMatch(/inspection/);
+    await setSelectField(page, "inspection_result", "Pass");
+
+    await setSelectField(page, "status", "Closeout Submitted");
+    await saveForm(page);
+    const submitted = await getDoc(technicianSession, "Service Work Order", closeoutName);
+    expect(submitted.status).toBe("Closeout Submitted");
+    expect(submitted.time_entries?.length).toBeGreaterThan(0);
+    expect(submitted.parts?.length).toBeGreaterThan(0);
+    expect(submitted.inspection_result).toBe("Pass");
+    expect(String(submitted.closeout_evidence || "")).toContain("synthetic-closeout-evidence.txt");
+
+    const forbiddenStatuses = await page.evaluate(() => {
+      const frm = (window as any).cur_frm;
+      const fields = [
+        "hourly_rate",
+        "projected_revenue",
+        "projected_margin_before_labor",
+        "projected_margin_percent",
+        "issued_parts_cost",
+        "sales_invoice",
+        "service_billing_item",
+        "assigned_technician",
+        "customer",
+        "service_priority",
+        "warranty_status",
+        "inspection_required",
+        "closure_owner",
+        "invoice_ready",
+      ];
+      const statuses: Record<string, string> = {};
+      for (const name of fields) {
+        statuses[name] = frm?.fields_dict?.[name]?.disp_status || "None";
+      }
+      return statuses;
+    });
+    for (const [name, status] of Object.entries(forbiddenStatuses)) {
+      expect(status, `${name} must not be writable for technician`).not.toBe("Write");
+    }
+    await expect(page.getByRole("button", { name: "Issue Parts", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Draft Sales Invoice", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Suggest Technicians", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Margin Leakage Summary", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Evidence Packet", exact: true })).toHaveCount(0);
+
+    const cannotCloseSubject = `AI ERP E2E Mobile CannotClose ${Date.now()}`;
+    const cannotCloseInsert = await call(managerSession, "frappe.client.insert", {
+      doc: JSON.stringify({
+        doctype: "Service Work Order",
+        subject: cannotCloseSubject,
+        customer: "AI ERP Demo Customer",
+        service_location: "SVC-LOC-.00001",
+        status: "Draft",
+      }),
+    });
+    expect(cannotCloseInsert.ok()).toBeTruthy();
+    const cannotCloseDoc = (await cannotCloseInsert.json()).message as Record<string, any>;
+    cannotCloseDoc.assigned_technician = technician;
+    cannotCloseDoc.scheduled_start = `${offsetDate(1)} 09:00:00`;
+    cannotCloseDoc.scheduled_end = `${offsetDate(1)} 11:00:00`;
+    cannotCloseDoc.closure_owner = manager;
+    cannotCloseDoc.closure_due_date = offsetDate(7);
+    cannotCloseDoc.status = "Scheduled";
+    await saveDoc(managerSession, cannotCloseDoc);
+    const cannotCloseName = cannotCloseDoc.name as string;
+
+    await openForm(page, "service-work-order", cannotCloseName);
+    await setSelectField(page, "status", "In Progress");
+    await saveForm(page);
     await setSelectField(page, "status", "Cannot Close");
     const reasonSelect = field(page, "cannot_close_reason").locator("select").first();
-    await expect(reasonSelect).toBeVisible();
-    const reasonAccessibleName = await reasonSelect.evaluate((element) => {
-      const control = element.closest(".frappe-control");
-      const label = control?.querySelector(".control-label, label");
-      return (element.getAttribute("aria-label") || label?.textContent || "").trim();
-    });
-    expect(reasonAccessibleName.toLowerCase()).toMatch(/cannot close|reason/);
+    await expectTouchTarget(reasonSelect, "Cannot Close Reason");
+    expect((await accessibleName(reasonSelect)).toLowerCase()).toMatch(/cannot close|reason/);
     await setSelectField(page, "cannot_close_reason", "Parts unavailable");
     await saveForm(page);
 
-    const saved = await getDoc(technicianSession, "Service Work Order", workOrderName);
+    const saved = await getDoc(technicianSession, "Service Work Order", cannotCloseName);
     expect(saved.status).toBe("Cannot Close");
     expect(saved.closure_exception).toBeTruthy();
     const exception = await getDoc(
@@ -781,21 +967,9 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(exception.status).toBe("Open");
     expect(exception.exception_owner).toBe(manager);
 
-    const financeStatuses = await page.evaluate(() => {
-      const frm = (window as any).cur_frm;
-      return {
-        hourly_rate: frm?.fields_dict?.hourly_rate?.disp_status || "None",
-        projected_revenue: frm?.fields_dict?.projected_revenue?.disp_status || "None",
-        assigned_technician: frm?.fields_dict?.assigned_technician?.disp_status || "None",
-      };
-    });
-    expect(financeStatuses.hourly_rate).not.toBe("Write");
-    expect(financeStatuses.projected_revenue).not.toBe("Write");
-    expect(financeStatuses.assigned_technician).not.toBe("Write");
-
     const managerBrowser = await rolePage(browser, manager);
     try {
-      await openForm(managerBrowser.page, "service-work-order", workOrderName);
+      await openForm(managerBrowser.page, "service-work-order", cannotCloseName);
       await clickAction(managerBrowser.page, "Draft Recovery Steps");
       const recoveryDialog = managerBrowser.page.locator(".modal:visible").last();
       await expect(recoveryDialog).toContainText("Draft Recovery Steps");
@@ -805,7 +979,7 @@ test("technician mobile journey guides validation and cannot-close without finan
       await expect(recoveryDialog).toContainText("cannot close the work order");
       await recoveryDialog.locator(".btn-modal-close").click();
       await expect(recoveryDialog).toBeHidden();
-      const stillOpen = await getDoc(managerSession, "Service Work Order", workOrderName);
+      const stillOpen = await getDoc(managerSession, "Service Work Order", cannotCloseName);
       expect(stillOpen.status).toBe("Cannot Close");
     } finally {
       await managerBrowser.context.close();

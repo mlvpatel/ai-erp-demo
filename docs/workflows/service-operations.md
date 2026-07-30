@@ -149,6 +149,23 @@ the same honesty rule at its 10,000-row bound and is visible to Accounts roles
 as well as Service Managers. Technicians cannot call the summary API, open the
 button, or run the report. The summary never changes billing records.
 
+## Mobile field execution (online)
+
+Technicians use the same Frappe Desk Service Work Order form on a phone-width
+viewport. `public/css/mobile_field.css` enlarges primary actions, attach
+controls, list rows, and child-table inputs to at least 44px, keeps sticky page
+actions reachable, and keeps validation dialog copy readable. Playwright covers
+the 390 by 844 path: assigned list, In Progress, time entry, parts declaration,
+required inspection, closeout evidence upload, closeout submit, cannot-close
+with an owned exception, and denial of finance, assignment, and manager-only
+actions. Keyboard focus and accessible names are checked on status, inspection,
+and cannot-close reason.
+
+Offline IndexedDB draft helpers in `public/js/mobile_helpers.js` stay unloaded
+(`OFFLINE_DRAFTS_ENABLED = false`, not registered in `app_include_js`) until
+field UAT asks for them. Online attachment failure or validation rejection
+leaves the work order open with no stock or invoice side effect.
+
 ## Billing controls
 
 - Labor invoicing requires a non-stock Labor Billing Item and Hourly Rate.
