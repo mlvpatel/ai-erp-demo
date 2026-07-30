@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.5 / 10
+- **Current Demo Average Score**: 7.6 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -18,6 +18,10 @@
   (category evidence in ledger, Desk status/date filters, Accounts report
   access, truncation honesty). Partner UX review still required for ≥9.0;
   scheduling polish remains for the broader Phase B ~8.5 path.
+- Phase C repair-memory corpus moved provenance-based-repair-memory 6.5 → 7.6
+  (synthetic history corpus, weak-evidence abstention, unassigned /
+  unrelated-customer retrieval edges, contact/injection sanitization, browser
+  citation match). Live provider aggregate eval remains blocked on credentials.
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
@@ -48,11 +52,12 @@
      items). Profitability report allows Accounts roles and warns on page
      truncation. Partner-reviewed analytics and UAT remain open.
 
-4. **Provenance-Based Repair Memory** (Current: 6.5 / Target: 9.0)
-   - *Status*: Partly Implemented. Template renderers keep only citation-backed
-     history, redact contact/credential-shaped free text, and neutralize
-     instruction-like spans. Live provider aggregate eval is still blocked on
-     credentials.
+4. **Provenance-Based Repair Memory** (Current: 7.6 / Target: 9.0)
+   - *Status*: Partly Implemented. Template path uses an 8-entry synthetic
+     history corpus; cite/abstain/redact/injection edges and weak-evidence
+     abstention are covered in control-plane and service tests; browser
+     citation match covers seeded Desk drafts. Live provider aggregate eval is
+     still blocked on credentials.
 
 5. **Safe Agent Replay** (Current: 8.0 / Target: 9.0)
    - *Status*: Partly Implemented. Four draft-only replay fixtures cite every

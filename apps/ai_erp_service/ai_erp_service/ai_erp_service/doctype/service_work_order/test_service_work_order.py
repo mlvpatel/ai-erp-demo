@@ -1788,6 +1788,132 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		current.reload()
 		self.assertEqual(current.status, "Scheduled")
 
+	def test_repair_memory_blocks_unassigned_technician_and_unrelated_customer(self):
+		from ai_erp_service.repair_memory import request_repair_memory_draft
+		from ai_erp_service.retrieval import related_work_history
+
+		other_technician = self._make_role_user(
+			"service.technician.unassigned@example.test", ("Service Technician",)
+		)
+		history = self._make_work_order("Visible location history for repair memory")
+		self._schedule(history, self.technician)
+		frappe.set_user(self.manager)
+		history.reload()
+		history.status = "In Progress"
+		history.save()
+		history.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		history.closeout_notes = "Replaced gasket; torque verified."
+		history.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		history.status = "Closeout Submitted"
+		history.save()
+		history.status = "Closed"
+		history.save()
+
+		assigned = self._make_work_order("Assigned recurring repair")
+		self._schedule(assigned, self.technician)
+
+		frappe.set_user(other_technician)
+		with self.assertRaises(frappe.PermissionError):
+			request_repair_memory_draft(assigned.name)
+
+		frappe.set_user("Administrator")
+		other_customer = frappe.get_doc(
+			{"doctype": "Customer", "customer_name": "Same-Customer Other Site"}
+		).insert(ignore_if_duplicate=True)
+		# Same customer, different location: customer alone must not retrieve history.
+		foreign_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Foreign Repair Site",
+				"customer": self.customer,
+			}
+		).insert()
+		foreign = frappe.get_doc(
+			{
+				"doctype": "Service Work Order",
+				"subject": "Foreign site recurring repair",
+				"customer": self.customer,
+				"service_location": foreign_location.name,
+				"status": "Draft",
+			}
+		).insert()
+		self._schedule(foreign, self.technician)
+		frappe.set_user(self.manager)
+		foreign.reload()
+		self.assertEqual(related_work_history(foreign), [])
+		frappe.set_user("Administrator")
+		# Unrelated customer at another site stays empty too.
+		stranger_location = frappe.get_doc(
+			{
+				"doctype": "Service Location",
+				"location_name": "Stranger Repair Site",
+				"customer": other_customer.name,
+			}
+		).insert()
+		stranger = frappe.get_doc(
+			{
+				"doctype": "Service Work Order",
+				"subject": "Stranger customer repair",
+				"customer": other_customer.name,
+				"service_location": stranger_location.name,
+				"status": "Draft",
+			}
+		).insert()
+		frappe.set_user(self.manager)
+		self.assertEqual(related_work_history(stranger), [])
+
+		assigned.reload()
+		visible = related_work_history(assigned)
+		self.assertEqual([row.name for row in visible], [history.name])
+
+	def test_repair_memory_abstains_on_weak_cited_history(self):
+		from ai_erp_service.repair_memory import request_repair_memory_draft
+
+		weak = self._make_work_order("Weak closed history without repair facts")
+		self._schedule(weak, self.technician)
+		frappe.set_user(self.manager)
+		weak.reload()
+		weak.status = "In Progress"
+		weak.save()
+		weak.append(
+			"time_entries",
+			{
+				"technician": self.technician,
+				"work_date": today(),
+				"time_type": "Work",
+				"hours": 1,
+			},
+		)
+		# Closeout validation requires notes; strip them after close so retrieval
+		# returns a cited row with no actionable repair facts.
+		weak.closeout_notes = "Temporary closeout note for status transition."
+		weak.closeout_evidence = "/private/files/ai-closeout-evidence.txt"
+		weak.inspection_result = "Pass"
+		weak.status = "Closeout Submitted"
+		weak.save()
+		weak.status = "Closed"
+		weak.save()
+		frappe.db.set_value("Service Work Order", weak.name, "closeout_notes", "")
+
+		current = self._make_work_order("Current visit over weak history")
+		self._schedule(current, self.technician)
+		frappe.set_user(self.manager)
+		result = request_repair_memory_draft(current.name)
+		proposal = frappe.get_doc("AI Proposal", result["name"])
+		self.assertIn("Abstention", proposal.draft_content)
+		self.assertIn("no closeout notes, parts, or follow-up inspection", proposal.draft_content)
+		self.assertNotIn("Likely fix based on cited prior work", proposal.draft_content)
+		current.reload()
+		self.assertEqual(current.status, "Scheduled")
+
 	def test_demo_seed_is_idempotent_and_stays_before_transaction_actions(self):
 		invoices_before = frappe.db.count("Sales Invoice")
 

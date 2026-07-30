@@ -28,6 +28,34 @@
             "issued": true
           }
         ]
+      },
+      {
+        "name": "WO-2026-00003",
+        "subject": "Chiller follow-up seal check",
+        "status": "Closed",
+        "inspection_result": "Needs Follow-up",
+        "closeout_notes": "Replaced SEAL-KIT after residual leak; schedule pressure recheck.",
+        "parts": [
+          {
+            "item": "SEAL-KIT",
+            "qty": 1.0,
+            "issued": true
+          }
+        ]
+      },
+      {
+        "name": "WO-2026-00004",
+        "subject": "Chiller filter service",
+        "status": "Invoice Ready",
+        "inspection_result": "Passed",
+        "closeout_notes": "Changed FILTER-A and confirmed stable suction pressure.",
+        "parts": [
+          {
+            "item": "FILTER-A",
+            "qty": 1.0,
+            "issued": true
+          }
+        ]
       }
     ],
     "sources": [
@@ -42,6 +70,18 @@
         "name": "WO-2026-00001",
         "field": "history",
         "content_hash": "beb28771fe690c7f8919d78e16188cff22955a7919413f8c07799cc1e80d24e2"
+      },
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00003",
+        "field": "history",
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "doctype": "Service Work Order",
+        "name": "WO-2026-00004",
+        "field": "history",
+        "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       }
     ]
   }
