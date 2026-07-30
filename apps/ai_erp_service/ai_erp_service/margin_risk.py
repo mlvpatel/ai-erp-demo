@@ -13,6 +13,7 @@ WARRANTY_RISK_STATUSES = {"Unknown", "In Warranty"}
 INSPECTION_RISK_RESULTS = {"Needs Follow-up", "Failed"}
 MARGIN_SUMMARY_PAGE_LENGTH = 500
 MARGIN_HIGH_RISK_LIMIT = 50
+# Discount / zero-rate labor is one category: zero hourly rate with billable hours.
 MARGIN_RISK_CATEGORIES = (
 	"missing_billable_time",
 	"zero_rate_labor",
@@ -27,11 +28,13 @@ MARGIN_RISK_CATEGORIES = (
 
 
 def annotate_margin_risks(rows):
-	"""Attach a deterministic, comma-joined margin_risks category list to each row.
+	"""Attach deterministic margin_risks and margin_risk_details to each row.
 
 	Rows need name, status, hourly_rate, warranty_status, inspection_result,
 	service_asset, service_location, and creation. Categories never invent a
 	margin: missing cost data becomes unknown_cost_basis instead of a number.
+	Each detail links the category to checkable source facts (hours, parts,
+	neighbors, exceptions) for Desk and evidence-ledger consumers.
 	"""
 	names = [row.name for row in rows]
 	if not names:
@@ -40,46 +43,173 @@ def annotate_margin_risks(rows):
 	hours_by_order = _hours_by_order(names)
 	parts_by_order = _parts_by_order(names)
 	unit_costs = _unit_costs(parts_by_order)
-	open_exceptions = set(
-		frappe.get_all(
-			"Service Closure Exception",
-			filters={"work_order": ("in", names), "status": "Open"},
-			pluck="work_order",
-		)
-	)
-	repeat_orders = _repeat_orders(rows)
+	open_exceptions = _open_exceptions_by_order(names)
+	repeat_neighbors = _repeat_neighbors(rows)
 
 	for row in rows:
-		risks = []
-		parts = parts_by_order.get(row.name, [])
-		if row.status in CLOSEOUT_STATES and not hours_by_order.get(row.name):
-			risks.append("missing_billable_time")
-		if hours_by_order.get(row.name) and not flt(row.hourly_rate):
-			risks.append("zero_rate_labor")
-		if any(not flt(part.bill_rate) for part in parts):
-			risks.append("missing_part_bill_rate")
-		if any(
+		details = _classify_row(
+			row,
+			hours=hours_by_order.get(row.name, 0),
+			parts=parts_by_order.get(row.name, []),
+			unit_costs=unit_costs,
+			open_exceptions=open_exceptions.get(row.name, []),
+			neighbor_orders=repeat_neighbors.get(row.name, []),
+		)
+		row.margin_risk_details = details
+		row.margin_risks = ", ".join(item["category"] for item in details)
+	return rows
+
+
+def classify_margin_risks_for_work_order(work_order):
+	"""Return categories and evidence details for one work order document."""
+	row = frappe._dict(
+		{
+			"name": work_order.name,
+			"status": work_order.status,
+			"hourly_rate": work_order.hourly_rate,
+			"warranty_status": work_order.warranty_status,
+			"inspection_result": work_order.inspection_result,
+			"service_asset": work_order.service_asset,
+			"service_location": work_order.service_location,
+			"creation": work_order.creation,
+		}
+	)
+	annotate_margin_risks([row])
+	return {
+		"categories": [item["category"] for item in row.margin_risk_details],
+		"details": list(row.margin_risk_details),
+	}
+
+
+def _classify_row(row, hours, parts, unit_costs, open_exceptions, neighbor_orders):
+	details = []
+	if row.status in CLOSEOUT_STATES and not hours:
+		details.append(
+			{
+				"category": "missing_billable_time",
+				"evidence": {
+					"status": row.status,
+					"billable_hours": 0,
+					"source": "Service Work Order Time",
+				},
+			}
+		)
+	if hours and not flt(row.hourly_rate):
+		details.append(
+			{
+				"category": "zero_rate_labor",
+				"evidence": {
+					"hourly_rate": flt(row.hourly_rate),
+					"billable_hours": flt(hours),
+					"note": "Discount or zero-rate labor: hours present with zero hourly rate.",
+					"source": "Service Work Order.hourly_rate",
+				},
+			}
+		)
+
+	missing_bill_items = [part.item for part in parts if not flt(part.bill_rate)]
+	if missing_bill_items:
+		details.append(
+			{
+				"category": "missing_part_bill_rate",
+				"evidence": {
+					"items": missing_bill_items,
+					"source": "Service Work Order Part.bill_rate",
+				},
+			}
+		)
+
+	above_cost = []
+	unknown_cost = []
+	for part in parts:
+		if part.stock_entry and (part.stock_entry, part.item) not in unit_costs:
+			unknown_cost.append({"item": part.item, "stock_entry": part.stock_entry})
+		elif (
 			flt(part.bill_rate)
 			and (part.stock_entry, part.item) in unit_costs
 			and unit_costs[(part.stock_entry, part.item)] > flt(part.bill_rate)
-			for part in parts
 		):
-			risks.append("part_cost_above_bill_rate")
-		if any(
-			part.stock_entry and (part.stock_entry, part.item) not in unit_costs
-			for part in parts
-		):
-			risks.append("unknown_cost_basis")
-		if row.warranty_status in WARRANTY_RISK_STATUSES:
-			risks.append("warranty_risk")
-		if row.inspection_result in INSPECTION_RISK_RESULTS:
-			risks.append("failed_inspection")
-		if row.name in open_exceptions:
-			risks.append("unresolved_exception")
-		if row.name in repeat_orders:
-			risks.append("repeat_visit_risk")
-		row.margin_risks = ", ".join(risks)
-	return rows
+			above_cost.append(
+				{
+					"item": part.item,
+					"stock_entry": part.stock_entry,
+					"bill_rate": flt(part.bill_rate),
+					"unit_cost": unit_costs[(part.stock_entry, part.item)],
+				}
+			)
+	if above_cost:
+		details.append(
+			{
+				"category": "part_cost_above_bill_rate",
+				"evidence": {
+					"items": above_cost,
+					"source": "Stock Entry Detail.basic_rate",
+				},
+			}
+		)
+	if unknown_cost:
+		details.append(
+			{
+				"category": "unknown_cost_basis",
+				"evidence": {
+					"items": unknown_cost,
+					"source": "Stock Entry Detail",
+					"note": "Linked stock entry has no usable unit cost; margin not invented.",
+				},
+			}
+		)
+
+	if row.warranty_status in WARRANTY_RISK_STATUSES:
+		details.append(
+			{
+				"category": "warranty_risk",
+				"evidence": {
+					"warranty_status": row.warranty_status,
+					"source": "Service Work Order.warranty_status",
+				},
+			}
+		)
+	if row.inspection_result in INSPECTION_RISK_RESULTS:
+		details.append(
+			{
+				"category": "failed_inspection",
+				"evidence": {
+					"inspection_result": row.inspection_result,
+					"source": "Service Work Order.inspection_result",
+				},
+			}
+		)
+	if open_exceptions:
+		details.append(
+			{
+				"category": "unresolved_exception",
+				"evidence": {
+					"exceptions": open_exceptions,
+					"source": "Service Closure Exception",
+				},
+			}
+		)
+	if neighbor_orders:
+		# Cap linked neighbors in evidence payloads so Desk/summary JSON stays bounded.
+		neighbor_cap = 10
+		details.append(
+			{
+				"category": "repeat_visit_risk",
+				"evidence": {
+					"neighbor_work_orders": neighbor_orders[:neighbor_cap],
+					"neighbor_count": len(neighbor_orders),
+					"neighbors_truncated": len(neighbor_orders) > neighbor_cap,
+					"window_days": REPEAT_VISIT_WINDOW_DAYS,
+					"match": (
+						{"service_asset": row.service_asset}
+						if row.get("service_asset")
+						else {"service_location": row.service_location}
+					),
+					"source": "Service Work Order",
+				},
+			}
+		)
+	return details
 
 
 def _hours_by_order(names):
@@ -133,8 +263,21 @@ def _unit_costs(parts_by_order):
 	return costs
 
 
-def _repeat_orders(rows):
-	"""Return names with another work order for the same asset or location inside the window."""
+def _open_exceptions_by_order(names):
+	rows = frappe.get_all(
+		"Service Closure Exception",
+		filters={"work_order": ("in", names), "status": "Open"},
+		fields=["name", "work_order"],
+		order_by="name asc",
+	)
+	grouped = {}
+	for row in rows:
+		grouped.setdefault(row.work_order, []).append(row.name)
+	return grouped
+
+
+def _repeat_neighbors(rows):
+	"""Return work-order name → neighbor names inside the repeat-visit window."""
 	assets = sorted({row.service_asset for row in rows if row.get("service_asset")})
 	locations = sorted(
 		{row.service_location for row in rows if not row.get("service_asset") and row.get("service_location")}
@@ -162,7 +305,7 @@ def _repeat_orders(rows):
 		by_key.setdefault(key, []).append(neighbor)
 
 	window = timedelta(days=REPEAT_VISIT_WINDOW_DAYS)
-	repeats = set()
+	repeats = {}
 	for row in rows:
 		key = (
 			("asset", row.service_asset)
@@ -174,12 +317,14 @@ def _repeat_orders(rows):
 		if not key:
 			continue
 		row_creation = get_datetime(row.creation)
+		matched = []
 		for neighbor in by_key.get(key, []):
 			if neighbor.name == row.name:
 				continue
 			if abs(get_datetime(neighbor.creation) - row_creation) <= window:
-				repeats.add(row.name)
-				break
+				matched.append(neighbor.name)
+		if matched:
+			repeats[row.name] = sorted(set(matched))
 	return repeats
 
 
@@ -187,8 +332,8 @@ def _repeat_orders(rows):
 def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, status=None):
 	"""Return aggregate margin risk counts and high-risk work orders for manager review.
 
-	Optional risk_category filters the high-risk queue to one deterministic
-	category. Technicians cannot call this API.
+	Optional risk_category, status, and date range filter the scan. Technicians
+	cannot call this API.
 	"""
 	require_any_role(
 		(*MANAGER_ROLES, *FINANCE_ROLES),
@@ -214,7 +359,8 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 	high_risk_orders = []
 
 	for row in annotated:
-		risks = [r.strip() for r in (row.margin_risks or "").split(",") if r.strip()]
+		details = list(row.margin_risk_details or [])
+		risks = [item["category"] for item in details]
 		for risk in risks:
 			category_counts[risk] = category_counts.get(risk, 0) + 1
 
@@ -230,6 +376,7 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 				"status": row.status,
 				"margin_percent": flt(row.projected_margin_percent),
 				"risks": risks,
+				"risk_details": details,
 			})
 
 	# Worst margin first, then most risk categories, so the capped queue is useful.
@@ -246,6 +393,9 @@ def margin_leakage_summary(from_date=None, to_date=None, risk_category=None, sta
 		"available_categories": list(MARGIN_RISK_CATEGORIES),
 		"category_counts": category_counts,
 		"risk_category": risk_category or "",
+		"status": status or "",
+		"from_date": from_date or "",
+		"to_date": to_date or "",
 		"high_risk_truncated": high_risk_truncated,
 		"high_risk_limit": MARGIN_HIGH_RISK_LIMIT,
 		"high_risk_orders": high_risk_orders,
@@ -280,4 +430,3 @@ def _load_summary_work_orders(filters):
 	if truncated:
 		rows = rows[:MARGIN_SUMMARY_PAGE_LENGTH]
 	return rows, truncated
-

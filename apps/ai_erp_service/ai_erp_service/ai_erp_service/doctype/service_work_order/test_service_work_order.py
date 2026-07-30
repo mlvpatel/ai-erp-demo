@@ -837,13 +837,37 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertEqual(summary["available_categories"], list(MARGIN_RISK_CATEGORIES))
 		self.assertGreaterEqual(summary["total_orders"], 1)
 		self.assertGreaterEqual(summary["category_counts"].get("failed_inspection", 0), 1)
-
+		# Unfiltered high-risk queue is capped; use the category filter to reach
+		# this work order's evidence payload among a large demo/test site.
 		filtered = margin_leakage_summary(risk_category="failed_inspection")
 		self.assertEqual(filtered["risk_category"], "failed_inspection")
 		self.assertTrue(filtered["high_risk_orders"])
 		self.assertTrue(
 			all("failed_inspection" in row["risks"] for row in filtered["high_risk_orders"])
 		)
+		detail_row = next(
+			(
+				row
+				for row in filtered["high_risk_orders"]
+				if row.get("name") == work_order.name
+			),
+			filtered["high_risk_orders"][0],
+		)
+		self.assertTrue(detail_row.get("risk_details"))
+		self.assertTrue(
+			any(
+				item.get("category") == "failed_inspection"
+				and item.get("evidence", {}).get("inspection_result") == "Failed"
+				for item in detail_row["risk_details"]
+			)
+		)
+
+		status_filtered = margin_leakage_summary(status=work_order.status)
+		self.assertEqual(status_filtered["status"], work_order.status)
+		self.assertTrue(
+			all(row["status"] == work_order.status for row in status_filtered["high_risk_orders"])
+		)
+		self.assertGreaterEqual(status_filtered["category_counts"].get("failed_inspection", 0), 1)
 
 		frappe.set_user(self.finance_user)
 		finance_summary = margin_leakage_summary()
@@ -854,6 +878,11 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		frappe.set_user(self.technician)
 		with self.assertRaises(frappe.PermissionError):
 			profitability_report({})
+
+		frappe.set_user(self.finance_user)
+		finance_columns, finance_rows = profitability_report({})
+		self.assertIn("margin_risks", {column["fieldname"] for column in finance_columns})
+		self.assertIsInstance(finance_rows, list)
 
 	def test_margin_leakage_summary_truncation_and_high_risk_caps(self):
 		from ai_erp_service import margin_risk as margin_risk_mod
@@ -909,6 +938,16 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 				projected_margin_percent=5,
 				customer=self.customer,
 				margin_risks="failed_inspection, warranty_risk",
+				margin_risk_details=[
+					{
+						"category": "failed_inspection",
+						"evidence": {"inspection_result": "Failed"},
+					},
+					{
+						"category": "warranty_risk",
+						"evidence": {"warranty_status": "Unknown"},
+					},
+				],
 			)
 			for index in range(3)
 		]
@@ -945,6 +984,20 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		):
 			costs = _unit_costs(parts_by_order)
 		self.assertEqual(costs[("SE-1", "ITEM-A")], 12.0)
+
+	def test_profitability_report_flags_page_truncation_honestly(self):
+		from ai_erp_service.ai_erp_service.report.service_profitability import (
+			service_profitability as report_mod,
+		)
+
+		self._make_work_order("Profitability truncation A")
+		self._make_work_order("Profitability truncation B")
+		frappe.set_user(self.manager)
+		with patch.object(report_mod, "PROFITABILITY_PAGE_LENGTH", 1):
+			with patch.object(frappe, "msgprint") as mocked_msgprint:
+				_columns, rows = profitability_report({})
+		self.assertEqual(len(rows), 1)
+		mocked_msgprint.assert_called()
 
 	def test_evidence_packet_is_role_scoped_and_carries_no_draft_content(self):
 		from ai_erp_service.evidence import get_evidence_packet
@@ -1093,6 +1146,18 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertNotIn("missing_billable_time", first_risks)
 		self.assertNotIn("part_cost_above_bill_rate", first_risks)
 		self.assertIn("repeat_visit_risk", by_name[second.name].margin_risks)
+		self.assertTrue(getattr(by_name[second.name], "margin_risk_details", None))
+		repeat_detail = next(
+			(
+				item
+				for item in by_name[second.name].margin_risk_details
+				if item.get("category") == "repeat_visit_risk"
+			),
+			None,
+		)
+		self.assertIsNotNone(repeat_detail)
+		self.assertIn(first.name, repeat_detail["evidence"]["neighbor_work_orders"])
+		self.assertEqual(repeat_detail["evidence"]["window_days"], 30)
 
 	def test_scheduling_suggestions_are_deterministic_bounded_and_propose_only(self):
 		from ai_erp_service.scheduling import suggest_technicians
@@ -1560,6 +1625,39 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertIn(
 			"failed_inspection", manager_chain["sections"]["finance"]["margin_risks"]
 		)
+		self.assertIn("margin_risk_details", manager_chain["sections"]["finance"])
+		failed_detail = next(
+			(
+				item
+				for item in manager_chain["sections"]["finance"]["margin_risk_details"]
+				if item.get("category") == "failed_inspection"
+			),
+			None,
+		)
+		self.assertIsNotNone(failed_detail)
+		self.assertEqual(failed_detail["evidence"]["inspection_result"], "Failed")
+		self.assertEqual(failed_detail["evidence"]["source"], "Service Work Order.inspection_result")
+		zero_rate = next(
+			(
+				item
+				for item in manager_chain["sections"]["finance"]["margin_risk_details"]
+				if item.get("category") == "zero_rate_labor"
+			),
+			None,
+		)
+		self.assertIsNotNone(zero_rate)
+		self.assertIn("billable_hours", zero_rate["evidence"])
+		finance_stage = next(
+			(
+				stage
+				for stage in (manager_chain.get("ledger_narrative") or {}).get("stages") or []
+				if stage.get("stage") == "finance_handoff"
+			),
+			None,
+		)
+		self.assertIsNotNone(finance_stage)
+		self.assertIn("zero_rate_labor→", finance_stage["summary"])
+		self.assertIn("failed_inspection", finance_stage["summary"])
 
 	def test_recovery_draft_is_manager_only_cited_and_cannot_close_work(self):
 		from ai_erp_service.recovery import request_recovery_draft

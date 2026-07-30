@@ -831,6 +831,9 @@ test("margin leakage summary is manager or finance only on the work-order desk",
     await expect(managerDialog).toContainText("Category counts");
     await expect(managerDialog).toContainText("High-risk work orders");
     await expect(managerDialog).toContainText("Failed inspection");
+    await expect(managerDialog).toContainText("Risks and evidence");
+    await expect(managerDialog.getByText("Status filter")).toBeVisible();
+    await expect(managerDialog.getByText("From date")).toBeVisible();
     await expect(managerDialog.getByRole("button", { name: "Apply Filter" })).toBeVisible();
     await managerDialog.locator(".btn-modal-close").click();
     await expect(managerDialog).toBeHidden();
@@ -847,6 +850,7 @@ test("margin leakage summary is manager or finance only on the work-order desk",
     const financeDialog = financeBrowser.page.locator(".modal:visible").last();
     await expect(financeDialog).toContainText("Category counts");
     await expect(financeDialog).toContainText("Deterministic categories only");
+    await expect(financeDialog.getByText("To date")).toBeVisible();
     await financeDialog.locator(".btn-modal-close").click();
     await expect(financeDialog).toBeHidden();
 

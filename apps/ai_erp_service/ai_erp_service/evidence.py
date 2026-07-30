@@ -7,7 +7,7 @@ from ai_erp_core.proposals import content_hash
 from frappe import _
 from frappe.utils import flt, get_datetime
 
-from ai_erp_service.margin_risk import annotate_margin_risks
+from ai_erp_service.margin_risk import classify_margin_risks_for_work_order
 from ai_erp_service.service_utils import (
 	FINANCE_ROLES,
 	MANAGER_ROLES,
@@ -108,6 +108,7 @@ def get_evidence_packet(name):
 		"stock_entries": finance.get("stock_entries", []),
 		"sales_invoice": finance.get("sales_invoice", ""),
 		"margin_risks": finance.get("margin_risks", []),
+		"margin_risk_details": finance.get("margin_risk_details", []),
 		"unresolved_exceptions": [
 			row for row in sections["exceptions"] if row.get("status") == "Open"
 		],
@@ -227,27 +228,17 @@ def _finance_section(work_order):
 		"projected_margin_percent": flt(work_order.projected_margin_percent),
 		"profitability_basis": work_order.profitability_basis or "",
 		"stock_entries": stock_entries,
-		"margin_risks": _margin_risk_categories(work_order),
+		**_margin_finance_fields(work_order),
 	}
 
 
-def _margin_risk_categories(work_order):
-	"""Return deterministic margin-risk category labels for one work order."""
-	row = frappe._dict(
-		{
-			"name": work_order.name,
-			"status": work_order.status,
-			"hourly_rate": work_order.hourly_rate,
-			"warranty_status": work_order.warranty_status,
-			"inspection_result": work_order.inspection_result,
-			"service_asset": work_order.service_asset,
-			"service_location": work_order.service_location,
-			"creation": work_order.creation,
-		}
-	)
-	annotate_margin_risks([row])
-	return [risk.strip() for risk in (row.margin_risks or "").split(",") if risk.strip()]
-
+def _margin_finance_fields(work_order):
+	"""Attach category labels and evidence links without classifying twice."""
+	payload = classify_margin_risks_for_work_order(work_order)
+	return {
+		"margin_risks": payload["categories"],
+		"margin_risk_details": payload["details"],
+	}
 
 def _proposal_citation_stubs(proposals):
 	"""Count citation rows without loading full proposal draft content."""
@@ -324,12 +315,34 @@ def _ledger_narrative(chain, citations, finance):
 	]
 	# Finance stage only when the chain already exposed the finance section.
 	if "finance" in sections:
+		risk_labels = finance.get("margin_risks") or []
+		detail_bits = []
+		for item in finance.get("margin_risk_details") or []:
+			category = item.get("category") or ""
+			evidence = item.get("evidence") or {}
+			if category == "repeat_visit_risk":
+				neighbors = evidence.get("neighbor_work_orders") or []
+				detail_bits.append(
+					f"{category}→{','.join(neighbors[:3])}" + ("…" if len(neighbors) > 3 else "")
+				)
+			elif category == "unknown_cost_basis":
+				items = [row.get("item") for row in (evidence.get("items") or []) if row.get("item")]
+				detail_bits.append(f"{category}→{','.join(items[:3])}" + ("…" if len(items) > 3 else ""))
+			elif category == "missing_billable_time":
+				detail_bits.append(f"{category}→status {evidence.get('status') or 'n/a'}")
+			elif category == "zero_rate_labor":
+				detail_bits.append(
+					f"{category}→{evidence.get('billable_hours', 0)}h @ rate {evidence.get('hourly_rate', 0)}"
+				)
+			elif category:
+				detail_bits.append(category)
+		risk_summary = ", ".join(detail_bits) if detail_bits else (", ".join(risk_labels) or "none")
 		stages.append(
 			{
 				"stage": "finance_handoff",
 				"summary": (
 					f"Invoice {finance.get('sales_invoice') or 'not drafted'}; "
-					f"margin risks: {', '.join(finance.get('margin_risks') or []) or 'none'}."
+					f"margin risks: {risk_summary}."
 				),
 			}
 		)
