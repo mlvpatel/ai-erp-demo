@@ -60,6 +60,7 @@ class IntegrationTestAIProposalPermissions(IntegrationTestCase):
 				"proposal_type": "Service Closeout Summary",
 				"proposal_status": "Draft",
 				"policy_outcome": "Draft Only",
+				"policy_category": "draft_only",
 				"policy_reason": "Draft only; human review has no ERP side effect.",
 				"reference_doctype": "User",
 				"reference_name": requested_by,

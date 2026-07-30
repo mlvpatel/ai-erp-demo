@@ -23,6 +23,7 @@ EXPECTED_BUNDLES = {
 }
 EXPECTED_EVIDENCE_PACKETS = {
 	"finance_handoff.json",
+	"invoice_handoff.json",
 }
 FORBIDDEN_PACKET_KEYS = (
 	"draft_content",
@@ -134,12 +135,24 @@ class TestReplayHarness(unittest.TestCase):
 					self.assertIn("policy", data)
 					self.assertEqual(data["policy"]["decision"], "draft_only")
 					self.assertEqual(data["policy"]["allowed_action"], "none")
+					self.assertEqual(data["policy"].get("category", "draft_only"), "draft_only")
 					self.assertEqual(data["proposal_type"], bundle["proposal_type"])
 					self.assertIn("sources", data)
 					self.assertTrue(
 						len(data["sources"]) > 0, "AI Proposal must carry source citations"
 					)
+					for source in data["sources"]:
+						self.assertRegex(source["content_hash"], r"^[a-f0-9]{64}$")
+					self.assertEqual(data["sources"], payload["sources"])
 					self.assertTrue(data.get("draft_content"))
+					serialized = json.dumps(data).casefold()
+					for forbidden in (
+						"submit invoice",
+						"post stock",
+						"change payroll",
+						"alter permissions",
+					):
+						self.assertNotIn(forbidden, serialized)
 
 	def test_replay_fails_closed_without_shared_secret(self):
 		bundle_files = list(FIXTURES_DIR.glob("*.json"))
@@ -182,8 +195,20 @@ class TestReplayHarness(unittest.TestCase):
 		self.assertIn("ledger_narrative", packet)
 		self.assertFalse(packet["ledger_narrative"].get("incomplete", False))
 		self.assertTrue(packet.get("proposal_idempotency"))
-		self.assertEqual(len(packet["proposal_idempotency"][0]["input_context_hash"]), 64)
-		self.assertIn("Identical input_context_hash", packet["proposal_idempotency"][0]["reuse_note"])
+		idempotency = packet["proposal_idempotency"][0]
+		self.assertEqual(len(idempotency["input_context_hash"]), 64)
+		self.assertIn("Identical input_context_hash", idempotency["reuse_note"])
+		self.assertEqual(idempotency.get("policy_category"), "draft_only")
+		self.assertIn("provider_duration_ms", idempotency)
+		self.assertIn("provider_input_tokens", idempotency)
+		self.assertIn("provider_output_tokens", idempotency)
+		self.assertTrue(packet.get("policy_categories"))
+		self.assertIn("draft_only", packet["policy_categories"])
+		self.assertTrue(packet.get("citation_hashes"))
+		for citation_hash in packet["citation_hashes"]:
+			self.assertEqual(len(citation_hash), 64)
+		for citation in packet.get("citations") or []:
+			self.assertEqual(len(citation["content_hash"]), 64)
 		stages = [row["stage"] for row in packet["ledger_narrative"]["stages"]]
 		for required in REQUIRED_FINANCE_STAGES:
 			self.assertIn(required, stages)

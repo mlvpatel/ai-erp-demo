@@ -61,10 +61,14 @@
         "name": "AIP-SYNTH-00001",
         "proposal_status": "Pending Review",
         "policy_outcome": "Draft Only",
+        "policy_category": "draft_only",
         "model_provider": "development-template",
         "model_name": "development-template",
         "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
         "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "provider_input_tokens": 90,
+        "provider_output_tokens": 25,
+        "provider_duration_ms": 42,
         "reviewed_by": ""
       }
     ],
@@ -74,10 +78,15 @@
         "input_context_hash": "2222222222222222222222222222222222222222222222222222222222222222",
         "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
         "policy_outcome": "Draft Only",
+        "policy_category": "draft_only",
+        "provider_input_tokens": 90,
+        "provider_output_tokens": 25,
+        "provider_duration_ms": 42,
         "reuse_note": "Identical input_context_hash returns this proposal without a new provider call."
       }
     ],
     "policy_decisions": ["Draft Only"],
+    "policy_categories": ["draft_only"],
     "citations": [
       {
         "proposal": "AIP-SYNTH-00001",
@@ -86,6 +95,9 @@
         "source_field": "closeout_notes",
         "content_hash": "4444444444444444444444444444444444444444444444444444444444444444"
       }
+    ],
+    "citation_hashes": [
+      "4444444444444444444444444444444444444444444444444444444444444444"
     ],
     "stock_entries": ["MAT-STE-SYNTH-00001"],
     "sales_invoice": "SINV-DRAFT-SYNTH-00001",

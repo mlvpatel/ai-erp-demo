@@ -43,7 +43,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		self.assert_contract_contains(
 			"openapi: 3.1.0",
 			"title: AI ERP Control Plane API",
-			"version: 1.5.0",
+			"version: 1.5.1",
 			f"  {SERVICE_CLOSEOUT_PATH}:",
 			f"  {SCHEDULING_PATH}:",
 			f"  {RECOVERY_PATH}:",
@@ -60,7 +60,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		self.assertEqual(self.openapi["openapi"], "3.1.0")
 		self.assertEqual(self.openapi["info"]["title"], "AI ERP Control Plane API")
-		self.assertEqual(self.openapi["info"]["version"], "1.5.0")
+		self.assertEqual(self.openapi["info"]["version"], "1.5.1")
 
 		operation = self.openapi["paths"][SERVICE_CLOSEOUT_PATH]["post"]
 		self.assertEqual(operation["operationId"], "draftServiceCloseoutSummary")
@@ -181,6 +181,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 		policy_schema = schemas[policy_ref.rsplit("/", 1)[1]]
 		self.assertEqual(policy_schema["properties"]["decision"]["const"], "draft_only")
 		self.assertEqual(policy_schema["properties"]["allowed_action"]["const"], "none")
+		self.assertEqual(policy_schema["properties"]["category"]["const"], "draft_only")
 
 		for schema_name, field_constraints in {
 			"TimeEntry": {

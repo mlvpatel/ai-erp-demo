@@ -656,6 +656,10 @@ test("evidence replay stays role-scoped across desktop and mobile viewports", as
     expect(managerPacket.packet_kind).toBe("evidence_to_cash_ledger");
     expect(managerPacket.proposal_idempotency?.length).toBeGreaterThan(0);
     expect(managerPacket.proposal_idempotency[0].input_context_hash).toHaveLength(64);
+    expect(managerPacket.proposal_idempotency[0].policy_category).toBe("draft_only");
+    expect(managerPacket.policy_categories).toContain("draft_only");
+    expect(managerPacket.citation_hashes?.length).toBeGreaterThan(0);
+    expect(managerPacket.citation_hashes[0]).toHaveLength(64);
     expect(managerPacket.chain_hash).toHaveLength(64);
 
     await openForm(technicianBrowser.page, "service-work-order", workOrderName);

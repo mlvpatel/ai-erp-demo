@@ -110,13 +110,16 @@ def _request_proposal(
 		response = _post_to_control_plane(request_payload, route)
 	_validate_response(response, request_payload, wire_proposal_type)
 
+	policy = response["policy"]
+	audit = response.get("audit") or {}
 	proposal = frappe.get_doc(
 		{
 			"doctype": "AI Proposal",
 			"proposal_type": ledger_proposal_type,
 			"proposal_status": "Draft",
 			"policy_outcome": "Draft Only",
-			"policy_reason": response["policy"]["reason"],
+			"policy_category": policy.get("category") or policy.get("decision") or "draft_only",
+			"policy_reason": policy["reason"],
 			"reference_doctype": reference_doctype,
 			"reference_name": reference_name,
 			"sources": [
@@ -137,11 +140,11 @@ def _request_proposal(
 			"model_provider": response["model"]["provider"],
 			"model_name": response["model"]["name"],
 			"prompt_version": response["model"]["prompt_version"],
-			"provider_response_id_hash": (response.get("audit") or {}).get("response_id_hash"),
-			"provider_input_tokens": (response.get("audit") or {}).get("input_tokens"),
-			"provider_output_tokens": (response.get("audit") or {}).get("output_tokens"),
-			"provider_duration_ms": (response.get("audit") or {}).get("duration_ms"),
-			"provider_redaction_count": (response.get("audit") or {}).get("redaction_count"),
+			"provider_response_id_hash": audit.get("response_id_hash"),
+			"provider_input_tokens": audit.get("input_tokens"),
+			"provider_output_tokens": audit.get("output_tokens"),
+			"provider_duration_ms": audit.get("duration_ms"),
+			"provider_redaction_count": audit.get("redaction_count"),
 		}
 	)
 	proposal.flags.from_control_plane = True
@@ -245,6 +248,9 @@ def _validate_response(response, request_payload, expected_proposal_type=PROPOSA
 	policy = response.get("policy") or {}
 	if policy.get("decision") != "draft_only" or policy.get("allowed_action") != "none" or not policy.get("reason"):
 		frappe.throw(_("The AI control plane response attempted an unsupported action."))
+	policy_category = policy.get("category") or policy.get("decision")
+	if policy_category != "draft_only":
+		frappe.throw(_("The AI control plane response used an unsupported policy category."))
 
 	model = response.get("model") or {}
 	if not all(model.get(field) for field in ("provider", "name", "prompt_version")):

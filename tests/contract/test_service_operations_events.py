@@ -60,9 +60,27 @@ class TestServiceOperationsEventContract(unittest.TestCase):
 					self.assertFalse(any(forbidden in field for field in field_names), forbidden)
 
 	def test_ai_review_event_cannot_authorize_erp_action(self):
-		payload = self.contract["payloads"]["AIProposalReviewed"]["properties"]
+		payload_schema = self.contract["payloads"]["AIProposalReviewed"]
+		payload = payload_schema["properties"]
+		self.assertFalse(payload_schema["additionalProperties"])
 		self.assertEqual(payload["policy_decision"]["const"], "draft_only")
 		self.assertEqual(payload["allowed_action"]["const"], "none")
+		self.assertCountEqual(
+			payload["proposal_status"]["enum"],
+			["Approved", "Rejected"],
+		)
+		# Review evidence only: no stock, invoice, or work-order mutation fields.
+		for forbidden in (
+			"sales_invoice",
+			"stock_entry",
+			"work_order_status",
+			"invoice_ready",
+			"post",
+			"submit",
+			"qty",
+			"amount",
+		):
+			self.assertNotIn(forbidden, payload)
 
 
 if __name__ == "__main__":

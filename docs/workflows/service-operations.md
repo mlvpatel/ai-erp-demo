@@ -53,15 +53,19 @@
   finance section is visible to the current role. When evidence is incomplete,
   the narrative headline states the gaps instead of implying a finished chain.
   The chronological timeline also includes closure exceptions and short
-  proposal context-hash stubs for replay comparison.
+  proposal context-hash stubs, plus `policy_category` and token/duration when
+  those audit fields were returned.
 - The Evidence Packet button (service manager or accounts roles) exports the
   chain as a sanitized JSON file through
   `ai_erp_service.evidence.get_evidence_packet`: identifiers, hashes, statuses,
-  citation ids, proposal `input_context_hash` idempotency rows, stock and
-  invoice links, and unresolved exceptions only. Technicians cannot export.
-  The export never contains draft text, prompts, provider responses, or
-  attachment contents, and a synthetic packet is technical evidence, not human
-  acceptance evidence.
+  citation hashes, `policy_category`, proposal `input_context_hash` idempotency
+  rows (including token/duration when present), stock and invoice links, and
+  unresolved exceptions only. Technicians cannot export. The export never
+  contains draft text, prompts, provider responses, or attachment contents, and
+  a synthetic packet is technical evidence, not human acceptance evidence.
+  Concurrent identical `input_context_hash` requests reuse one proposal without
+  a second provider call; AI Proposal approval remains review evidence only and
+  does not create stock or invoice records.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish

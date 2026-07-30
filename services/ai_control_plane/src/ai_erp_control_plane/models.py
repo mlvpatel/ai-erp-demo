@@ -65,6 +65,8 @@ class Policy(StrictModel):
 	decision: Literal["draft_only"]
 	allowed_action: Literal["none"]
 	reason: str = Field(min_length=1)
+	# Safe category for ledger/export metadata; matches decision for draft-only responses.
+	category: Literal["draft_only"] = "draft_only"
 
 
 class ModelMetadata(StrictModel):
