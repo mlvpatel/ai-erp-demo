@@ -14,6 +14,8 @@ Last known project state:
 - Current release claim: private zero-cost local synthetic **Demo Version**
   (`config/demo-version.json`; loop `docs/product/demo-version-loop.md`; stack
   `docs/product/demo-version-stack.md`)
+- Improvement plan (unique / governed / secure, agent-executable vs blocked):
+  `docs/product/improvement-plan-unique-governed-secure.md`
 - Current product target: governed AI-native field-service ERP for maintenance,
   installation, and repair firms with 10 to 100 technicians
 - Scorecard: see `config/field-service-9-scorecard.json` — current demo average
@@ -952,6 +954,8 @@ Keep Demo Version discoverability current when the loop or stack pins change:
 - `config/demo-version.json`
 - `docs/product/demo-version-loop.md`
 - `docs/product/demo-version-stack.md`
+- `docs/product/improvement-plan-unique-governed-secure.md` (when build
+  priority or agent-only ceiling notes change)
 
 Update these whenever behavior changes:
 
@@ -1026,10 +1030,17 @@ GitHub PR checks must be green before declaring a phase complete.
 
 ## Recommended implementation order
 
-Use this order unless a human owner changes priorities. Skip items already
-landed on `main` unless the remaining gap is polish/evals:
+For uniqueness vs SaaS copilots and an agent-only path toward ~8.5, prefer
+`docs/product/improvement-plan-unique-governed-secure.md` (Phases A–E, first
+three PRs). That plan reorders work so evidence ledger and deterministic ops
+intelligence land before live-provider dependency.
 
-1. Phase 3A: provider readiness and live-evaluation gate (still open).
+Classic roadmap order (still valid when a human prioritizes provider readiness
+first). Skip items already landed on `main` unless the remaining gap is
+polish/evals:
+
+1. Phase 3A: provider readiness and live-evaluation gate (still open;
+   blocked on credentials for live aggregates).
 2. Phase 3B: deepen retrieval evals/abstention — foundation already on main.
 3. Phase 3C: Proposal v2 and replay metadata polish.
 4. Phase 4: evidence chain/packet/timeline polish into a finished ledger UX.
@@ -1041,11 +1052,12 @@ landed on `main` unless the remaining gap is polish/evals:
 
 Reasoning:
 
-- Provider/retrieval/replay improvements make every later AI feature safer.
-- Evidence-to-cash is the flagship workflow and should come before broad
-  multi-industry work.
+- Evidence-to-cash is the flagship differentiator and should lead agent-only
+  work when credentials are absent.
+- Provider/retrieval/replay hardening still makes every later AI feature safer;
+  live eval waits on secrets.
 - Margin leakage is immediately valuable and uses existing service data.
-- Scheduling optimizer should start deterministic before AI explanation.
+- Scheduling optimizer should stay deterministic before AI explanation expands.
 - Production proof should wait until the product workflow is worth piloting and
   external approvals are available.
 

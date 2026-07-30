@@ -44,6 +44,10 @@ invoice-ready, and draft-invoiced work order.
 - Network copyleft: repository-owned code is licensed under
   `AGPL-3.0-only`; upstream dependencies retain their own licenses.
 
+Build order that keeps those claims hard (proposal-only, ledger-first,
+gates, no SaaS-copilot copy):
+[`improvement-plan-unique-governed-secure.md`](improvement-plan-unique-governed-secure.md).
+
 ## Demo story
 
 1. A customer has a service need at a location.
