@@ -44,6 +44,8 @@ installation, and repair firms with 10 to 100 technicians.
 
 - Use `docs/product/field-service-9-target.md` as the target definition.
 - Use `config/field-service-9-scorecard.json` as the machine-readable scorecard.
+- Use `docs/product/improvement-plan-unique-governed-secure.md` for the
+  uniqueness / governance / security build order (agent-executable vs blocked).
 - Validate product assumptions with the design-partner template in
   `docs/discovery/design-partner-validation-template.md`.
 - Keep distribution and light manufacturing as `configured_demo` until a design
