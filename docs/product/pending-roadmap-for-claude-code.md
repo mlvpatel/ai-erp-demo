@@ -1035,8 +1035,12 @@ polish/evals:
 1. Phase 3A: provider readiness and live-evaluation gate (still open;
    blocked on credentials for live aggregates).
 2. Phase 3B: deepen retrieval evals/abstention — foundation already on main.
-3. Phase 3C: Proposal v2 and replay metadata polish.
-4. Phase 4: evidence chain/packet/timeline polish into a finished ledger UX.
+3. Phase 3C: Proposal v2 and replay metadata polish — residual landed
+   (`policy_category`, citation hashes, token/duration, concurrent
+   context-hash reuse, invoice-handoff packet). Partner packet review still
+   open.
+4. Phase 4: evidence chain/packet/timeline polish into a finished ledger UX
+   (core path landed; partner packet review still open).
 5. Phase 6B: margin leakage guardian productization (deterministic helpers exist).
 6. Phase 5: scheduling optimizer polish; explanation/recovery drafts exist.
 7. Phase 6A: repair-memory eval quality (proposal type exists).

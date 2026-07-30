@@ -11,6 +11,7 @@ from frappe.utils import now_datetime
 IMMUTABLE_FIELDS = {
 	"proposal_type",
 	"policy_outcome",
+	"policy_category",
 	"policy_reason",
 	"reference_doctype",
 	"reference_name",
@@ -29,6 +30,7 @@ IMMUTABLE_FIELDS = {
 	"provider_duration_ms",
 	"provider_redaction_count",
 }
+ALLOWED_POLICY_CATEGORIES = {"draft_only"}
 ALLOWED_PROPOSAL_TYPES = {
 	"Service Closeout Summary",
 	"Scheduling Explanation",
@@ -53,6 +55,8 @@ class AIProposal(Document):
 			frappe.throw(_("AI Proposals can only be created from the validated control-plane boundary."))
 		if self.proposal_status != "Draft" or self.policy_outcome != "Draft Only":
 			frappe.throw(_("New AI Proposals must be draft-only."))
+		if self.policy_category not in ALLOWED_POLICY_CATEGORIES:
+			frappe.throw(_("The proposal policy category is outside the registered allowlist."))
 		if self.proposal_type not in ALLOWED_PROPOSAL_TYPES:
 			frappe.throw(_("The proposal type is outside the registered policy allowlist."))
 		if not self.sources:
