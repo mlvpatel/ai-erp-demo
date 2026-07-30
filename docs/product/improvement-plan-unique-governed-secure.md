@@ -214,7 +214,8 @@ private aggregates exist.
 **Success evidence:** e2e mobile specs green; authorization negatives still
 pass.
 
-**Scorecard levers:** mobile-field-execution (6.1). Offline remains deferred.
+**Scorecard levers:** mobile-field-execution (7.8 after online depth). Offline
+remains deferred.
 
 ### Phase E — Claim hygiene and release truthfulness
 
@@ -259,7 +260,7 @@ scores invented. Order maximizes uniqueness and score delta.
 | Days 1–21 | Phase A ledger + replay metadata + fixtures | ledger 8.2→~8.8; replay 8.0→~8.6 |
 | Days 22–42 | Phase B margin + scheduling + recovery polish | margin 7.8→~8.5; scheduling 7.5→~8.3; recovery 8.0→~8.5 |
 | Days 43–63 | Phase C synthetic repair-memory + provider contract edges | repair memory 6.5→~7.6; contract refusal coverage |
-| Days 64–84 | Phase D mobile online depth | mobile 6.1→~7.8 |
+| Days 64–84 | Phase D mobile online depth | mobile 6.1→7.8 (landed) |
 | Days 85–90 | Phase E scorecard/docs/Demo Version resync | governed release 7.3→~7.8; average toward **~8.5** if evidence supports each bump |
 
 Rough check if those land: ~8.8 + 8.5 + 8.5 + 7.6 + 8.6 + 8.3 + 7.8 + 7.8

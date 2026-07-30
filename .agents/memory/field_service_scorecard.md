@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.8 / 10
+- **Current Demo Average Score**: 8.0 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -29,6 +29,10 @@
   (synthetic history corpus, weak-evidence abstention, unassigned /
   unrelated-customer retrieval edges, contact/injection sanitization, browser
   citation match). Live provider aggregate eval remains blocked on credentials.
+- Phase D online mobile depth moved mobile-field-execution 6.1 → 7.8
+  (390×844 list/time/parts/inspection/attachment/closeout/cannot-close,
+  validation copy, forbidden-field matrix, IndexedDB still gated off). Field
+  UAT and offline drafts remain open before ≥9.0.
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
@@ -80,10 +84,13 @@
      e2e, feedback rollup without auto-assign or auto-rescore, and
      workload-then-id tie-breakers are covered. Partner UX review remains open.
 
-7. **Mobile Field Execution** (Current: 6.1 / Target: 9.0)
-   - *Status*: Partly Implemented. Online mobile CSS enforces 44px targets and
-     readable validation copy; browser tests assert accessible names at
-     390 by 844. IndexedDB offline drafts remain intentionally gated off.
+7. **Mobile Field Execution** (Current: 7.8 / Target: 9.0)
+   - *Status*: Partly Implemented. Desk CSS covers sticky actions, attach
+     controls, list rows, and grid cards at phone width. Playwright at
+     390 by 844 walks assigned list, time, parts, inspection, attachment,
+     closeout, cannot-close, validation copy, and a forbidden-field matrix.
+     IndexedDB offline drafts remain intentionally gated off
+     (`mobile_helpers.js` not in `app_include_js`).
 
 8. **Governed Demo-to-Pilot Release** (Current: 7.3 / Target: 9.0)
    - *Status*: Partly Implemented. Demo Version packaging
