@@ -114,20 +114,24 @@ manager owns the recovery action and records the outcome through review.
 ## Margin leakage categories
 
 The Service Profitability report classifies each work order with deterministic
-margin-risk categories: missing billable time, zero-rate labor, missing part
-bill rate, part cost above bill rate, unknown cost basis, warranty risk, failed
-inspection, unresolved exception, and repeat visit risk inside a thirty-day
-window. Classification never invents a margin: missing cost data becomes an
-unknown-cost category instead of a number.
+margin-risk categories: missing billable time, discount / zero-rate labor,
+missing part bill rate, part cost above bill rate, unknown cost basis, warranty
+risk, failed inspection, unresolved exception, and repeat visit risk inside a
+thirty-day window. Classification never invents a margin: missing cost data
+becomes an unknown-cost category instead of a number. Each category carries
+source evidence (hours, part items, neighbor work orders, open exceptions) into
+the manager/finance evidence chain and packet.
 
 Managers and finance users can open **Margin Leakage Summary** from a Service
 Work Order. The dialog shows category counts, a capped high-risk queue (worst
-margin first), and an optional single-category filter. When the scan hits the
-500-row page limit, or the high-risk list hits its 50-row cap, the dialog states
-that counts or the queue may understate the full set. The scan orders by newest
-creation first and only flags truncation when more than the page limit exists.
-Technicians cannot call the summary API or see the button. The summary never
-changes billing records.
+margin first) with evidence snippets, and filters for risk category, status, and
+creation date range. When the scan hits the 500-row page limit, or the high-risk
+list hits its 50-row cap, the dialog states that counts or the queue may
+understate the full set. The scan orders by newest creation first and only flags
+truncation when more than the page limit exists. The profitability report uses
+the same honesty rule at its 10,000-row bound and is visible to Accounts roles
+as well as Service Managers. Technicians cannot call the summary API, open the
+button, or run the report. The summary never changes billing records.
 
 ## Billing controls
 

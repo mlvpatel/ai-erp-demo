@@ -4,17 +4,29 @@ import frappe
 from frappe import _
 
 from ai_erp_service.margin_risk import MARGIN_RISK_CATEGORIES, annotate_margin_risks
-from ai_erp_service.service_utils import MANAGER_ROLES, require_any_role
+from ai_erp_service.service_utils import FINANCE_ROLES, MANAGER_ROLES, require_any_role
+
+PROFITABILITY_PAGE_LENGTH = 10_000
 
 
 def execute(filters=None):
-	require_any_role(MANAGER_ROLES, "Only a service manager can view service profitability.")
+	require_any_role(
+		(*MANAGER_ROLES, *FINANCE_ROLES),
+		"Only a service manager or finance user can view service profitability.",
+	)
 	filters = frappe._dict(filters or {})
 	query_filters = {}
 	if filters.status:
 		query_filters["status"] = filters.status
 	if filters.customer:
 		query_filters["customer"] = filters.customer
+	if filters.from_date:
+		query_filters["creation"] = [">=", filters.from_date]
+	if filters.to_date:
+		if "creation" in query_filters:
+			query_filters["creation"] = ["between", [filters.from_date, filters.to_date]]
+		else:
+			query_filters["creation"] = ["<=", filters.to_date]
 
 	rows = frappe.get_list(
 		"Service Work Order",
@@ -40,8 +52,20 @@ def execute(filters=None):
 		order_by="modified desc",
 		# Bounded by the tracked full-capacity profile: a filtered manager view
 		# must return every permitted row at 5,000 work orders with headroom.
-		limit=10_000,
+		# Fetch limit+1 so exactly PROFITABILITY_PAGE_LENGTH rows is not truncation.
+		limit=PROFITABILITY_PAGE_LENGTH + 1,
 	)
+	truncated = len(rows) > PROFITABILITY_PAGE_LENGTH
+	if truncated:
+		rows = rows[:PROFITABILITY_PAGE_LENGTH]
+		frappe.msgprint(
+			_(
+				"Showing the first {0} work orders. Narrow status, customer, or date filters; "
+				"counts may understate the full queue."
+			).format(PROFITABILITY_PAGE_LENGTH),
+			indicator="orange",
+			alert=True,
+		)
 	annotated = annotate_margin_risks(rows)
 	risk_category = (filters.margin_risk_category or "").strip()
 	if risk_category:

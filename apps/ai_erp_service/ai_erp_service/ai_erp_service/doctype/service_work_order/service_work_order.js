@@ -141,7 +141,7 @@ frappe.ui.form.on("Service Work Order", {
 
 const MARGIN_RISK_LABELS = {
 	missing_billable_time: "Missing billable time",
-	zero_rate_labor: "Zero-rate labor",
+	zero_rate_labor: "Discount / zero-rate labor",
 	missing_part_bill_rate: "Missing part bill rate",
 	part_cost_above_bill_rate: "Part cost above bill rate",
 	unknown_cost_basis: "Unknown cost basis",
@@ -150,6 +150,18 @@ const MARGIN_RISK_LABELS = {
 	unresolved_exception: "Unresolved exception",
 	repeat_visit_risk: "Repeat visit risk",
 };
+
+const MARGIN_STATUS_OPTIONS = [
+	"",
+	"Draft",
+	"Scheduled",
+	"In Progress",
+	"Closeout Submitted",
+	"Cannot Close",
+	"Closed",
+	"Invoice Ready",
+	"Cancelled",
+];
 
 let margin_leakage_request = null;
 let margin_leakage_dialog = null;
@@ -175,13 +187,70 @@ function resolve_margin_risk_category(label, categories) {
 	);
 }
 
-function show_margin_leakage_summary(risk_category) {
+function format_margin_risk_evidence(detail) {
+	const evidence = (detail && detail.evidence) || {};
+	const category = (detail && detail.category) || "";
+	if (category === "repeat_visit_risk") {
+		const neighbors = evidence.neighbor_work_orders || [];
+		return neighbors.length
+			? __("Neighbors: {0}", [neighbors.slice(0, 3).join(", ")])
+			: __("Repeat visit window match");
+	}
+	if (category === "unknown_cost_basis") {
+		const items = (evidence.items || []).map((row) => row.item).filter(Boolean);
+		return items.length
+			? __("Items without cost: {0}", [items.slice(0, 3).join(", ")])
+			: __("Missing stock unit cost");
+	}
+	if (category === "missing_billable_time") {
+		return __("Closeout status {0} with no billable hours", [evidence.status || ""]);
+	}
+	if (category === "zero_rate_labor") {
+		return __("{0}h at hourly rate {1}", [
+			String(evidence.billable_hours ?? 0),
+			String(evidence.hourly_rate ?? 0),
+		]);
+	}
+	if (category === "unresolved_exception") {
+		const exceptions = evidence.exceptions || [];
+		return exceptions.length
+			? __("Open exceptions: {0}", [exceptions.slice(0, 3).join(", ")])
+			: __("Open closure exception");
+	}
+	if (category === "part_cost_above_bill_rate") {
+		const items = (evidence.items || []).map((row) => row.item).filter(Boolean);
+		return items.length
+			? __("Cost above bill: {0}", [items.slice(0, 3).join(", ")])
+			: __("Part cost above bill rate");
+	}
+	if (category === "missing_part_bill_rate") {
+		const items = evidence.items || [];
+		return items.length
+			? __("Missing bill rate: {0}", [items.slice(0, 3).join(", ")])
+			: __("Missing part bill rate");
+	}
+	if (category === "warranty_risk") {
+		return __("Warranty status: {0}", [evidence.warranty_status || ""]);
+	}
+	if (category === "failed_inspection") {
+		return __("Inspection: {0}", [evidence.inspection_result || ""]);
+	}
+	return evidence.source || "";
+}
+
+function show_margin_leakage_summary(filters) {
 	if (margin_leakage_request) {
 		return;
 	}
+	const next = filters || {};
 	margin_leakage_request = frappe.call({
 		method: "ai_erp_service.margin_risk.margin_leakage_summary",
-		args: { risk_category: risk_category || "" },
+		args: {
+			risk_category: next.risk_category || "",
+			status: next.status || "",
+			from_date: next.from_date || "",
+			to_date: next.to_date || "",
+		},
 		freeze: true,
 		freeze_message: __("Loading margin leakage summary..."),
 		callback(response) {
@@ -193,7 +262,7 @@ function show_margin_leakage_summary(risk_category) {
 				});
 				return;
 			}
-			render_margin_leakage_summary(response.message, risk_category || "");
+			render_margin_leakage_summary(response.message, next);
 		},
 		error() {
 			margin_leakage_request = null;
@@ -201,8 +270,13 @@ function show_margin_leakage_summary(risk_category) {
 	});
 }
 
-function render_margin_leakage_summary(summary, selected_category) {
+function render_margin_leakage_summary(summary, selected) {
 	const escape = frappe.utils.escape_html;
+	const selected_filters = selected || {};
+	const selected_category = selected_filters.risk_category || summary.risk_category || "";
+	const selected_status = selected_filters.status || summary.status || "";
+	const selected_from = selected_filters.from_date || summary.from_date || "";
+	const selected_to = selected_filters.to_date || summary.to_date || "";
 	const counts = summary.category_counts || {};
 	const categories = summary.available_categories || Object.keys(MARGIN_RISK_LABELS);
 	const count_rows = categories
@@ -215,8 +289,16 @@ function render_margin_leakage_summary(summary, selected_category) {
 		})
 		.join("");
 	const order_rows = (summary.high_risk_orders || [])
-		.map(
-			(row) => `<tr>
+		.map((row) => {
+			const detail_lines = (row.risk_details || [])
+				.map(
+					(detail) =>
+						`<div><strong>${escape(margin_risk_label(detail.category))}</strong>: ${escape(
+							format_margin_risk_evidence(detail),
+						)}</div>`,
+				)
+				.join("");
+			return `<tr>
 				<td>
 					<a href="/app/service-work-order/${encodeURIComponent(row.name || "")}">
 						${escape(row.name || "")}
@@ -225,9 +307,12 @@ function render_margin_leakage_summary(summary, selected_category) {
 				<td>${escape(row.customer || "")}</td>
 				<td>${escape(row.status || "")}</td>
 				<td>${escape(String(row.margin_percent ?? ""))}</td>
-				<td>${escape((row.risks || []).map(margin_risk_label).join(", "))}</td>
-			</tr>`,
-		)
+				<td>${
+					detail_lines ||
+					escape((row.risks || []).map(margin_risk_label).join(", "))
+				}</td>
+			</tr>`;
+		})
 		.join("");
 	const truncation = summary.truncated
 		? `<div class="alert alert-warning" role="status">
@@ -249,16 +334,28 @@ function render_margin_leakage_summary(summary, selected_category) {
 			)}
 		</div>`
 		: "";
+	const filter_bits = [];
+	if (selected_category) {
+		filter_bits.push(
+			`<strong>${__("Category")}:</strong> ${escape(margin_risk_label(selected_category))}`,
+		);
+	}
+	if (selected_status) {
+		filter_bits.push(`<strong>${__("Status")}:</strong> ${escape(__(selected_status))}`);
+	}
+	if (selected_from || selected_to) {
+		filter_bits.push(
+			`<strong>${__("Dates")}:</strong> ${escape(selected_from || "…")} → ${escape(
+				selected_to || "…",
+			)}`,
+		);
+	}
 	const region_label = escape(__("Margin Leakage Summary"));
 	const html = `
 		<div class="margin-leakage-summary" role="region" aria-label="${region_label}">
 			<p>
 				<strong>${__("Orders scanned")}:</strong> ${escape(String(summary.total_orders || 0))}
-				${
-					selected_category
-						? ` · <strong>${__("Filter")}:</strong> ${escape(margin_risk_label(selected_category))}`
-						: ""
-				}
+				${filter_bits.length ? ` · ${filter_bits.join(" · ")}` : ""}
 			</p>
 			${truncation}
 			${high_risk_truncation}
@@ -274,7 +371,7 @@ function render_margin_leakage_summary(summary, selected_category) {
 						<th>${__("Customer")}</th>
 						<th>${__("Status")}</th>
 						<th>${__("Margin %")}</th>
-						<th>${__("Risks")}</th>
+						<th>${__("Risks and evidence")}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -306,6 +403,25 @@ function render_margin_leakage_summary(summary, selected_category) {
 				options: `\n${category_options}`,
 				default: selected_category ? margin_risk_option_label(selected_category) : "",
 			},
+			{
+				fieldtype: "Select",
+				fieldname: "status",
+				label: __("Status filter"),
+				options: MARGIN_STATUS_OPTIONS.join("\n"),
+				default: selected_status,
+			},
+			{
+				fieldtype: "Date",
+				fieldname: "from_date",
+				label: __("From date"),
+				default: selected_from,
+			},
+			{
+				fieldtype: "Date",
+				fieldname: "to_date",
+				label: __("To date"),
+				default: selected_to,
+			},
 			{ fieldtype: "HTML", fieldname: "summary_html" },
 		],
 		primary_action_label: __("Apply Filter"),
@@ -314,7 +430,12 @@ function render_margin_leakage_summary(summary, selected_category) {
 			const next_category = resolve_margin_risk_category(label, categories);
 			dialog.hide();
 			margin_leakage_dialog = null;
-			show_margin_leakage_summary(next_category);
+			show_margin_leakage_summary({
+				risk_category: next_category,
+				status: (values && values.status) || "",
+				from_date: (values && values.from_date) || "",
+				to_date: (values && values.to_date) || "",
+			});
 		},
 	});
 	margin_leakage_dialog = dialog;
@@ -506,6 +627,7 @@ function render_evidence_replay(chain, timeline) {
 	const latest = proposals.length ? proposals[proposals.length - 1] : null;
 	const finance = sections.finance || null;
 	const margin_risks = (finance && finance.margin_risks) || [];
+	const margin_details = (finance && finance.margin_risk_details) || [];
 
 	const summary_rows = [
 		[__("Evidence complete"), completeness.complete ? __("Yes") : __("No")],
@@ -559,11 +681,23 @@ function render_evidence_replay(chain, timeline) {
 		)
 		.join("");
 
+	const margin_detail_html = margin_details
+		.map(
+			(detail) => `<li>
+				<strong>${escape(margin_risk_label(detail.category))}</strong>
+				<span>${escape(format_margin_risk_evidence(detail))}</span>
+			</li>`,
+		)
+		.join("");
 	const margin_html =
 		finance && margin_risks.length
 			? `<div class="alert alert-warning margin-risk-panel" role="status">
 				<strong>${__("Margin leakage categories")}:</strong>
-				${escape(margin_risks.join(", "))}
+				${
+					margin_detail_html
+						? `<ul class="margin-risk-evidence-list">${margin_detail_html}</ul>`
+						: escape(margin_risks.join(", "))
+				}
 			</div>`
 			: "";
 
