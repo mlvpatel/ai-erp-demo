@@ -15,8 +15,10 @@ The helper prepares local Technician, Dispatcher, Service Manager, Accounts
 User, and AI Proposal Approver identities, runs Chromium in the Compose network,
 and removes the test container. Primary role journeys use visible Frappe forms
 and controls at desktop and mobile viewports, including keyboard focus,
-validation feedback, attachment upload, draft-only AI review, manager invoice
-denial, and finance-only idempotent draft invoicing. The stock race gate uses
+validation feedback, attachment upload, the 390 by 844 technician journey
+(time, parts, inspection, closeout, cannot-close, forbidden-field matrix),
+draft-only AI review, manager invoice denial, and finance-only idempotent draft
+invoicing. Offline IndexedDB helpers stay gated off. The stock race gate uses
 ten concurrent calls across five authenticated sessions because concurrency is
 a transport-level invariant rather than a single-browser interaction.
 The synthetic Service Manager receives Stock User but deliberately receives no

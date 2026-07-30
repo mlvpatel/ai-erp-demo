@@ -4,6 +4,14 @@
     padding: 8px !important;
   }
 
+  /* Keep page actions reachable while scrolling long execution forms */
+  .page-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--fg-color, #ffffff);
+  }
+
   /* Large touch targets for form actions the technician must hit */
   .form-page .btn,
   .form-page .btn-primary,
@@ -12,7 +20,16 @@
   .page-head .btn.primary-action,
   .page-head .standard-actions .btn,
   .page-head .custom-actions .btn,
-  .modal .btn {
+  .modal .btn,
+  .frappe-control[data-fieldtype="Attach"] .btn,
+  .frappe-control[data-fieldtype="Attach"] .attached-file .btn,
+  .grid-add-row,
+  .grid-remove-rows,
+  .grid-footer .btn,
+  .list-row-head .btn,
+  .list-paging-area .btn,
+  .filter-button,
+  .sort-selector .btn {
     min-height: 44px !important;
     font-size: 1rem !important;
     border-radius: 8px !important;
@@ -25,7 +42,11 @@
   .grid-row .form-control:focus-visible,
   select.form-control:focus-visible,
   a:focus-visible,
-  .modal .btn:focus-visible {
+  .modal .btn:focus-visible,
+  .frappe-control[data-fieldtype="Attach"] .btn:focus-visible,
+  .grid-add-row:focus-visible,
+  .list-row-container:focus-within,
+  .list-row:focus-visible {
     outline: 2px solid #0f172a !important;
     outline-offset: 2px !important;
     box-shadow: none !important;
@@ -49,23 +70,44 @@
   .modal .modal-body,
   .modal .msgprint,
   .form-message,
-  .form-page .help-box {
+  .form-page .help-box,
+  .msgprint {
     font-size: 1rem !important;
     line-height: 1.45 !important;
+    word-break: break-word;
   }
 
   .form-page .control-label,
-  .form-page .frappe-control > .checkbox > label {
+  .form-page .frappe-control > .checkbox > label,
+  .grid-row .control-label {
     font-size: 0.95rem !important;
     line-height: 1.35 !important;
   }
 
-  /* Compact grid table cards on small screens */
-  .form-grid .grid-heading_row {
+  /* Assigned list: readable subject rows without horizontal clipping */
+  .list-row-container,
+  .list-row {
+    min-height: 48px;
+    align-items: center;
+  }
+
+  .list-row .level-left,
+  .list-row-col,
+  .list-subject,
+  .list-row-container .ellipsis {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    line-height: 1.35 !important;
+    font-size: 1rem !important;
+  }
+
+  /* Compact grid table cards on small screens (data rows only) */
+  .form-grid .grid-heading-row {
     display: none;
   }
 
-  .form-grid .grid-row {
+  .form-grid .grid-body .rows .grid-row {
     display: flex;
     flex-direction: column;
     padding: 12px;
@@ -75,20 +117,48 @@
     background: #ffffff;
   }
 
-  .form-grid .grid-row:focus-within {
+  .form-grid .grid-body .rows .grid-row:focus-within {
     border-color: #0f172a;
   }
 
+  .form-grid .grid-body .rows .grid-row .row-index,
+  .form-grid .grid-body .rows .grid-row .row-check {
+    margin-bottom: 4px;
+  }
+
+  .form-grid .grid-body .data-row {
+    gap: 6px;
+  }
+
+  /* Attach control: keep upload affordance full-width and tappable */
+  .frappe-control[data-fieldtype="Attach"] .control-input,
+  .frappe-control[data-fieldtype="Attach"] .attached-file {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .frappe-control[data-fieldtype="Attach"] .btn,
+  .frappe-control[data-fieldtype="Attach"] .attached-file .ellipsis {
+    max-width: 100%;
+  }
+
+  /* Offline draft banner styles stay inert until a gated helper ships */
   .offline-draft-banner {
+    display: none;
     background-color: #fef3c7;
     color: #92400e;
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 0.85rem;
     margin-bottom: 12px;
-    display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .offline-draft-banner.is-active {
+    display: flex;
   }
 
   /* Keep custom action buttons reachable without hover-only disclosure */
@@ -97,5 +167,10 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .form-dashboard-section,
+  .form-section .section-head {
+    font-size: 1rem !important;
   }
 }

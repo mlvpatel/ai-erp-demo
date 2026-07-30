@@ -693,21 +693,13 @@ Scope:
 - Make technician workflow fast and safe on mobile.
 - Keep Frappe-native UI unless discovery proves a separate app is needed.
 
-Implementation tasks:
+Implementation status (online path):
 
-1. Improve Playwright mobile viewport coverage.
-2. Cover:
-   - assigned work list
-   - execution state
-   - time entry
-   - parts request/use
-   - inspection result
-   - closeout notes
-   - attachment metadata
-   - validation messages
-   - cannot-close path
-3. Add keyboard/accessibility checks.
-4. Add offline-safe draft capture only after UAT proves the need.
+1. Playwright at 390 by 844 covers assigned list, execution state, time,
+   parts, inspection, closeout notes, attachment upload, validation copy,
+   cannot-close, forbidden-field matrix, and keyboard/accessible-name checks.
+2. Desk CSS enlarges attach/list/grid targets and keeps validation readable.
+3. Offline-safe draft capture remains gated off until field UAT asks for it.
 
 Acceptance tests:
 
@@ -715,6 +707,7 @@ Acceptance tests:
 - Text does not overflow critical controls.
 - Validation messages point to missing fields.
 - No finance/customer/assignment controls are editable by technician.
+- IndexedDB offline helpers stay unloaded.
 
 ## Phase 7: Production-pilot proof
 
@@ -1047,7 +1040,9 @@ polish/evals:
 5. Phase 6B: margin leakage guardian productization (deterministic helpers exist).
 6. Phase 5: scheduling optimizer polish; explanation/recovery drafts exist.
 7. Phase 6A: repair-memory eval quality (proposal type exists).
-8. Phase 6C: deeper mobile field execution — offline drafts remain unshipped.
+8. Phase 6C: deeper online mobile field execution landed (list/time/parts/
+   inspection/attachment/closeout/cannot-close at 390×844); offline drafts
+   remain unshipped.
 9. Phase 7: production-pilot proof after external approvals.
 
 Reasoning:

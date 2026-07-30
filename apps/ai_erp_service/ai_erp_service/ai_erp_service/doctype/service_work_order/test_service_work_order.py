@@ -833,14 +833,17 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertIn("high_risk_orders", summary)
 		self.assertIn("truncated", summary)
 		self.assertIn("page_limit", summary)
-		self.assertFalse(summary["truncated"])
 		self.assertEqual(summary["available_categories"], list(MARGIN_RISK_CATEGORIES))
 		self.assertGreaterEqual(summary["total_orders"], 1)
-		self.assertGreaterEqual(summary["category_counts"].get("failed_inspection", 0), 1)
-		# Unfiltered high-risk queue is capped; use the category filter to reach
-		# this work order's evidence payload among a large demo/test site.
+		# Unfiltered scans on a long-lived local site may hit the page limit;
+		# truncation honesty itself is covered in
+		# test_margin_leakage_summary_truncation_and_high_risk_caps.
+		if summary["truncated"]:
+			self.assertEqual(summary["total_orders"], summary["page_limit"])
+		# Category filter reaches this work order among a large demo/test site.
 		filtered = margin_leakage_summary(risk_category="failed_inspection")
 		self.assertEqual(filtered["risk_category"], "failed_inspection")
+		self.assertGreaterEqual(filtered["category_counts"].get("failed_inspection", 0), 1)
 		self.assertTrue(filtered["high_risk_orders"])
 		self.assertTrue(
 			all("failed_inspection" in row["risks"] for row in filtered["high_risk_orders"])

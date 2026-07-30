@@ -278,9 +278,9 @@ def _upsert_technician_capability(technician, skills, territories, van_warehouse
 
 def _ensure_e2e_other_work_order(seed):
 	"""Create a fresh unassigned record so assignment validation is repeatable."""
-	# Keep this window away from the seeded technician's current scheduled demo
-	# order so skill-matched suggestions still have an available candidate.
-	start = add_to_date(now_datetime(), days=2)
+	# Keep this window clear of same-day / next-week e2e pollution so the
+	# skill-matched technician stays available for Suggest Technicians.
+	start = add_to_date(now_datetime(), days=21)
 	document = frappe.get_doc(
 		{
 			"doctype": "Service Work Order",

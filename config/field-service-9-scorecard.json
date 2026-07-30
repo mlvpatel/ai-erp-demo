@@ -11,7 +11,7 @@
   "process_owner": "Service Manager",
   "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
   "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
-  "current_demo_average_score": 7.8,
+  "current_demo_average_score": 8.0,
   "target_average_score": 9.1,
   "requirements_status": {
     "verified": [
@@ -22,7 +22,8 @@
       "Replay harness fixtures cover closeout, repair memory, scheduling explanation, and exception recovery.",
       "Synthetic repair-memory history corpus and retrieval abstention edges are covered without live OpenAI.",
       "Bounded scheduling uses van-warehouse readiness, skill/territory/SLA matching, and feedback rollups without auto-assign.",
-      "Demo Version loop and stack docs label the synthetic product without production claims."
+      "Demo Version loop and stack docs label the synthetic product without production claims.",
+      "Online technician mobile Desk path at 390 by 844 covers list, time, parts, inspection, attachment, closeout, cannot-close, validation copy, and forbidden-field denial; IndexedDB offline drafts stay gated off."
     ],
     "assumed": [
       "Small and midsize field-service teams value evidence replay more than generic chatbot breadth.",
@@ -211,21 +212,24 @@
       "id": "mobile-field-execution",
       "title": "Mobile field execution",
       "implementation_state": "partly_implemented",
-      "current_score": 6.1,
+      "current_score": 7.8,
       "target_score": 9.0,
       "role_owner": "Technician",
       "input": "Assigned work order, execution state, time, requested parts, notes, attachments, and permitted closeout fields.",
       "output": "Fast technician completion flow with no customer, finance, scheduling, assignment, share, or email privilege leakage.",
       "decision_logic": "Technicians may update execution fields only for assigned work orders; managers retain customer, billing, and assignment fields.",
-      "validation_gate": "Desktop and mobile browser tests prove visible controls, 44px touch targets, accessible names on status and cannot-close reason, readable validation copy at 390 by 844, forbidden fields, attachments, and unauthorized access denial.",
+      "validation_gate": "Desktop and mobile browser tests prove the 390 by 844 technician path: assigned list, time, parts, inspection, closeout attachment, cannot-close, 44px targets, accessible names, readable validation copy, forbidden-field matrix denial, and IndexedDB offline helpers still unloaded.",
       "feedback_loop": "Validation errors return the technician to the exact missing execution field.",
       "failure_handling": "Attachment or validation failure leaves the work order open with no partial invoice or stock side effect.",
-      "optimization_step": "Add offline-safe draft capture only after field UAT proves the online mobile flow; IndexedDB remains gated off.",
+      "optimization_step": "Add offline-safe draft capture only after field UAT proves the online mobile flow; IndexedDB remains gated off and not wired through app_include_js.",
       "scalability_note": "Technician lists must filter by assigned work and avoid loading finance or unrelated customer data.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/public/css/mobile_field.css",
+        "apps/ai_erp_service/ai_erp_service/public/js/mobile_helpers.js",
+        "apps/ai_erp_service/ai_erp_service/hooks.py",
         "config/authorization-matrix.json",
-        "tests/e2e/service-operations.spec.ts"
+        "tests/e2e/service-operations.spec.ts",
+        "docs/workflows/service-operations.md"
       ]
     },
     {
