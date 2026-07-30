@@ -110,18 +110,8 @@ frappe.ui.form.on("Service Work Order", {
 		}
 
 		if (is_manager && frm.doc.status === "Cannot Close") {
-			frm.add_custom_button(__("Draft Recovery Steps"), async () => {
-				const response = await frappe.call({
-					method: "ai_erp_service.recovery.request_recovery_draft",
-					args: { name: frm.doc.name },
-					freeze: true,
-					freeze_message: __("Drafting cited recovery steps..."),
-				});
-				frappe.show_alert({
-					message: __("Recovery draft created for human review."),
-					indicator: "green",
-				});
-				frappe.set_route("Form", "AI Proposal", response.message.name);
+			frm.add_custom_button(__("Draft Recovery Steps"), () => {
+				show_recovery_draft_confirm(frm);
 			});
 		}
 
@@ -443,6 +433,43 @@ function render_margin_leakage_summary(summary, selected) {
 	dialog.show();
 }
 
+function scheduling_feedback_html(feedback) {
+	const escape = frappe.utils.escape_html;
+	const category_counts = (feedback && feedback.category_counts) || {};
+	const feedback_rows = Object.keys(category_counts)
+		.filter((category) => category_counts[category] > 0)
+		.map(
+			(category) =>
+				`<li>${escape(category)}: ${category_counts[category]}</li>`,
+		)
+		.join("");
+	if (!(feedback && feedback.total)) {
+		return `<div class="scheduling-feedback-summary" role="region" aria-label="${__(
+			"Rejection feedback",
+		)}">
+			<p class="text-muted">
+				${__("No rejection feedback recorded on this work order yet.")}
+			</p>
+			<p class="text-muted">
+				${__("Rejection categories roll up for review only; scores do not auto-update and no technician is assigned.")}
+			</p>
+		</div>`;
+	}
+	const truncated = feedback.truncated
+		? `<p class="text-muted">${__("Showing the newest bounded feedback scan; older comments may be omitted.")}</p>`
+		: "";
+	return `<div class="scheduling-feedback-summary" role="region" aria-label="${__(
+		"Rejection feedback",
+	)}">
+		<p><strong>${__("Recorded rejection feedback")}:</strong> ${feedback.total}</p>
+		<ul>${feedback_rows}</ul>
+		${truncated}
+		<p class="text-muted">
+			${__("Rejection categories roll up for review only; scores do not auto-update and no technician is assigned.")}
+		</p>
+	</div>`;
+}
+
 function show_technician_suggestions(frm, suggestions) {
 	const escape = frappe.utils.escape_html;
 	const rows = suggestions.candidates
@@ -468,28 +495,14 @@ function show_technician_suggestions(frm, suggestions) {
 	const excluded = suggestions.excluded
 		.map((row) => `<li>${escape(row.technician)}: ${escape(row.reason)}</li>`)
 		.join("");
-	const feedback = suggestions.feedback_summary || {};
-	const category_counts = feedback.category_counts || {};
-	const feedback_rows = Object.keys(category_counts)
-		.filter((category) => category_counts[category] > 0)
-		.map(
-			(category) =>
-				`<li>${escape(category)}: ${category_counts[category]}</li>`,
-		)
-		.join("");
-	const feedback_html = feedback.total
-		? `<div class="scheduling-feedback-summary" role="region" aria-label="${__(
-				"Rejection feedback",
-			)}">
-			<p><strong>${__("Recorded rejection feedback")}:</strong> ${feedback.total}</p>
-			<ul>${feedback_rows}</ul>
-			<p class="text-muted">
-				${__("Feedback informs future ranking review; it does not auto-assign.")}
-			</p>
-		</div>`
-		: `<p class="text-muted scheduling-feedback-summary">
-			${__("No rejection feedback recorded on this work order yet.")}
-		</p>`;
+	const capability_note =
+		suggestions.required_skill || suggestions.service_territory
+			? `<p class="text-muted">
+				${__("Required skill")}: ${escape(suggestions.required_skill || __("none"))};
+				${__("Territory")}: ${escape(suggestions.service_territory || __("none"))}.
+				${__("Missing capability evidence excludes a technician instead of hiding them.")}
+			</p>`
+			: "";
 	const dialog = new frappe.ui.Dialog({
 		title: __("Technician Suggestions"),
 		size: "large",
@@ -522,7 +535,8 @@ function show_technician_suggestions(frm, suggestions) {
 			<tbody>${rows || `<tr><td colspan="4">${__("No available technician")}</td></tr>`}</tbody>
 		</table>
 		${excluded ? `<p>${__("Excluded")}:</p><ul>${excluded}</ul>` : ""}
-		${feedback_html}
+		${capability_note}
+		${scheduling_feedback_html(suggestions.feedback_summary || {})}
 		<p>${escape(suggestions.assignment_note)}</p>
 		<p class="text-muted">
 			${__("Explain Schedule creates a draft-only cited proposal; it cannot assign a technician.")}
@@ -581,16 +595,61 @@ function capture_suggestion_rejection(frm, technician, parent_dialog) {
 			});
 			feedback.hide();
 			frappe.show_alert({
-				message: __("Rejection reason recorded for ranking feedback."),
+				message: __("Rejection reason recorded. Ranking scores are unchanged."),
 				indicator: "blue",
 			});
 			parent_dialog.$body
 				.find(`.suggestion-reject[data-technician="${frappe.utils.escape_html(technician)}"]`)
 				.prop("disabled", true)
 				.text(__("Rejected"));
+			const summary_response = await frappe.call({
+				method: "ai_erp_service.scheduling.suggestion_feedback_summary",
+				args: { name: frm.doc.name },
+			});
+			const summary_host = parent_dialog.$body.find(".scheduling-feedback-summary");
+			if (summary_host.length) {
+				summary_host.replaceWith(scheduling_feedback_html(summary_response.message || {}));
+			}
 		},
 	});
 	feedback.show();
+}
+
+function show_recovery_draft_confirm(frm) {
+	const escape = frappe.utils.escape_html;
+	const owner = frm.doc.closure_owner || __("unset");
+	const due = frm.doc.closure_due_date || __("unset");
+	const reason = frm.doc.cannot_close_reason || __("unset");
+	const exception = frm.doc.closure_exception || __("none");
+	const dialog = new frappe.ui.Dialog({
+		title: __("Draft Recovery Steps"),
+		primary_action_label: __("Create Draft"),
+		primary_action: async () => {
+			const response = await frappe.call({
+				method: "ai_erp_service.recovery.request_recovery_draft",
+				args: { name: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Drafting cited recovery steps..."),
+			});
+			dialog.hide();
+			frappe.show_alert({
+				message: __("Recovery draft created for human review."),
+				indicator: "green",
+			});
+			frappe.set_route("Form", "AI Proposal", response.message.name);
+		},
+	});
+	dialog.$body.html(`
+		<div class="recovery-owned-exception" role="region" aria-label="${__("Owned exception")}">
+			<p>${__("Open exception")}: <strong>${escape(exception)}</strong></p>
+			<p>${__("Owner")}: ${escape(owner)}</p>
+			<p>${__("Due date")}: ${escape(String(due))}</p>
+			<p>${__("Reason")}: ${escape(reason)}</p>
+			<p class="text-muted">
+				${__("Creates a cited draft-only proposal. Approving it cannot close the work order or resolve the exception.")}
+			</p>
+		</div>`);
+	dialog.show();
 }
 
 function show_evidence_replay_dialog(frm) {

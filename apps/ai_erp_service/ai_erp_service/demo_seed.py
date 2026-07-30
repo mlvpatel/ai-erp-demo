@@ -17,6 +17,7 @@ DEMO_PART_ITEM = "AI-ERP-DEMO-PART"
 DEMO_LABOR_ITEM = "AI-ERP-DEMO-LABOR"
 DEMO_UOM = "AI ERP Service Hour"
 DEMO_TECHNICIAN = "service.technician@example.test"
+DEMO_TECHNICIAN_ALT = "service.technician.alt@example.test"
 DEMO_MANAGER = "service.manager@example.test"
 DEMO_DISPATCHER = "service.dispatcher@example.test"
 DEMO_FINANCE = "service.finance@example.test"
@@ -99,6 +100,12 @@ def seed_service_demo():
 		first_name="Service",
 		last_name="Technician",
 		roles=("Service Technician", "AI Proposal Requester"),
+	)
+	_ensure_user(
+		DEMO_TECHNICIAN_ALT,
+		first_name="Service",
+		last_name="Technician Alt",
+		roles=("Service Technician",),
 	)
 	manager = _ensure_user(
 		DEMO_MANAGER,
@@ -189,6 +196,7 @@ def prepare_e2e_demo():
 	distribution_demo = seed_configured_demo("distribution")
 	manufacturing_demo = seed_configured_demo("light_manufacturing")
 	update_password(DEMO_TECHNICIAN, password, logout_all_sessions=True)
+	update_password(DEMO_TECHNICIAN_ALT, password, logout_all_sessions=True)
 	update_password(DEMO_MANAGER, password, logout_all_sessions=True)
 	update_password(DEMO_DISPATCHER, password, logout_all_sessions=True)
 	update_password(DEMO_FINANCE, password, logout_all_sessions=True)
@@ -197,6 +205,7 @@ def prepare_e2e_demo():
 		update_password(email, password, logout_all_sessions=True)
 	update_password(DEMO_DISTRIBUTION_USER, password, logout_all_sessions=True)
 	update_password(DEMO_MANUFACTURING_USER, password, logout_all_sessions=True)
+	_ensure_technician_capabilities(result["warehouse"])
 	other = _ensure_e2e_other_work_order(result)
 	full_workflow = _make_e2e_full_workflow_order(result)
 	proposal_concurrency = _make_e2e_proposal_concurrency_order(result)
@@ -204,6 +213,7 @@ def prepare_e2e_demo():
 	frappe.db.commit()
 	return {
 		"technician_user": DEMO_TECHNICIAN,
+		"technician_alt_user": DEMO_TECHNICIAN_ALT,
 		"manager_user": DEMO_MANAGER,
 		"dispatcher_user": DEMO_DISPATCHER,
 		"finance_user": DEMO_FINANCE,
@@ -224,9 +234,53 @@ def prepare_e2e_demo():
 	}
 
 
+def _ensure_technician_capabilities(warehouse):
+	"""Idempotent skill/territory/van profiles for scheduling e2e and demos."""
+	_upsert_technician_capability(
+		DEMO_TECHNICIAN,
+		skills="HVAC, Electrical",
+		territories="North",
+		van_warehouse=warehouse,
+	)
+	_upsert_technician_capability(
+		DEMO_TECHNICIAN_ALT,
+		skills="Plumbing",
+		territories="South",
+		van_warehouse="",
+	)
+
+
+def _upsert_technician_capability(technician, skills, territories, van_warehouse=""):
+	existing = frappe.db.get_value("Service Technician Capability", {"technician": technician})
+	if existing:
+		doc = frappe.get_doc("Service Technician Capability", existing)
+		doc.skills = skills
+		doc.territories = territories
+		doc.van_warehouse = van_warehouse or None
+		doc.active = 1
+		doc.save(ignore_permissions=True)
+		return doc.name
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Service Technician Capability",
+				"technician": technician,
+				"skills": skills,
+				"territories": territories,
+				"van_warehouse": van_warehouse or None,
+				"active": 1,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
 def _ensure_e2e_other_work_order(seed):
 	"""Create a fresh unassigned record so assignment validation is repeatable."""
-	start = now_datetime()
+	# Keep this window away from the seeded technician's current scheduled demo
+	# order so skill-matched suggestions still have an available candidate.
+	start = add_to_date(now_datetime(), days=2)
 	document = frappe.get_doc(
 		{
 			"doctype": "Service Work Order",
@@ -240,6 +294,10 @@ def _ensure_e2e_other_work_order(seed):
 	document.scheduled_start = start
 	document.scheduled_end = add_to_date(start, hours=1)
 	document.assigned_technician = None
+	document.required_skill = "HVAC"
+	document.service_territory = "North"
+	document.service_priority = "High"
+	document.sla_due_at = add_to_date(start, days=1)
 	document.status = "Draft"
 	document.save()
 	return document.name

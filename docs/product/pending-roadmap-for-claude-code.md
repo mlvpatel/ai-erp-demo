@@ -126,8 +126,6 @@ without fresh evidence:
   (privacy inventory, PII notes, DPA/DPIA templates, go/no-go checklist). Those
   artifacts are not counsel sign-off, GDPR compliance, or pilot approval.
 - Offline mobile drafts: intentionally not shipped (IndexedDB helper gated off).
-- Parts readiness uses service-location / part source warehouses; van-stock
-  technician profiles are not modeled.
 - Any claim of production readiness, GDPR compliance, or multi-industry ERP.
 
 Recently closed in-repo relative to the forge audit backlog (re-verify on the
@@ -141,10 +139,12 @@ branch you are shipping):
 - Evidence packet ledger-narrative polish and mobile focus/a11y CSS depth.
 - Scheduling rejection feedback category rollup in Suggest Technicians /
   `suggestion_feedback_summary` (no auto-rescoring).
+- Van-warehouse capability profiles and per-tech parts readiness when the
+  issue_parts primary bin is short; skill/territory/SLA scheduling e2e.
 - Evidence Replay Desk surface for compact ledger narrative stages
   (finance_handoff role-scoped).
 - Recovery refusal edges: parts-hold guidance, uncited-history drop,
-  injection/contact redaction.
+  injection/contact redaction; owned-exception Desk confirm before draft.
 - Scorecard/memory resync (demo average remains below 9).
 
 The following work remains to approach an average 9/10 field-service product.

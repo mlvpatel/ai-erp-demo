@@ -40,7 +40,7 @@ AI proposal records that ERPNext does not supply directly.
 | `Service Location` | `ai_erp_service` | Customer service site and optional default stock source. | ERPNext `Customer`, `Address`, `Warehouse`. |
 | `Service Request` | `ai_erp_service` | Intake record that can create a linked work order. | ERPNext `Customer`, `Contact`; custom `Service Location`; custom `Service Work Order`. |
 | `Service Work Order` | `ai_erp_service` | Central workflow record for scheduling, technician execution, closeout, parts, profitability, invoice readiness, and draft invoice link. | ERPNext `Customer`, `User`, `Item`, `Sales Invoice`; custom `Service Request`, `Service Location`, child time/part rows, closure exception; optional required skill/territory for propose-only scheduling. |
-| `Service Technician Capability` | `ai_erp_service` | One active skill/territory profile per technician for deterministic scheduling ranking. | ERPNext `User`. |
+| `Service Technician Capability` | `ai_erp_service` | One active skill/territory profile per technician for deterministic scheduling ranking, with optional van warehouse for parts-readiness only. | ERPNext `User`, optional `Warehouse`. |
 | `Service Work Order Time` | `ai_erp_service` | Child row for technician work/travel hours. | ERPNext `User`. |
 | `Service Work Order Part` | `ai_erp_service` | Child row for declared parts, bill rate, source warehouse, and issued Stock Entry link. | ERPNext `Item`, `Warehouse`, `Stock Entry`. |
 | `Service Closure Exception` | `ai_erp_service` | Owned blocker when a work order cannot close or become invoice-ready. | Custom `Service Work Order`; owner `User`. |

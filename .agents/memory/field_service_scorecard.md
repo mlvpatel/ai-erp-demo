@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.6 / 10
+- **Current Demo Average Score**: 7.8 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -16,8 +16,15 @@
   idempotency rows, role-scoped e2e). Partner review still required for ≥9.0.
 - Phase B margin Desk depth moved margin-leakage-guardian 7.8 → 8.2
   (category evidence in ledger, Desk status/date filters, Accounts report
-  access, truncation honesty). Partner UX review still required for ≥9.0;
-  scheduling polish remains for the broader Phase B ~8.5 path.
+  access, truncation honesty). Partner UX review still required for ≥9.0.
+- Phase B scheduling polish moved bounded-scheduling-optimizer 7.5 → 8.5
+  (van-warehouse capability, per-tech parts readiness aligned with
+  issue_parts primary bins, skill/territory/SLA e2e, feedback rollup without
+  auto-rescore, deterministic tie-breaker tests). Partner UX review still
+  required for ≥9.0.
+- Phase B recovery Desk polish moved cannot-close-recovery-coach 8.0 → 8.2
+  (owned-exception confirm before draft). Partner UX review still required
+  for ≥9.0.
 - Phase C repair-memory corpus moved provenance-based-repair-memory 6.5 → 7.6
   (synthetic history corpus, weak-evidence abstention, unassigned /
   unrelated-customer retrieval edges, contact/injection sanitization, browser
@@ -39,10 +46,11 @@
      stubs. Managers and accounts can export the sanitized packet with
      idempotency rows; technicians cannot. Partner packet review remains open.
 
-2. **Cannot-Close Recovery Coach** (Current: 8.0 / Target: 9.0)
+2. **Cannot-Close Recovery Coach** (Current: 8.2 / Target: 9.0)
    - *Status*: Partly Implemented. Overdue escalation, cited recovery drafts,
-     parts-hold guidance, uncited-history drop, and injection/contact redaction
-     coverage exist. Partner UX review remains open.
+     parts-hold guidance, uncited-history drop, injection/contact redaction,
+     and owned-exception Desk confirm before draft creation. Partner UX review
+     remains open.
 
 3. **Margin Leakage Guardian** (Current: 8.2 / Target: 9.0)
    - *Status*: Partly Implemented. Managers and finance open a Desk summary
@@ -64,11 +72,13 @@
      history entry and use `@today` relative dates. Live provider replay
      aggregates remain deferred.
 
-6. **Bounded Scheduling Optimizer** (Current: 7.5 / Target: 9.0)
-   - *Status*: Partly Implemented. Parts readiness sums duplicate items and
-     honors per-row `source_warehouse`. Suggestion dialog and
-     `suggestion_feedback_summary` roll up rejection categories without
-     auto-assigning or auto-rescoring.
+6. **Bounded Scheduling Optimizer** (Current: 8.5 / Target: 9.0)
+   - *Status*: Partly Implemented. Capability profiles include optional
+     `van_warehouse`. Parts readiness sums duplicate items, honors per-row
+     `source_warehouse` (issue_parts primary), and can mark a technician
+     ready from van stock when the primary bin is short. Skill/territory/SLA
+     e2e, feedback rollup without auto-assign or auto-rescore, and
+     workload-then-id tie-breakers are covered. Partner UX review remains open.
 
 7. **Mobile Field Execution** (Current: 6.1 / Target: 9.0)
    - *Status*: Partly Implemented. Online mobile CSS enforces 44px targets and

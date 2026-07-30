@@ -1,7 +1,7 @@
 # Improvement plan: unique, current, governed, secured
 
 Plan for raising the field-service Demo Version without copying SaaS
-copilots. Current demo average: **7.5 / 10**
+copilots. Current demo average: **7.8 / 10**
 (`config/field-service-9-scorecard.json`). Agent-only ceiling toward **~8.5**
 is reachable without keys, partners, counsel, or AWS. Full **9.1** still
 needs live eval, design-partner scores, and human pilot gates.
@@ -149,8 +149,8 @@ with optional AI explanation only.
 technician denial of margin detail, e2e for manager-only margin button,
 scheduling feedback summary tests.
 
-**Scorecard levers:** margin-leakage-guardian (7.8),
-bounded-scheduling-optimizer (7.5), cannot-close-recovery-coach (8.0).
+**Scorecard levers (after in-repo Phase B work):** margin-leakage-guardian
+(8.2), bounded-scheduling-optimizer (8.5), cannot-close-recovery-coach (8.2).
 
 **Blocked-on-user:** partner UX review for ≥9 targets.
 
