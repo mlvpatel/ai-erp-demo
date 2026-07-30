@@ -5,6 +5,7 @@ product. Numbers and pins come from checked-in files, not marketing copy.
 
 Related: [`demo-version-loop.md`](demo-version-loop.md),
 [`tech-stack-2026-07.md`](../architecture/tech-stack-2026-07.md),
+[`improvement-plan-unique-governed-secure.md`](improvement-plan-unique-governed-secure.md),
 `config/demo-version.json`.
 
 ## Layers in use

@@ -8,6 +8,9 @@
   deferred or blocked.
 - Demo Version label: `2026.07.30-demo` (`config/demo-version.json`). Loop and
   stack docs improve discoverability only; they do not raise the average.
+- Agent-executable uniqueness / governance / security build order:
+  `docs/product/improvement-plan-unique-governed-secure.md` (~8.5 ceiling
+  without keys, partners, counsel, or AWS).
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
