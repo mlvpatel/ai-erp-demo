@@ -71,14 +71,25 @@ asynchronous events.
 
 The Suggest Technicians button on a draft or scheduled work order ranks
 available technicians deterministically: prior completed work at the same asset
-or location counts double, open workload subtracts, and ties break on workload
-and then on the technician id. Technicians with overlapping scheduled work are
-listed as excluded with the reason. A missing schedule window aborts instead of
-guessing availability. Suggestions never assign anyone: the dispatcher applies
-a suggestion into the form and the normal permission-checked save performs the
-assignment. Rejection feedback is stored as work-order comments and shown as
-category counts in the suggestion dialog; it never auto-assigns or changes
-scores by itself. Dispatchers can also call
+or location counts double, high SLA priority adds a bonus, skill/territory
+matches add a bonus when those fields are set, open workload subtracts, and
+ties break on workload and then on the technician id. Technicians with
+overlapping scheduled work or missing required capability evidence are listed
+as excluded with the reason. A missing schedule window aborts instead of
+guessing availability.
+
+Parts readiness follows the warehouse `issue_parts` would debit (each part
+row `source_warehouse`, else the service location default). When that primary
+bin is short, a technician whose `Service Technician Capability.van_warehouse`
+holds enough stock can still rank as parts-ready (`parts_ready:van_stock`).
+Van stock never posts Material Issue; managers still set part-row warehouses
+before `issue_parts`.
+
+Suggestions never assign anyone: the dispatcher applies a suggestion into the
+form and the normal permission-checked save performs the assignment. Rejection
+feedback is stored as work-order comments and shown as category counts in the
+suggestion dialog; recording a rejection refreshes the rollup and never
+auto-assigns or changes scores. Dispatchers can also call
 `ai_erp_service.scheduling.suggestion_feedback_summary` for a bounded per-order
 or site-wide category rollup.
 
@@ -105,7 +116,9 @@ redacted or neutralized before it reaches the draft.
 ## Exception recovery drafts
 
 On a Cannot Close work order with an open closure exception, a service manager
-can request Draft Recovery Steps. The proposal maps the exception reason to a
+can request Draft Recovery Steps. Desk first shows the owned exception
+(name, owner, due date, reason) and states that approving the draft cannot
+close the work order. The proposal maps the exception reason to a
 fixed recovery checklist, lists declared parts that are not yet issued, and
 cites permission-scoped prior work at the same asset or location. Uncited prior
 rows are dropped with an omission note. Instruction-like or contact-shaped free

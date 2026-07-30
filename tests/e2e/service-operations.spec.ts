@@ -214,12 +214,33 @@ test("dispatcher assigns scheduled work through visible form controls", async ({
   const suggestionDialog = page.locator(".modal:visible").last();
   await expect(suggestionDialog).toContainText("Technician Suggestions");
   await expect(suggestionDialog).toContainText("open_workload");
-  await suggestionDialog.locator(".suggestion-assign").first().click();
+  await expect(suggestionDialog).toContainText("skill_match:hvac");
+  await expect(suggestionDialog).toContainText("territory_match:north");
+  await expect(suggestionDialog).toContainText("sla_priority:High");
+  await expect(suggestionDialog).toContainText("missing_skill");
+  await expect(suggestionDialog).toContainText("scores do not auto-update");
+  await expect(suggestionDialog).toContainText("no technician is assigned");
+  await expect(suggestionDialog.getByRole("button", { name: "Explain Schedule", exact: true })).toBeVisible();
+
+  const matchedRow = suggestionDialog.locator("tr", { hasText: technician }).first();
+  await expect(matchedRow).toBeVisible();
+  await matchedRow.locator(".suggestion-reject").click();
+  const rejectDialog = page.locator(".modal:visible").last();
+  await expect(rejectDialog).toContainText("Reject Suggestion");
+  await rejectDialog.locator("select").first().selectOption({ label: "Wrong skill or territory" });
+  await rejectDialog.getByRole("button", { name: "Record Rejection", exact: true }).click();
+  await expect(suggestionDialog).toContainText("Wrong skill or territory");
+  await expect(suggestionDialog).toContainText("Recorded rejection feedback");
   await expect
     .poll(() => page.evaluate(() => (window as any).cur_frm?.doc?.assigned_technician || ""))
-    .not.toBe("");
+    .toBe("");
 
-  await setLinkField(page, "assigned_technician", technician);
+  // Rejection records feedback only; dispatcher still chooses and saves the assignment.
+  await matchedRow.locator(".suggestion-assign").click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).cur_frm?.doc?.assigned_technician || ""))
+    .toBe(technician);
+
   await saveForm(page);
   await expect(field(page, "assigned_technician").locator("input").first()).toHaveValue(technician);
   await expect(field(page, "status").locator("select").first()).toHaveValue("Scheduled");
@@ -771,6 +792,24 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(financeStatuses.hourly_rate).not.toBe("Write");
     expect(financeStatuses.projected_revenue).not.toBe("Write");
     expect(financeStatuses.assigned_technician).not.toBe("Write");
+
+    const managerBrowser = await rolePage(browser, manager);
+    try {
+      await openForm(managerBrowser.page, "service-work-order", workOrderName);
+      await clickAction(managerBrowser.page, "Draft Recovery Steps");
+      const recoveryDialog = managerBrowser.page.locator(".modal:visible").last();
+      await expect(recoveryDialog).toContainText("Draft Recovery Steps");
+      await expect(recoveryDialog).toContainText("Open exception");
+      await expect(recoveryDialog).toContainText(saved.closure_exception);
+      await expect(recoveryDialog).toContainText(manager);
+      await expect(recoveryDialog).toContainText("cannot close the work order");
+      await recoveryDialog.locator(".btn-modal-close").click();
+      await expect(recoveryDialog).toBeHidden();
+      const stillOpen = await getDoc(managerSession, "Service Work Order", workOrderName);
+      expect(stillOpen.status).toBe("Cannot Close");
+    } finally {
+      await managerBrowser.context.close();
+    }
   } finally {
     await Promise.all([
       managerSession.dispose(),

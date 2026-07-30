@@ -48,8 +48,12 @@ def suggest_technicians(name):
 	busy = _overlapping_technicians(work_order, technicians)
 	workload = _open_workload(technicians)
 	familiarity = _completed_familiarity(work_order, technicians)
-	parts_ready = _parts_readiness(work_order, technicians)
 	capabilities = _technician_capabilities(technicians)
+	van_warehouses = {
+		technician: (capabilities.get(technician) or {}).get("van_warehouse") or ""
+		for technician in technicians
+	}
+	parts_ready = _parts_readiness(work_order, technicians, van_warehouses)
 	required_skill = _single_capability_label(work_order.get("required_skill"))
 	required_territory = _single_capability_label(work_order.get("service_territory"))
 
@@ -72,8 +76,8 @@ def suggest_technicians(name):
 
 		technician_workload = workload.get(technician, 0)
 		technician_familiarity = familiarity.get(technician, 0)
-		technician_parts = parts_ready.get(technician, False)
-		parts_bonus = PARTS_READINESS_WEIGHT if technician_parts else 0
+		technician_parts = parts_ready.get(technician) or {"ready": False, "source": None}
+		parts_bonus = PARTS_READINESS_WEIGHT if technician_parts.get("ready") else 0
 		capability_bonus = 0
 		if required_skill or required_territory:
 			capability_bonus = CAPABILITY_MATCH_WEIGHT
@@ -91,12 +95,17 @@ def suggest_technicians(name):
 		]
 		if sla_bonus:
 			reasons.append(f"sla_priority:{work_order.service_priority}")
-		if technician_parts:
-			reasons.append("parts_ready:true")
+		if technician_parts.get("ready"):
+			if technician_parts.get("source") == "van":
+				reasons.append("parts_ready:van_stock")
+			else:
+				reasons.append("parts_ready:true")
 		if required_skill:
 			reasons.append(f"skill_match:{required_skill}")
 		if required_territory:
 			reasons.append(f"territory_match:{required_territory}")
+		if van_warehouses.get(technician):
+			reasons.append(f"van_warehouse:{van_warehouses[technician]}")
 
 		candidates.append(
 			{
@@ -104,6 +113,9 @@ def suggest_technicians(name):
 				"score": score,
 				"workload": technician_workload,
 				"familiarity": technician_familiarity,
+				"parts_ready": bool(technician_parts.get("ready")),
+				"parts_ready_source": technician_parts.get("source") or "",
+				"van_warehouse": van_warehouses.get(technician) or "",
 				"reasons": reasons,
 			}
 		)
@@ -199,35 +211,65 @@ def _row_parts_warehouse(row, location_warehouse):
 	return getattr(row, "source_warehouse", None) or location_warehouse or ""
 
 
-def _parts_readiness(work_order, technicians):
-	"""Return a map of technician -> bool indicating if declared parts are available.
+def _parts_readiness(work_order, technicians, van_warehouses=None):
+	"""Return technician -> readiness detail for declared parts.
 
-	Quantities for the same item in the same warehouse are summed. Each row uses
-	its own source_warehouse when set, otherwise the location default, matching
-	issue_parts rather than forcing every row onto the location warehouse.
+	Quantities for the same item in the same primary warehouse are summed. Each
+	row uses its own source_warehouse when set, otherwise the location default,
+	matching the warehouse issue_parts would debit. When that primary bin is
+	short, a technician with stock in their capability van_warehouse can still
+	rank as parts-ready. Van stock never posts issue_parts and never assigns.
 	"""
 	parts = work_order.get("parts") or []
 	if not parts:
-		return {tech: True for tech in technicians}
+		return {tech: {"ready": True, "source": "no_parts"} for tech in technicians}
 
 	location_warehouse = _location_default_warehouse(work_order)
 	required_by_bin = {}
 	for row in parts:
+		if not row.item:
+			return {tech: {"ready": False, "source": None} for tech in technicians}
 		warehouse = _row_parts_warehouse(row, location_warehouse)
-		if not warehouse or not row.item:
-			return {tech: False for tech in technicians}
-		key = (row.item, warehouse)
+		key = (row.item, warehouse or "")
 		required_by_bin[key] = required_by_bin.get(key, 0) + flt(row.qty)
 
-	has_all = True
-	for (item, warehouse), req_qty in required_by_bin.items():
-		bin_qty = flt(
-			frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty")
-		)
-		if bin_qty < req_qty:
-			has_all = False
+	van_warehouses = van_warehouses or {}
+	result = {}
+	for tech in technicians:
+		van = van_warehouses.get(tech) or ""
+		ready = True
+		used_van = False
+		for (item, primary_warehouse), req_qty in required_by_bin.items():
+			primary_qty = 0.0
+			if primary_warehouse:
+				primary_qty = flt(
+					frappe.db.get_value(
+						"Bin",
+						{"item_code": item, "warehouse": primary_warehouse},
+						"actual_qty",
+					)
+				)
+			if primary_qty >= req_qty:
+				continue
+			van_qty = 0.0
+			if van:
+				van_qty = flt(
+					frappe.db.get_value(
+						"Bin", {"item_code": item, "warehouse": van}, "actual_qty"
+					)
+				)
+			if van_qty >= req_qty:
+				used_van = True
+				continue
+			ready = False
 			break
-	return {tech: has_all for tech in technicians}
+		if not ready:
+			result[tech] = {"ready": False, "source": None}
+		elif used_van:
+			result[tech] = {"ready": True, "source": "van"}
+		else:
+			result[tech] = {"ready": True, "source": "primary"}
+	return result
 
 
 def _single_capability_label(raw_value):
@@ -238,13 +280,13 @@ def _single_capability_label(raw_value):
 
 
 def _technician_capabilities(technicians):
-	"""Return active skill/territory capability maps keyed by technician user."""
+	"""Return active skill/territory/van capability maps keyed by technician user."""
 	if not technicians:
 		return {}
 	rows = frappe.get_all(
 		"Service Technician Capability",
 		filters={"technician": ("in", technicians), "active": 1},
-		fields=["technician", "skills", "territories"],
+		fields=["technician", "skills", "territories", "van_warehouse"],
 		limit_page_length=200,
 	)
 	capabilities = {}
@@ -252,6 +294,7 @@ def _technician_capabilities(technicians):
 		capabilities[row.technician] = {
 			"skills": normalize_capability_labels(row.skills),
 			"territories": normalize_capability_labels(row.territories),
+			"van_warehouse": row.van_warehouse or "",
 		}
 	return capabilities
 
@@ -435,6 +478,17 @@ def _parse_feedback_comment(content):
 	return {"technician": technician, "reason_category": reason_category}
 
 
+def _contract_candidate(row):
+	"""Project a suggestion row to the control-plane SchedulingCandidate shape."""
+	return {
+		"technician": row["technician"],
+		"score": row["score"],
+		"workload": row["workload"],
+		"familiarity": row["familiarity"],
+		"reasons": list(row.get("reasons") or []),
+	}
+
+
 def _scheduling_explanation_payload(work_order, suggestions):
 	"""Send only ranking facts; customer, location, and contact data stay out."""
 	work_order_summary = {
@@ -447,7 +501,7 @@ def _scheduling_explanation_payload(work_order, suggestions):
 		"required_skill": suggestions.get("required_skill") or "",
 		"service_territory": suggestions.get("service_territory") or "",
 	}
-	candidates = suggestions["candidates"]
+	candidates = [_contract_candidate(row) for row in suggestions["candidates"]]
 	excluded = suggestions["excluded"]
 	sources = [
 		_source(
