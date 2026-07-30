@@ -50,13 +50,18 @@
   issued, AI proposal status, the compact ledger narrative stages, and, for
   manager and accounts roles only, the invoice handoff state with a link to the
   draft Sales Invoice. Finance handoff narrative stages appear only when the
-  finance section is visible to the current role.
-- The manager-only Evidence Packet button exports the chain as a sanitized
-  JSON file through `ai_erp_service.evidence.get_evidence_packet`: identifiers,
-  hashes, statuses, citation ids, stock and invoice links, and unresolved
-  exceptions only. It never contains draft text, prompts, provider responses,
-  or attachment contents, and a synthetic packet is technical evidence, not
-  human acceptance evidence.
+  finance section is visible to the current role. When evidence is incomplete,
+  the narrative headline states the gaps instead of implying a finished chain.
+  The chronological timeline also includes closure exceptions and short
+  proposal context-hash stubs for replay comparison.
+- The Evidence Packet button (service manager or accounts roles) exports the
+  chain as a sanitized JSON file through
+  `ai_erp_service.evidence.get_evidence_packet`: identifiers, hashes, statuses,
+  citation ids, proposal `input_context_hash` idempotency rows, stock and
+  invoice links, and unresolved exceptions only. Technicians cannot export.
+  The export never contains draft text, prompts, provider responses, or
+  attachment contents, and a synthetic packet is technical evidence, not human
+  acceptance evidence.
 
 Future connectors must use the versioned event shapes in
 `contracts/events/service-operations-v1.yaml`. The current MVP does not publish

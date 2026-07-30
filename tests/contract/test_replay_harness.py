@@ -180,6 +180,10 @@ class TestReplayHarness(unittest.TestCase):
 		self.assertTrue(packet.get("sales_invoice"))
 		self.assertTrue(packet.get("stock_entries"))
 		self.assertIn("ledger_narrative", packet)
+		self.assertFalse(packet["ledger_narrative"].get("incomplete", False))
+		self.assertTrue(packet.get("proposal_idempotency"))
+		self.assertEqual(len(packet["proposal_idempotency"][0]["input_context_hash"]), 64)
+		self.assertIn("Identical input_context_hash", packet["proposal_idempotency"][0]["reuse_note"])
 		stages = [row["stage"] for row in packet["ledger_narrative"]["stages"]]
 		for required in REQUIRED_FINANCE_STAGES:
 			self.assertIn(required, stages)

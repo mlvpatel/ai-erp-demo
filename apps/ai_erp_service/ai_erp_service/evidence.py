@@ -60,15 +60,22 @@ def get_evidence_chain(name):
 	return chain
 
 
+PACKET_EXPORT_ROLES = MANAGER_ROLES | FINANCE_ROLES
+
+
 @frappe.whitelist()
 def get_evidence_packet(name):
-	"""Return a sanitized, manager-only export of the evidence chain.
+	"""Return a sanitized manager/accounts export of the evidence chain.
 
 	The packet carries identifiers, hashes, statuses, and links only: no draft
 	text, prompts, provider responses, or attachment contents. Synthetic packet
-	output is technical evidence, never human acceptance evidence.
+	output is technical evidence, never human acceptance evidence. Technicians
+	cannot export; managers and accounts roles can.
 	"""
-	require_any_role(MANAGER_ROLES, _("Only a service manager can export the evidence packet."))
+	require_any_role(
+		PACKET_EXPORT_ROLES,
+		_("Only a service manager or accounts user can export the evidence packet."),
+	)
 	chain = get_evidence_chain(name)
 	sections = chain["sections"]
 	citations = []
@@ -95,6 +102,7 @@ def get_evidence_packet(name):
 		"work_order": work_order,
 		"ledger_narrative": ledger_narrative,
 		"proposals": sections["ai_proposals"],
+		"proposal_idempotency": _proposal_idempotency(sections["ai_proposals"]),
 		"policy_decisions": sorted({row["policy_outcome"] for row in sections["ai_proposals"]}),
 		"citations": citations,
 		"stock_entries": finance.get("stock_entries", []),
@@ -255,11 +263,35 @@ def _proposal_citation_stubs(proposals):
 	return [{"proposal": row.parent} for row in rows]
 
 
+def _proposal_idempotency(proposals):
+	"""Surface context-hash proof that identical retries reuse one proposal."""
+	rows = []
+	for proposal in proposals or []:
+		context_hash = proposal.get("input_context_hash") or ""
+		rows.append(
+			{
+				"proposal": proposal.get("name") or "",
+				"input_context_hash": context_hash,
+				"output_hash": proposal.get("output_hash") or "",
+				"policy_outcome": proposal.get("policy_outcome") or "",
+				"reuse_note": (
+					"Identical input_context_hash returns this proposal without a new provider call."
+					if context_hash
+					else "No input_context_hash recorded."
+				),
+			}
+		)
+	return rows
+
+
 def _ledger_narrative(chain, citations, finance):
 	"""Build a finished, publication-safe ledger narrative without draft text."""
 	completeness = chain["completeness"]
 	sections = chain["sections"]
 	identity = sections["work_order"]
+	missing = list(completeness.get("missing") or [])
+	open_exceptions = int(completeness.get("open_exceptions") or 0)
+	is_complete = bool(completeness.get("complete"))
 	stages = [
 		{
 			"stage": "request_identity",
@@ -277,7 +309,10 @@ def _ledger_narrative(chain, citations, finance):
 		},
 		{
 			"stage": "exceptions",
-			"summary": f"{len(sections.get('exceptions') or [])} closure exception record(s).",
+			"summary": (
+				f"{len(sections.get('exceptions') or [])} closure exception record(s)"
+				+ (f"; {open_exceptions} still open." if open_exceptions else ".")
+			),
 		},
 		{
 			"stage": "ai_proposals",
@@ -298,18 +333,19 @@ def _ledger_narrative(chain, citations, finance):
 				),
 			}
 		)
-	stages.append(
-		{
-			"stage": "completeness",
-			"summary": (
-				"complete"
-				if completeness.get("complete")
-				else f"missing: {', '.join(completeness.get('missing') or []) or 'none'}"
-			),
-		}
-	)
+	if is_complete:
+		completeness_summary = "complete"
+		headline = "Request → execution → cited proposals → finance handoff"
+	else:
+		gap_bits = list(missing)
+		if open_exceptions:
+			gap_bits.append(f"{open_exceptions} open exception(s)")
+		completeness_summary = f"incomplete; missing: {', '.join(gap_bits) or 'none'}"
+		headline = f"Incomplete evidence chain — {completeness_summary}"
+	stages.append({"stage": "completeness", "summary": completeness_summary})
 	return {
-		"headline": "Request → execution → cited proposals → finance handoff",
+		"headline": headline,
+		"incomplete": not is_complete,
 		"stages": stages,
 		"integrity": {
 			"chain_hash": chain["chain_hash"],
@@ -373,6 +409,23 @@ def get_evidence_timeline(name):
 			"details": f"Result: {work_order.inspection_result or 'Submitted'}",
 		})
 
+	if frappe.has_permission("Service Closure Exception", "read"):
+		exceptions = frappe.get_all(
+			"Service Closure Exception",
+			filters={"work_order": work_order.name},
+			fields=["name", "status", "reason", "exception_owner", "creation", "due_date"],
+			order_by="creation asc",
+			limit_page_length=50,
+		)
+		for exception in exceptions:
+			timeline.append({
+				"stage": "Exception",
+				"label": _("Closure Exception {0}").format(exception.name),
+				"timestamp": str(exception.creation),
+				"actor": exception.exception_owner or work_order.owner,
+				"details": f"Status: {exception.status}; reason: {exception.reason or 'unspecified'}",
+			})
+
 	stock_entries = sorted({row.stock_entry for row in work_order.get("parts") or [] if row.stock_entry})
 	for se_name in stock_entries:
 		se_date = frappe.db.get_value("Stock Entry", se_name, "creation")
@@ -388,15 +441,25 @@ def get_evidence_timeline(name):
 		proposals = frappe.get_all(
 			"AI Proposal",
 			filters={"reference_doctype": "Service Work Order", "reference_name": work_order.name},
-			fields=["name", "proposal_type", "proposal_status", "creation", "reviewed_by"],
+			fields=[
+				"name",
+				"proposal_type",
+				"proposal_status",
+				"creation",
+				"reviewed_by",
+				"input_context_hash",
+				"output_hash",
+			],
 		)
 		for prop in proposals:
+			context_hash = (prop.input_context_hash or "")[:16]
+			hash_note = f"; context {context_hash}…" if context_hash else ""
 			timeline.append({
 				"stage": "AI Proposal",
 				"label": _("AI Proposal {0}").format(prop.proposal_type),
 				"timestamp": str(prop.creation),
 				"actor": prop.reviewed_by or _("AI System"),
-				"details": f"Status: {prop.proposal_status}",
+				"details": f"Status: {prop.proposal_status}{hash_note}",
 			})
 
 	if work_order.sales_invoice and (has_any_role(MANAGER_ROLES) or has_any_role(FINANCE_ROLES)):

@@ -1,7 +1,7 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 7.4 / 10
+- **Current Demo Average Score**: 7.5 / 10
 - **Target Average Score**: 9.1 / 10
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
@@ -11,6 +11,9 @@
 - Agent-executable uniqueness / governance / security build order:
   `docs/product/improvement-plan-unique-governed-secure.md` (~8.5 ceiling
   without keys, partners, counsel, or AWS).
+- Phase A packet polish moved verifiable-evidence-to-cash-ledger 8.2 → 8.4
+  (manager/accounts export, incomplete narrative, timeline exceptions,
+  idempotency rows, role-scoped e2e). Partner review still required for ≥9.0.
 
 ## Beat J: Safety close (partner ≥9 target)
 - Facilitator Beat J is now a live AI safety table walk (approve does not post,
@@ -21,10 +24,12 @@
 
 ## Feature Breakdown & Gap Status
 
-1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.2 / Target: 10.0)
+1. **Verifiable Evidence-to-Cash Ledger** (Current: 8.4 / Target: 10.0)
    - *Status*: Partly Implemented. Desk Evidence Replay shows compact ledger
-     narrative stages; finance_handoff is role-scoped. Timeline replay uses
-     Version-based closeout timestamps. Partner packet review remains open.
+     narrative stages (incomplete headline when gaps remain); finance_handoff
+     is role-scoped. Timeline includes exceptions and proposal context-hash
+     stubs. Managers and accounts can export the sanitized packet with
+     idempotency rows; technicians cannot. Partner packet review remains open.
 
 2. **Cannot-Close Recovery Coach** (Current: 8.0 / Target: 9.0)
    - *Status*: Partly Implemented. Overdue escalation, cited recovery drafts,

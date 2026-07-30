@@ -66,6 +66,7 @@
 .timeline-event.stage-Created::before { background-color: #64748b; }
 .timeline-event.stage-Execution::before { background-color: #0284c7; }
 .timeline-event.stage-Closeout::before { background-color: #d97706; }
+.timeline-event.stage-Exception::before { background-color: #b45309; }
 .timeline-event.stage-Inventory::before { background-color: #7c3aed; }
 .timeline-event.stage-AI-Proposal::before { background-color: #059669; }
 .timeline-event.stage-Finance::before { background-color: #15803d; }
@@ -108,6 +109,15 @@
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 8px;
+}
+
+.ledger-narrative-incomplete {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.ledger-narrative-stage.is-incomplete strong {
+  color: #92400e;
 }
 
 .ledger-narrative-stages {

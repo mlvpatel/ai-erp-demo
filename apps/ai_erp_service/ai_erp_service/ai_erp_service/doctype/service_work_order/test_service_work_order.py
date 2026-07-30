@@ -665,6 +665,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertFalse(incomplete["completeness"]["complete"])
 		self.assertIn("time_entries", incomplete["completeness"]["missing"])
 		self.assertNotIn("finance", incomplete["sections"])
+		self.assertTrue(incomplete["ledger_narrative"]["incomplete"])
+		self.assertIn("Incomplete evidence chain", incomplete["ledger_narrative"]["headline"])
+		self.assertIn("time_entries", incomplete["ledger_narrative"]["headline"])
 
 		frappe.set_user(self.finance_user)
 		with self.assertRaises(frappe.PermissionError):
@@ -715,6 +718,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		manager_stages = [row["stage"] for row in manager_chain["ledger_narrative"]["stages"]]
 		self.assertIn("finance_handoff", manager_stages)
 		self.assertIn("completeness", manager_stages)
+		self.assertFalse(manager_chain["ledger_narrative"]["incomplete"])
 		self.assertIn("Request → execution", manager_chain["ledger_narrative"]["headline"])
 
 		technician_stages = [row["stage"] for row in technician_chain["ledger_narrative"]["stages"]]
@@ -764,7 +768,30 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertIn("Closeout", stages)
 		self.assertNotIn("Finance", stages)
 
+		frappe.set_user("Administrator")
+		frappe.get_doc(
+			{
+				"doctype": "Service Closure Exception",
+				"work_order": work_order.name,
+				"status": "Open",
+				"reason": "Parts unavailable",
+				"exception_owner": self.manager,
+				"due_date": today(),
+			}
+		).insert(ignore_permissions=True)
+
 		frappe.set_user(self.manager)
+		manager_with_exception = get_evidence_timeline(work_order.name)
+		self.assertIn("Exception", {event["stage"] for event in manager_with_exception})
+
+		exception_name = frappe.db.get_value(
+			"Service Closure Exception", {"work_order": work_order.name}, "name"
+		)
+		exception = frappe.get_doc("Service Closure Exception", exception_name)
+		exception.status = "Resolved"
+		exception.resolution_note = "Synthetic spare received for timeline coverage."
+		exception.save()
+
 		work_order.reload()
 		work_order.status = "Closed"
 		work_order.save()
@@ -778,6 +805,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		manager_timeline = get_evidence_timeline(work_order.name)
 		manager_stages = {event["stage"] for event in manager_timeline}
 		self.assertIn("Finance", manager_stages)
+		self.assertIn("Exception", manager_stages)
 
 		frappe.set_user(self.technician)
 		technician_after_close = get_evidence_timeline(work_order.name)
@@ -918,7 +946,7 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 			costs = _unit_costs(parts_by_order)
 		self.assertEqual(costs[("SE-1", "ITEM-A")], 12.0)
 
-	def test_evidence_packet_is_manager_only_and_carries_no_draft_content(self):
+	def test_evidence_packet_is_role_scoped_and_carries_no_draft_content(self):
 		from ai_erp_service.evidence import get_evidence_packet
 
 		packet_manager = self._make_role_user(
@@ -985,11 +1013,32 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 		self.assertIn("margin_risks", packet)
 		self.assertEqual(len(packet["chain_hash"]), 64)
 		self.assertIn("Synthetic export evidence", packet["synthetic_note"])
+		self.assertTrue(packet["proposal_idempotency"])
+		self.assertEqual(len(packet["proposal_idempotency"][0]["input_context_hash"]), 64)
+		self.assertIn("Identical input_context_hash", packet["proposal_idempotency"][0]["reuse_note"])
 
 		serialized = frappe.as_json(packet)
 		self.assertNotIn(draft_text, serialized)
 		self.assertNotIn("draft_content", serialized)
 		self.assertNotIn("prompt_version", serialized)
+
+		# Accounts may export only after invoice-ready / invoice visibility.
+		frappe.set_user(packet_manager)
+		work_order.reload()
+		work_order.status = "Closed"
+		work_order.save()
+		work_order.status = "Invoice Ready"
+		work_order.save()
+
+		frappe.set_user(self.finance_user)
+		finance_packet = get_evidence_packet(work_order.name)
+		self.assertEqual(finance_packet["packet_kind"], "evidence_to_cash_ledger")
+		self.assertIn("finance_handoff", [row["stage"] for row in finance_packet["ledger_narrative"]["stages"]])
+		self.assertEqual(len(finance_packet["chain_hash"]), 64)
+		# Accounts may lack AI Proposal read; packet stays exportable with finance fields.
+		self.assertIn("proposal_idempotency", finance_packet)
+		self.assertIn("margin_risks", finance_packet)
+		self.assertEqual(finance_packet["sales_invoice"], "")
 
 	def test_profitability_report_classifies_margin_leakage_deterministically(self):
 		first = self._make_work_order("Margin risk first visit")
