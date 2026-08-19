@@ -2,7 +2,7 @@
 
 ## Repository Map
 
-- **Root Directory**: `/Users/mlvpatel/Downloads/ERP demo`
+- **Root Directory**: the repository root (any local checkout path)
 - **Primary Product Target**: Governed AI-native field-service ERP for maintenance, installation, and repair firms with 10 to 100 technicians.
 
 ## Key Component Responsibilities
