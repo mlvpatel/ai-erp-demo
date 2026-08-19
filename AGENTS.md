@@ -9,9 +9,8 @@ Start here before changing this repository.
 3. `.agents/skills/ai-governance-and-gates/SKILL.md`: AI proposal boundary and gates.
 4. `.agents/skills/behuman/SKILL.md`: BEhuMan prose rules (always on for docs,
    commit messages, summaries, and other written deliverables).
-5. `docs/product/pending-roadmap-for-claude-code.md`: phase-by-phase continuation plan.
-6. `docs/workflows/quality-gates.md`: which gate to run for which change.
-7. `docs/product/demo-version-loop.md` + `docs/product/demo-version-stack.md`:
+5. `docs/workflows/quality-gates.md`: which gate to run for which change.
+6. `docs/product/demo-version-loop.md` + `docs/product/demo-version-stack.md`:
    Demo Version path graph and pin-accurate stack/AI boundary
    (`config/demo-version.json`).
 
