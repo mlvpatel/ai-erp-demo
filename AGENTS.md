@@ -27,8 +27,9 @@ rule.
   committer stays mlvpatel. No AI/LLM/bot trailers in commit messages.
 - Never claim production ready, human UAT approved, legally approved, GDPR
   compliant, or full multi-industry ERP without separate recorded evidence.
-  Demo legal-readiness artifacts live under `docs/compliance/` (inventory,
-  DPA/DPIA templates, go/no-go checklist); they are not counsel sign-off.
+  Demo legal-readiness artifacts live under `docs/compliance/` (owner
+  fill-in checklist, inventory, DPA/DPIA templates, go/no-go); they are not
+  counsel sign-off.
 - AI is proposal-only: it must never post accounting, stock, payroll,
   permissions, compliance records, or customer messages.
 - Synthetic data only. No secrets, raw prompts, or raw provider responses in

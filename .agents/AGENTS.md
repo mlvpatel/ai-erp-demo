@@ -25,8 +25,9 @@
    - All personal data (PII) and credentials MUST be scrubbed before sending payloads to external AI providers.
    - Secrets, credentials, customer data, and raw AI prompt/response bodies MUST NEVER be committed to Git or written to log files.
    - Multi-tenant site isolation (`tenant_isolation`) must be strictly preserved.
-   - Demo legal-readiness artifacts under `docs/compliance/` are templates and
-     gates only; never treat them as legal approval or GDPR compliance.
+   - Demo legal-readiness artifacts under `docs/compliance/` (including
+     `owner-fill-in-checklist.md`) are templates and gates only; never treat
+     them as legal approval or GDPR compliance.
 
 6. **Git & Commit Attribution Rules**:
    - Default author and committer: `mlvpatel <mlvpatel@users.noreply.github.com>`.
