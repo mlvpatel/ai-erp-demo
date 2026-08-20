@@ -36,6 +36,7 @@ security issues.
 Before using this project for a real client, complete the threat model review,
 backup/restore plan, deployment hardening, and a fresh tenant-isolation and
 permission audit. Use the demo legal-readiness package under
-`docs/compliance/` (privacy inventory, DPA/DPIA templates, go/no-go checklist)
-as the counsel and owner checklist. Those files are templates and gates, not
-legal approval or GDPR compliance.
+`docs/compliance/` (start with `owner-fill-in-checklist.md`, then privacy
+inventory, DPA/DPIA templates, go/no-go checklist) as the counsel and owner
+checklist. Those files are templates and gates, not legal approval or GDPR
+compliance.

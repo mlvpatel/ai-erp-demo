@@ -239,7 +239,8 @@ remains deferred.
 3. Static IaC / image-security checks only; no AWS apply.
 
 **Blocked-on-user:** counsel DPA/DPIA, support owner, UAT, go/no-go, AWS
-account and budget.
+account and budget. Owner worksheet:
+`docs/compliance/owner-fill-in-checklist.md`.
 
 **Scorecard levers:** governed-demo-to-pilot-release (7.3).
 
