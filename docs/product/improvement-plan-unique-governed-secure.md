@@ -7,7 +7,6 @@ is reachable without keys, partners, counsel, or AWS. Full **9.1** still
 needs live eval, design-partner scores, and human pilot gates.
 
 Related: [`field-service-9-target.md`](field-service-9-target.md),
-[`pending-roadmap-for-claude-code.md`](pending-roadmap-for-claude-code.md),
 [`demo-version-loop.md`](demo-version-loop.md),
 [`demo-version-stack.md`](demo-version-stack.md),
 [`public-positioning.md`](public-positioning.md).
@@ -82,9 +81,9 @@ Evidence-backed claims only. These are structural, not marketing adjectives.
 
 ## Implementation plan
 
-Phases below reorder the pending roadmap for uniqueness and agent
-executability. Phase numbers here are plan phases, not a rewrite of Phase 3–7
-labels in `pending-roadmap-for-claude-code.md` (cross-refs noted).
+Phases below reorder the earlier pending roadmap for uniqueness and agent
+executability. Phase numbers here are plan phases, not a rewrite of that
+roadmap's Phase 3–7 labels (cross-refs noted).
 
 ### Phase A — Deepen the differentiator (evidence ledger + proposal replay)
 

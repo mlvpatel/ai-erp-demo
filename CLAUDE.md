@@ -10,10 +10,8 @@ Read these before changing anything:
    quality-gate enforcement.
 4. `.agents/skills/behuman/SKILL.md`: BEhuMan prose rules (always on for docs,
    commit messages, summaries, and other written deliverables).
-5. `docs/product/pending-roadmap-for-claude-code.md`: the phase-by-phase
-   continuation plan.
-6. `docs/workflows/quality-gates.md`: which gate to run for which change.
-7. `docs/product/demo-version-loop.md` and `docs/product/demo-version-stack.md`
+5. `docs/workflows/quality-gates.md`: which gate to run for which change.
+6. `docs/product/demo-version-loop.md` and `docs/product/demo-version-stack.md`
    (Demo Version path + pin-accurate stack; `config/demo-version.json`).
 
 Other skills under `.agents/skills/` cover discovery, security/PII, connectors,
