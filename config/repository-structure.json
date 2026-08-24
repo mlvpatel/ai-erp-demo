@@ -87,6 +87,7 @@
     "skills"
   ],
   "cursor_allowed_children": [
+    "environment.json",
     "rules",
     "skills"
   ],
