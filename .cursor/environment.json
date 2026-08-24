@@ -1,0 +1,4 @@
+{
+  "name": "AI ERP Demo",
+  "install": "bash scripts/cloud-agent-install.sh"
+}
