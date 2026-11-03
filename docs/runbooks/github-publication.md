@@ -119,7 +119,7 @@ python3 scripts/check-release-policy.py
 python3 scripts/check-owner-decisions.py
 python3 scripts/check-license-metadata.py
 python3 scripts/check-public-claims.py
-python -m pip install ./services/ai_control_plane
+python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s services/ai_control_plane/tests -v
 python -m unittest discover -s tests/contract -v
 ```

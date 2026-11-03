@@ -88,7 +88,7 @@ Run when changing `services/ai_control_plane/`, `contracts/openapi/`, or the
 Frappe code that calls the control plane:
 
 ```sh
-python -m pip install ./services/ai_control_plane
+python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s services/ai_control_plane/tests -v
 python -m unittest discover -s tests/contract -v
 ```
@@ -114,7 +114,7 @@ docker compose --env-file development/.env \
 docker compose --env-file development/.env \
   -f infra/compose/docker-compose.dev.yml exec \
   --workdir /workspace frappe \
-  python -m pip install ./services/ai_control_plane
+  python -m pip install './services/ai_control_plane[test]'
 
 docker compose --env-file development/.env \
   -f infra/compose/docker-compose.dev.yml exec \

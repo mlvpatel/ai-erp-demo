@@ -227,7 +227,7 @@ case "$command" in
     ;;
   contract-test)
     require_local_env
-    compose exec --workdir /workspace frappe python -m pip install ./services/ai_control_plane
+    compose exec --workdir /workspace frappe python -m pip install './services/ai_control_plane[test]'
     compose exec --workdir /workspace frappe python -m unittest discover -s tests/contract -v
     ;;
   migrate)
