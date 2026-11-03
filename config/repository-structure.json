@@ -127,16 +127,6 @@
       ]
     }
   ],
-  "reserved_doc_only_apps": [
-    "apps/ai_erp_distribution",
-    "apps/ai_erp_manufacturing",
-    "apps/ai_erp_connectors"
-  ],
-  "reserved_app_forbidden_markers": [
-    "pyproject.toml",
-    "hooks.py",
-    "modules.txt"
-  ],
   "bounded_roots": {
     "apps": "custom Frappe apps and reserved industry packs only",
     "services": "AI control plane and future non-ERP support services only after ADR",

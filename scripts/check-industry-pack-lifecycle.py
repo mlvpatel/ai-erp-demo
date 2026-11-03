@@ -152,7 +152,9 @@ def validate_planned_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, An
             fail(failures, f"{pack_id}: planned pack verification must include {phrase!r}")
 
 
-def validate_reserved_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
+def validate_reserved_pack(
+    pack_id: str, pack: dict[str, Any], rule: dict[str, Any], markers: list[str], failures: list[str]
+) -> None:
     app_path_value = pack.get("app_path")
     if not isinstance(app_path_value, str) or not app_path_value.strip():
         fail(failures, f"{pack_id}: reserved packs must set app_path")
@@ -169,7 +171,6 @@ def validate_reserved_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, A
         if not contains_snippet(readme_text, phrase):
             fail(failures, f"{pack_id}: reserved README missing phrase: {phrase}")
 
-    markers = string_list(rule.get("forbidden_generated_markers"), "reserved.forbidden_generated_markers", failures)
     for marker in markers:
         matches = [path for path in app_path.rglob("*") if path.name == marker or marker in path.parts]
         for match in matches:
@@ -208,7 +209,7 @@ def validate_reserved_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, A
 
 
 def validate_documentation_only_app(
-    pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]
+    pack_id: str, pack: dict[str, Any], rule: dict[str, Any], markers: list[str], failures: list[str]
 ) -> None:
     app_path_value = pack.get("app_path")
     if not isinstance(app_path_value, str) or not app_path_value.strip():
@@ -222,13 +223,15 @@ def validate_documentation_only_app(
     for phrase in string_list(rule.get("required_readme_phrases"), f"{pack_id}.required_readme_phrases", failures):
         if not contains_snippet(readme_text, phrase):
             fail(failures, f"{pack_id}: README missing configured-demo phrase: {phrase}")
-    for marker in string_list(rule.get("forbidden_generated_markers"), f"{pack_id}.forbidden_generated_markers", failures):
+    for marker in markers:
         for match in [path for path in app_path.rglob("*") if path.name == marker or marker in path.parts]:
             fail(failures, f"{pack_id}: configured demo contains generated marker: {rel(match)}")
 
 
-def validate_configured_demo(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
-    validate_documentation_only_app(pack_id, pack, rule, failures)
+def validate_configured_demo(
+    pack_id: str, pack: dict[str, Any], rule: dict[str, Any], markers: list[str], failures: list[str]
+) -> None:
+    validate_documentation_only_app(pack_id, pack, rule, markers, failures)
     if pack.get("entry_gate") != "configured_demo_ready":
         fail(failures, f"{pack_id}: configured_demo must use configured_demo_ready entry gate")
     if pack.get("discovery_evidence_level") != "hypothesis_only" or pack.get("human_validation") != "pending":
@@ -333,6 +336,7 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
     if not isinstance(rules, dict):
         return
     allowed_statuses = set(rules)
+    markers = string_list(manifest.get("forbidden_generated_markers"), "forbidden_generated_markers", failures)
 
     implemented_count = 0
     reserved_or_planned_count = 0
@@ -379,10 +383,10 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
             validate_planned_pack(pack_id, pack, rule, failures)
         elif status == "reserved" and isinstance(rule, dict):
             reserved_or_planned_count += 1
-            validate_reserved_pack(pack_id, pack, rule, failures)
+            validate_reserved_pack(pack_id, pack, rule, markers, failures)
         elif status == "configured_demo" and isinstance(rule, dict):
             reserved_or_planned_count += 1
-            validate_configured_demo(pack_id, pack, rule, failures)
+            validate_configured_demo(pack_id, pack, rule, markers, failures)
         elif status == "implemented" and isinstance(rule, dict):
             implemented_count += 1
             validate_implemented_pack(pack_id, pack, rule, failures)

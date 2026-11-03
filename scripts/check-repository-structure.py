@@ -153,25 +153,6 @@ def validate_implemented_apps(failures: list[str], manifest: dict[str, Any]) -> 
                 fail(failures, f"{app_path_value}: missing implemented app marker {marker}")
 
 
-def validate_reserved_apps(failures: list[str], manifest: dict[str, Any]) -> None:
-    reserved_apps = require_string_list(failures, manifest, "reserved_doc_only_apps")
-    forbidden_markers = require_string_list(failures, manifest, "reserved_app_forbidden_markers")
-
-    for app_path_value in reserved_apps:
-        app_path = REPO_ROOT / app_path_value
-        if not app_path.is_dir():
-            fail(failures, f"reserved app directory missing: {app_path_value}")
-            continue
-        if not (app_path / "README.md").is_file():
-            fail(failures, f"reserved app must have README.md: {app_path_value}")
-        for marker in forbidden_markers:
-            if (app_path / marker).exists():
-                fail(
-                    failures,
-                    f"reserved app contains generated marker before discovery gate: {app_path_value}/{marker}",
-                )
-
-
 def validate_bounded_roots(failures: list[str], manifest: dict[str, Any]) -> None:
     bounded_roots = manifest.get("bounded_roots")
     if not isinstance(bounded_roots, dict) or not bounded_roots:
@@ -361,7 +342,6 @@ def main() -> int:
         validate_root_entries(failures, manifest)
         validate_forbidden_root_dirs(failures, manifest)
         validate_implemented_apps(failures, manifest)
-        validate_reserved_apps(failures, manifest)
         validate_bounded_roots(failures, manifest)
         validate_required_agent_skill_files(failures, manifest)
         validate_agents_layout(failures, manifest)

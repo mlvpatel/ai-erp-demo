@@ -4,6 +4,14 @@
   "pack_manifest": "config/industry-packs.json",
   "roadmap_doc": "docs/product/industry-pack-roadmap.md",
   "design_template": "docs/product/industry-pack-design-template.md",
+  "forbidden_generated_markers": [
+    "pyproject.toml",
+    "hooks.py",
+    "modules.txt",
+    "patches.txt",
+    "fixtures",
+    "doctype"
+  ],
   "status_rules": {
     "planned": {
       "app_path": "must_be_null",
@@ -22,14 +30,6 @@
         "No Frappe app is generated",
         "Do not add yet",
         "Custom behavior only if proven"
-      ],
-      "forbidden_generated_markers": [
-        "pyproject.toml",
-        "hooks.py",
-        "modules.txt",
-        "patches.txt",
-        "fixtures",
-        "doctype"
       ],
       "hypothesis_required_phrases": [
         "Status: hypothesis only",
@@ -51,14 +51,6 @@
         "Configured demo",
         "Human validation remains pending",
         "Do not add yet"
-      ],
-      "forbidden_generated_markers": [
-        "pyproject.toml",
-        "hooks.py",
-        "modules.txt",
-        "patches.txt",
-        "fixtures",
-        "doctype"
       ],
       "required_demo_manifest_fields": [
         "schema_version",
