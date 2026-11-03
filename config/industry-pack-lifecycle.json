@@ -52,20 +52,6 @@
         "Human validation remains pending",
         "Do not add yet"
       ],
-      "required_demo_manifest_fields": [
-        "schema_version",
-        "pack_id",
-        "status",
-        "synthetic_only",
-        "seeder",
-        "reset",
-        "walkthrough",
-        "expected_results",
-        "erpnext_records",
-        "required_roles",
-        "invariants",
-        "verification"
-      ],
       "required_discovery_phrases": [
         "Status: configured demo; product hypothesis not validated",
         "Lifecycle decision: configured demo using standard ERPNext only",

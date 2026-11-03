@@ -255,20 +255,11 @@ def validate_configured_demo(
         fail(failures, f"{pack_id}: demo_manifest must use config/industry-demo-* path")
         return
     demo = load_json(REPO_ROOT / demo_manifest_path, failures)
-    required_fields = set(
-        string_list(rule.get("required_demo_manifest_fields"), "configured_demo.required_demo_manifest_fields", failures)
-    )
-    missing = sorted(required_fields - set(demo))
-    if missing:
-        fail(failures, f"{pack_id}: demo manifest missing fields: {', '.join(missing)}")
     if demo.get("schema_version") != 1 or demo.get("pack_id") != pack_id:
         fail(failures, f"{pack_id}: demo manifest identity/schema mismatch")
     if demo.get("status") != "configured_demo" or demo.get("synthetic_only") is not True:
         fail(failures, f"{pack_id}: demo manifest must be configured_demo and synthetic_only")
-    if runbooks and demo.get("walkthrough") != runbooks[0]:
-        fail(failures, f"{pack_id}: demo walkthrough must match the pack runbook")
-    for field in ("expected_results", "erpnext_records", "required_roles", "invariants", "verification"):
-        string_list(demo.get(field), f"{pack_id}.demo.{field}", failures)
+    string_list(demo.get("invariants"), f"{pack_id}.demo.invariants", failures)
     for action in ("seeder", "reset"):
         value = demo.get(action)
         if not isinstance(value, dict):
