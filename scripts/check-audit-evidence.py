@@ -6,33 +6,18 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, load_json_object, read_text
+from _gate import (
+    REPO_ROOT,
+    contains_snippet,
+    load_json,
+    load_json_object,
+    read_text,
+    required_path,
+    string_list,
+)
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "audit-evidence.json"
-
-
-def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
-    if not isinstance(value, list) or not value:
-        failures.append(f"{field} must be a non-empty list")
-        return []
-    result: list[str] = []
-    for index, item in enumerate(value, 1):
-        if not isinstance(item, str) or not item.strip():
-            failures.append(f"{field}[{index}] must be a non-empty string")
-            continue
-        result.append(item)
-    return result
-
-
-def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
-    value = manifest.get(field)
-    if not isinstance(value, str) or not value.strip():
-        failures.append(f"{field} must be a non-empty string")
-        return None
-    if not (REPO_ROOT / value).is_file():
-        failures.append(f"{field} path is missing: {value}")
-    return value
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:

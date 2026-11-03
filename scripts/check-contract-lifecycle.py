@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "contract-lifecycle.json"
@@ -28,19 +28,6 @@ CATALOG_REQUIRED_FIELDS = {
     "tests",
     "verification",
 }
-
-
-def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
-    if not isinstance(value, list) or not value:
-        failures.append(f"{field} must be a non-empty list")
-        return []
-    result: list[str] = []
-    for index, item in enumerate(value, 1):
-        if not isinstance(item, str) or not item.strip():
-            failures.append(f"{field}[{index}] must be a non-empty string")
-            continue
-        result.append(item)
-    return result
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:

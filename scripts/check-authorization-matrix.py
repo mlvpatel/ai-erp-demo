@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, read_text, rel, string_list
 
 
 MATRIX_PATH = REPO_ROOT / "config" / "authorization-matrix.json"
@@ -23,19 +23,6 @@ def load_json_value(path: Path, failures: list[str]) -> Any:
     except json.JSONDecodeError as exc:
         failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
-
-
-def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
-    if not isinstance(value, list) or not value:
-        failures.append(f"{field} must be a non-empty list")
-        return []
-    result: list[str] = []
-    for index, item in enumerate(value, 1):
-        if not isinstance(item, str) or not item.strip():
-            failures.append(f"{field}[{index}] must be a non-empty string")
-            continue
-        result.append(item)
-    return result
 
 
 def validate_shape(matrix: dict[str, Any], failures: list[str]) -> None:
