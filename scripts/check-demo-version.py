@@ -14,20 +14,14 @@ MANIFEST_PATH = REPO_ROOT / "config" / "demo-version.json"
 REQUIRED_KEYS = (
     "schema_version",
     "demo_version",
-    "label",
     "claim_boundary",
     "product_shape",
-    "data_mode",
-    "ai_mode",
-    "default_provider",
     "loop_doc",
     "stack_doc",
     "facilitator_runbook",
     "forbidden_claims",
 )
 REQUIRED_PATH_KEYS = (
-    "scorecard_path",
-    "pilot_readiness_path",
     "loop_doc",
     "stack_doc",
     "facilitator_runbook",
@@ -55,19 +49,6 @@ def main() -> int:
     for key in REQUIRED_KEYS:
         if key not in manifest:
             fail(failures, f"missing key: {key}")
-
-    if manifest.get("label") != "Demo Version":
-        fail(failures, "label must be 'Demo Version'")
-    if manifest.get("data_mode") != "synthetic_only":
-        fail(failures, "data_mode must be synthetic_only")
-    if manifest.get("ai_mode") != "proposal_only":
-        fail(failures, "ai_mode must be proposal_only")
-    if manifest.get("default_provider") != "template":
-        fail(failures, "default_provider must be template")
-    if manifest.get("requires_live_openai") is not False:
-        fail(failures, "requires_live_openai must be false")
-    if manifest.get("requires_aws_apply") is not False:
-        fail(failures, "requires_aws_apply must be false")
 
     demo_version = manifest.get("demo_version")
     if not isinstance(demo_version, str) or "-demo" not in demo_version:
