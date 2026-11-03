@@ -42,6 +42,11 @@
     "docs/architecture/system-context-and-repository-map.md",
     "docs/architecture/system-boundaries.md",
     "docs/architecture/domain-data-model.md",
+    "docs/architecture/tech-stack-2026-07.md",
+    "docs/discovery/discovery-design-plan.md",
+    "docs/discovery/open-source-erp-scan-2026-07.md",
+    "docs/discovery/service-operations-interview-guide.md",
+    "docs/workflows/issue-triage.md",
     "config/industry-packs.json",
     "contracts/catalog.json"
   ],
