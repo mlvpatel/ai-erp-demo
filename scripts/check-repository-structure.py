@@ -247,7 +247,7 @@ def validate_cursor_layout(failures: list[str], manifest: dict[str, Any]) -> Non
 
 
 def validate_claude_layout(failures: list[str], manifest: dict[str, Any]) -> None:
-    """Hard-bound .claude: mirrored skills only; local settings must stay untracked."""
+    """Hard-bound .claude: the skills symlink only; local settings must stay untracked."""
     claude_root = REPO_ROOT / ".claude"
     if not claude_root.is_dir():
         failures.append("bounded root directory missing: .claude")

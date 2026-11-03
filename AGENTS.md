@@ -14,10 +14,9 @@ Start here before changing this repository.
    Demo Version path graph and pin-accurate stack/AI boundary
    (`config/demo-version.json`).
 
-Additional skills live under `.agents/skills/` (mirrored for Claude Code under
-`.claude/skills/` and for Cursor under `.cursor/skills/` when those trees are
-present locally). Cursor also loads `.cursor/rules/behuman.mdc` as an always-on
-rule.
+Additional skills live under `.agents/skills/`. `.claude/skills` and
+`.cursor/skills/behuman` are symlinks into it, so Claude Code and Cursor read the
+same files. Cursor also loads `.cursor/rules/behuman.mdc` as an always-on rule.
 
 ## Hard rules (summary)
 
