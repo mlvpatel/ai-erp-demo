@@ -14,12 +14,8 @@ Usage: scripts/dev.sh <command>
 Commands:
   help                  Show this help.
   quality               Run static quality gates.
-  open-source-ready     Run publishability guard in normal mode.
-  release-ready         Run publishability guard in strict release mode.
   compose-config        Validate Compose using tracked .env.example copied to /tmp.
   check-local-env       Warn about unsafe or stale local development/.env values.
-  local-artifacts       List ignored local generated artifacts.
-  clean-local-artifacts Delete ignored local generated artifacts.
   demo-info             Print local demo URLs, roles, health hints, and next commands.
   up                    Start the local Docker development stack.
   bootstrap             Bootstrap/pin Frappe, ERPNext, and custom apps.
@@ -184,24 +180,12 @@ case "$command" in
   quality)
     scripts/run-quality-gates.sh
     ;;
-  open-source-ready)
-    scripts/check-open-source-ready.sh
-    ;;
-  release-ready)
-    scripts/check-open-source-ready.sh --release
-    ;;
   compose-config)
     cp development/.env.example /tmp/ai-erp-ci.env
     docker compose --env-file /tmp/ai-erp-ci.env -f "$compose_file" config --quiet
     ;;
   check-local-env)
     check_local_env
-    ;;
-  local-artifacts)
-    scripts/local-artifacts.sh
-    ;;
-  clean-local-artifacts)
-    scripts/local-artifacts.sh --clean
     ;;
   demo-info)
     demo_info
