@@ -23,4 +23,4 @@
 
 ## Catalog Registry Config
 - **Path**: `contracts/catalog.json`
-- **Validation Script**: `scripts/check-contract-catalog.py`
+- **Validation Script**: `scripts/check-contract-lifecycle.py`

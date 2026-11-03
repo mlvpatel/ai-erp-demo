@@ -38,9 +38,6 @@ scripts/local-artifacts.sh --count >/dev/null
 echo "==> Markdown local links"
 "$python_bin" scripts/check-doc-links.py
 
-echo "==> Contract catalog"
-"$python_bin" scripts/check-contract-catalog.py
-
 echo "==> Contract lifecycle"
 "$python_bin" scripts/check-contract-lifecycle.py
 

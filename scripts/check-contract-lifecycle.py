@@ -15,6 +15,19 @@ MANIFEST_PATH = REPO_ROOT / "config" / "contract-lifecycle.json"
 CONTRACT_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v(?P<major>[1-9][0-9]*)$")
 SEMVER_PATTERN = re.compile(r"^(?P<major>0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 EVENT_TYPE_PATTERN = re.compile(r"^\s+- (?P<event>ai_erp\.[a-z0-9_.]+\.v(?P<major>[1-9][0-9]*))\s*$")
+CATALOG_REQUIRED_FIELDS = {
+    "id",
+    "kind",
+    "status",
+    "version",
+    "path",
+    "owner_area",
+    "producer",
+    "consumers",
+    "safety_boundary",
+    "tests",
+    "verification",
+}
 
 
 def rel(path: Path) -> str:
@@ -140,6 +153,25 @@ def validate_contract_entry(
     failures: list[str],
 ) -> None:
     contract_id = str(contract.get("id", "<missing-id>"))
+    missing = sorted(CATALOG_REQUIRED_FIELDS - set(contract))
+    if missing:
+        fail(failures, f"{contract_id}: missing required fields: {', '.join(missing)}")
+    owner_area = contract.get("owner_area")
+    if not isinstance(owner_area, str) or not owner_area.strip() or not (REPO_ROOT / owner_area).exists():
+        fail(failures, f"{contract_id}: owner_area must name an existing path")
+    if not isinstance(contract.get("producer"), str) or not contract["producer"].strip():
+        fail(failures, f"{contract_id}: producer must be a non-empty string")
+    for consumer in string_list(contract.get("consumers"), f"{contract_id}.consumers", failures):
+        if not (REPO_ROOT / consumer).exists():
+            fail(failures, f"{contract_id}: consumer path does not exist: {consumer}")
+    contract_name = Path(str(contract.get("path"))).name
+    for test_path in string_list(contract.get("tests"), f"{contract_id}.tests", failures):
+        if not (REPO_ROOT / test_path).is_file():
+            fail(failures, f"{contract_id}: test path does not exist: {test_path}")
+        elif contract_name not in read_text(REPO_ROOT / test_path, failures):
+            fail(failures, f"{contract_id}: test {test_path} must reference {contract_name}")
+    string_list(contract.get("verification"), f"{contract_id}.verification", failures)
+
     id_match = CONTRACT_ID_PATTERN.match(contract_id)
     if not id_match:
         fail(failures, f"{contract_id}: id must end with -vN")
@@ -184,6 +216,10 @@ def validate_contract_entry(
         openapi_version = extract_openapi_version(contract_text)
         if openapi_version != version:
             fail(failures, f"{contract_id}: OpenAPI info.version must match catalog version")
+        if "openapi:" not in contract_text:
+            fail(failures, f"{contract_id}: OpenAPI contract must declare openapi")
+        if "draft_only" not in contract_text or "allowed_action" not in contract_text:
+            fail(failures, f"{contract_id}: OpenAPI AI boundary must remain draft-only with allowed_action")
     elif kind == "business-event":
         if version != major:
             fail(failures, f"{contract_id}: business-event catalog version must equal id major")
@@ -195,6 +231,8 @@ def validate_contract_entry(
         for event_type, event_major in event_types:
             if event_major != major:
                 fail(failures, f"{contract_id}: event type major mismatch: {event_type}")
+        if status == "contract-only" and "status: contract-only" not in contract_text:
+            fail(failures, f"{contract_id}: contract-only status must be visible in event contract")
 
     safety_boundary = str(contract.get("safety_boundary", "")).lower()
     for term in string_list(manifest.get("required_catalog_safety_terms"), "required_catalog_safety_terms", failures):
@@ -220,11 +258,31 @@ def validate_catalog(manifest: dict[str, Any], failures: list[str]) -> None:
         fail(failures, f"{catalog_path}: contracts must be a non-empty list")
         return
 
+    seen_ids: set[str] = set()
+    cataloged_paths: set[str] = set()
     for entry in contracts:
         if not isinstance(entry, dict):
             fail(failures, f"{catalog_path}: every contract entry must be an object")
             continue
+        for field, seen in (("id", seen_ids), ("path", cataloged_paths)):
+            value = entry.get(field)
+            if isinstance(value, str):
+                if value in seen:
+                    fail(failures, f"{catalog_path}: duplicate contract {field}: {value}")
+                seen.add(value)
         validate_contract_entry(manifest, entry, failures)
+
+    discovered = {
+        rel(path)
+        for folder in ("openapi", "events")
+        for path in (REPO_ROOT / "contracts" / folder).glob("*.yaml")
+    }
+    if discovered != cataloged_paths:
+        fail(
+            failures,
+            f"{catalog_path}: contract files and catalog paths differ "
+            f"(uncataloged: {sorted(discovered - cataloged_paths)}, missing files: {sorted(cataloged_paths - discovered)})",
+        )
 
 
 def main() -> int:

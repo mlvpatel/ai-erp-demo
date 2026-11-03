@@ -57,7 +57,6 @@ require_file .github/repository-metadata.json
 require_file .github/pull_request_template.md
 require_file .github/workflows/ci.yml
 require_file contracts/catalog.json
-require_file scripts/check-contract-catalog.py
 require_file scripts/check-contract-lifecycle.py
 require_file scripts/check-integration-safety.py
 require_file scripts/check-operations-readiness.py
