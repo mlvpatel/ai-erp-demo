@@ -130,7 +130,7 @@ def suggest_technicians(name):
 		"candidates": candidates[:CANDIDATE_LIMIT],
 		"excluded": excluded,
 		"assignment_note": "Suggestions only. Assignment happens through the dispatcher-saved form.",
-		"feedback_summary": _feedback_summary_for_work_order(work_order.name),
+		"feedback_summary": _feedback_summary(work_order.name),
 	}
 
 
@@ -198,17 +198,10 @@ def _completed_familiarity(work_order, technicians):
 	return familiarity
 
 
-def _location_default_warehouse(work_order):
-	"""Return Service Location.default_warehouse when the work order has a location."""
-	location = work_order.get("service_location")
-	if not location:
-		return ""
-	return frappe.db.get_value("Service Location", location, "default_warehouse") or ""
-
-
-def _row_parts_warehouse(row, location_warehouse):
-	"""Resolve the warehouse issue_parts would use for one declared part row."""
-	return getattr(row, "source_warehouse", None) or location_warehouse or ""
+def _bin_qty(item, warehouse):
+	if not warehouse:
+		return 0.0
+	return flt(frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty"))
 
 
 def _parts_readiness(work_order, technicians, van_warehouses=None):
@@ -224,59 +217,37 @@ def _parts_readiness(work_order, technicians, van_warehouses=None):
 	if not parts:
 		return {tech: {"ready": True, "source": "no_parts"} for tech in technicians}
 
-	location_warehouse = _location_default_warehouse(work_order)
+	location = work_order.get("service_location")
+	location_warehouse = ""
+	if location:
+		location_warehouse = frappe.db.get_value("Service Location", location, "default_warehouse") or ""
 	required_by_bin = {}
 	for row in parts:
 		if not row.item:
 			return {tech: {"ready": False, "source": None} for tech in technicians}
-		warehouse = _row_parts_warehouse(row, location_warehouse)
-		key = (row.item, warehouse or "")
+		key = (row.item, getattr(row, "source_warehouse", None) or location_warehouse)
 		required_by_bin[key] = required_by_bin.get(key, 0) + flt(row.qty)
 
+	shortages = [
+		(item, req_qty)
+		for (item, warehouse), req_qty in required_by_bin.items()
+		if _bin_qty(item, warehouse) < req_qty
+	]
 	van_warehouses = van_warehouses or {}
 	result = {}
 	for tech in technicians:
 		van = van_warehouses.get(tech) or ""
-		ready = True
-		used_van = False
-		for (item, primary_warehouse), req_qty in required_by_bin.items():
-			primary_qty = 0.0
-			if primary_warehouse:
-				primary_qty = flt(
-					frappe.db.get_value(
-						"Bin",
-						{"item_code": item, "warehouse": primary_warehouse},
-						"actual_qty",
-					)
-				)
-			if primary_qty >= req_qty:
-				continue
-			van_qty = 0.0
-			if van:
-				van_qty = flt(
-					frappe.db.get_value(
-						"Bin", {"item_code": item, "warehouse": van}, "actual_qty"
-					)
-				)
-			if van_qty >= req_qty:
-				used_van = True
-				continue
-			ready = False
-			break
-		if not ready:
-			result[tech] = {"ready": False, "source": None}
-		elif used_van:
+		if not shortages:
+			result[tech] = {"ready": True, "source": "primary"}
+		elif all(_bin_qty(item, van) >= req_qty for item, req_qty in shortages):
 			result[tech] = {"ready": True, "source": "van"}
 		else:
-			result[tech] = {"ready": True, "source": "primary"}
+			result[tech] = {"ready": False, "source": None}
 	return result
 
 
 def _single_capability_label(raw_value):
-	labels = normalize_capability_labels(raw_value)
-	if not labels:
-		return ""
-	return sorted(labels)[0]
+	return min(normalize_capability_labels(raw_value), default="")
 
 
 def _technician_capabilities(technicians):
@@ -383,18 +354,22 @@ def suggestion_feedback_summary(name=None):
 	require_any_role(
 		DISPATCHER_ROLES, _("Only a dispatcher or manager can view scheduling feedback.")
 	)
+	if not name:
+		return _feedback_summary()
+	work_order = frappe.get_doc("Service Work Order", name)
+	work_order.check_permission("read")
+	return _feedback_summary(work_order.name)
+
+
+def _feedback_summary(work_order_name=None):
+	"""Aggregate stored rejection feedback for one work order, or site-wide without a name."""
 	filters = {
 		"comment_type": "Info",
 		"reference_doctype": "Service Work Order",
 		"content": ("like", f"%{FEEDBACK_MARKER}%"),
 	}
-	if name:
-		work_order = frappe.get_doc("Service Work Order", name)
-		work_order.check_permission("read")
-		filters["reference_name"] = work_order.name
-		scope = work_order.name
-	else:
-		scope = "site"
+	if work_order_name:
+		filters["reference_name"] = work_order_name
 	rows = frappe.get_all(
 		"Comment",
 		filters=filters,
@@ -403,28 +378,7 @@ def suggestion_feedback_summary(name=None):
 		limit_page_length=FEEDBACK_SUMMARY_LIMIT,
 	)
 	summary = _aggregate_feedback_rows(rows)
-	summary["scope"] = scope
-	summary["scanned"] = len(rows)
-	summary["truncated"] = len(rows) >= FEEDBACK_SUMMARY_LIMIT
-	return summary
-
-
-def _feedback_summary_for_work_order(work_order_name):
-	"""Aggregate rejection feedback already stored on one work order."""
-	rows = frappe.get_all(
-		"Comment",
-		filters={
-			"comment_type": "Info",
-			"reference_doctype": "Service Work Order",
-			"reference_name": work_order_name,
-			"content": ("like", f"%{FEEDBACK_MARKER}%"),
-		},
-		fields=["content", "creation", "reference_name"],
-		order_by="creation desc",
-		limit_page_length=FEEDBACK_SUMMARY_LIMIT,
-	)
-	summary = _aggregate_feedback_rows(rows)
-	summary["scope"] = work_order_name
+	summary["scope"] = work_order_name or "site"
 	summary["scanned"] = len(rows)
 	summary["truncated"] = len(rows) >= FEEDBACK_SUMMARY_LIMIT
 	return summary
@@ -441,10 +395,7 @@ def _aggregate_feedback_rows(rows):
 			continue
 		total += 1
 		category = parsed["reason_category"]
-		if category in category_counts:
-			category_counts[category] += 1
-		else:
-			category_counts["Other"] = category_counts.get("Other", 0) + 1
+		category_counts[category] += 1
 		if len(recent) < FEEDBACK_RECENT_LIMIT:
 			recent.append(
 				{
