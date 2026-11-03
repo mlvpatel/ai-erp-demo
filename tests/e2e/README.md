@@ -1,6 +1,6 @@
 # Browser E2E
 
-The browser suite uses Playwright 1.61.0 in its matching official container. It
+The browser suite uses Playwright 1.64.1 in its matching official container. It
 creates only synthetic `.localhost` users and work orders, authenticates each
 role in an isolated browser or API context, opens real Frappe Desk routes, and
 exercises the controlled service transaction path.

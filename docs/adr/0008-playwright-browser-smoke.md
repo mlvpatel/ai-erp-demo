@@ -13,7 +13,7 @@ or customer data.
 
 ## Decision
 
-Use `@playwright/test` 1.61.0 and the matching digest-pinned official Chromium
+Use `@playwright/test` 1.64.1 and the matching digest-pinned official Chromium
 container. Prepare only synthetic users and work orders on an explicitly
 enabled `.localhost` site. Run serially with isolated browser contexts, log in
 through Frappe's API, load real Desk routes, and verify permission-scoped list
