@@ -99,11 +99,6 @@ def quote_block(value: str) -> str:
 	return "\n".join(f"{QUOTE_PREFIX}{line}".rstrip() for line in lines)
 
 
-def cited_record_names(sources: Iterable[Any]) -> frozenset[str]:
-	"""Return the record names the request cited."""
-	return frozenset(source.name for source in sources)
-
-
 # Follow-up inspection outcomes count as actionable repair memory even when
 # closeout notes and parts are empty: they justify a missing-diagnostic warning.
 REPAIR_FOLLOW_UP_RESULTS = frozenset({"Failed", "Needs Follow-up"})
@@ -118,7 +113,7 @@ def cited_history(
 	and the control-plane runtime (3.14) share one syntax. Callers pass typed
 	history models; the filter only reads ``.name``.
 	"""
-	allowed = cited_record_names(sources)
+	allowed = {source.name for source in sources}
 	kept = [entry for entry in entries if entry.name in allowed]
 	return kept, len(entries) - len(kept)
 
@@ -130,14 +125,9 @@ def has_actionable_repair_facts(entry: Any) -> bool:
 	actionable when it has closeout notes, declared parts, or a failed /
 	follow-up inspection outcome.
 	"""
-	notes = (getattr(entry, "closeout_notes", None) or "").strip()
-	if notes:
-		return True
-	parts = getattr(entry, "parts", None) or ()
-	if parts:
-		return True
-	inspection = (getattr(entry, "inspection_result", None) or "").strip()
-	return inspection in REPAIR_FOLLOW_UP_RESULTS
+	return bool(
+		entry.closeout_notes.strip() or entry.parts or entry.inspection_result.strip() in REPAIR_FOLLOW_UP_RESULTS
+	)
 
 
 def actionable_repair_history(entries: Sequence[Any]) -> tuple[list[Any], int]:
@@ -148,31 +138,21 @@ def actionable_repair_history(entries: Sequence[Any]) -> tuple[list[Any], int]:
 
 def omission_note(omitted: int, *, weak: int = 0) -> list[str]:
 	"""Render reviewer-visible notes for uncited or weak prior records."""
-	lines: list[str] = []
-	if omitted:
-		if omitted == 1:
-			sentence = (
-				"1 prior record was omitted because the request supplied no citation for it."
-			)
-		else:
-			sentence = (
-				f"{omitted} prior records were omitted because the request "
-				"supplied no citation for them."
-			)
-		lines.extend(["", "Evidence note", sentence])
-	if weak:
-		if weak == 1:
-			sentence = (
-				"1 cited prior record was omitted because it had no closeout notes, "
-				"parts, or follow-up inspection outcome."
-			)
-		else:
-			sentence = (
-				f"{weak} cited prior records were omitted because they had no "
-				"closeout notes, parts, or follow-up inspection outcome."
-			)
-		if not lines:
-			lines.extend(["", "Evidence note", sentence])
-		else:
-			lines.append(sentence)
-	return lines
+	sentences: list[str] = []
+	if omitted == 1:
+		sentences.append("1 prior record was omitted because the request supplied no citation for it.")
+	elif omitted:
+		sentences.append(
+			f"{omitted} prior records were omitted because the request supplied no citation for them."
+		)
+	if weak == 1:
+		sentences.append(
+			"1 cited prior record was omitted because it had no closeout notes, "
+			"parts, or follow-up inspection outcome."
+		)
+	elif weak:
+		sentences.append(
+			f"{weak} cited prior records were omitted because they had no "
+			"closeout notes, parts, or follow-up inspection outcome."
+		)
+	return ["", "Evidence note", *sentences] if sentences else []

@@ -8,7 +8,6 @@ from ai_erp_control_plane.safety import (
 	REDACTION_MARKER,
 	actionable_repair_history,
 	cited_history,
-	cited_record_names,
 	has_actionable_repair_facts,
 	neutralize,
 	omission_note,
@@ -98,11 +97,10 @@ class TestQuoting(unittest.TestCase):
 
 
 class TestProvenance(unittest.TestCase):
-	def test_cited_record_names_collects_source_names(self):
-		self.assertEqual(
-			cited_record_names([_Named("SVC-WO-1"), _Named("SVC-WO-2"), _Named("SVC-WO-1")]),
-			frozenset({"SVC-WO-1", "SVC-WO-2"}),
-		)
+	def test_cited_history_accepts_repeated_citations_for_one_record(self):
+		kept, omitted = cited_history([_Named("SVC-WO-1")], [_Named("SVC-WO-1"), _Named("SVC-WO-1")])
+		self.assertEqual(kept, [_Named("SVC-WO-1")])
+		self.assertEqual(omitted, 0)
 
 	def test_cited_history_keeps_order_and_counts_omissions(self):
 		entries = [_Named("SVC-WO-1"), _Named("SVC-WO-2"), _Named("SVC-WO-3")]
