@@ -95,16 +95,9 @@ class ServiceWorkOrder(Document):
 					frappe.PermissionError,
 				)
 
-		stored_rates = {
-			row.name: flt(row.bill_rate)
-			for row in frappe.get_all(
-				"Service Work Order Part",
-				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "parts"},
-				fields=["name", "bill_rate"],
-			)
-		}
+		stored_parts = self._stored_rows("Service Work Order Part", "parts", ["bill_rate"])
 		for row in self.get("parts") or []:
-			if flt(row.bill_rate) != stored_rates.get(row.name, 0):
+			if flt(row.bill_rate) != flt((stored_parts.get(row.name) or {}).get("bill_rate")):
 				frappe.throw(_("Technicians cannot change Part Bill Rate."), frappe.PermissionError)
 
 	def _validate_location(self):
@@ -157,14 +150,9 @@ class ServiceWorkOrder(Document):
 				frappe.throw(_("Part rows cannot be linked to a Stock Entry during creation."))
 			return
 
-		stored_rows = {
-			row.name: row
-			for row in frappe.get_all(
-				"Service Work Order Part",
-				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "parts"},
-				fields=["name", "item", "qty", "source_warehouse", "stock_entry"],
-			)
-		}
+		stored_rows = self._stored_rows(
+			"Service Work Order Part", "parts", ["item", "qty", "source_warehouse", "stock_entry"]
+		)
 		current_rows = {row.name: row for row in self.get("parts") or [] if row.name}
 
 		for stored_name, stored in stored_rows.items():
@@ -210,14 +198,9 @@ class ServiceWorkOrder(Document):
 		):
 			frappe.throw(_("Billing fields cannot change after a Sales Invoice has been created."))
 
-		stored_time = {
-			row.name: row
-			for row in frappe.get_all(
-				"Service Work Order Time",
-				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "time_entries"},
-				fields=["name", "technician", "work_date", "time_type", "hours"],
-			)
-		}
+		stored_time = self._stored_rows(
+			"Service Work Order Time", "time_entries", ["technician", "work_date", "time_type", "hours"]
+		)
 		current_time = {row.name: row for row in self.get("time_entries") or [] if row.name}
 		if set(stored_time) != set(current_time):
 			frappe.throw(_("Time entries cannot change after a Sales Invoice has been created."))
@@ -231,14 +214,11 @@ class ServiceWorkOrder(Document):
 			):
 				frappe.throw(_("Time entries cannot change after a Sales Invoice has been created."))
 
-		stored_parts = {
-			row.name: row
-			for row in frappe.get_all(
-				"Service Work Order Part",
-				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": "parts"},
-				fields=["name", "item", "qty", "bill_rate", "source_warehouse", "stock_entry"],
-			)
-		}
+		stored_parts = self._stored_rows(
+			"Service Work Order Part",
+			"parts",
+			["item", "qty", "bill_rate", "source_warehouse", "stock_entry"],
+		)
 		current_parts = {row.name: row for row in self.get("parts") or [] if row.name}
 		if set(stored_parts) != set(current_parts):
 			frappe.throw(_("Part rows cannot change after a Sales Invoice has been created."))
@@ -349,14 +329,16 @@ class ServiceWorkOrder(Document):
 	def _is_technician_only(self):
 		return "Service Technician" in frappe.get_roles() and not has_any_role(DISPATCHER_ROLES)
 
-	def _require_manager(self):
-		require_any_role(MANAGER_ROLES, "Only a service manager can issue inventory for a work order.")
-
-	def _require_finance(self):
-		require_any_role(
-			FINANCE_ROLES,
-			"Only an Accounts User or Accounts Manager can draft a Sales Invoice.",
-		)
+	def _stored_rows(self, child_doctype, parentfield, fields):
+		"""Return this work order's saved child rows keyed by row name."""
+		return {
+			row.name: row
+			for row in frappe.get_all(
+				child_doctype,
+				filters={"parent": self.name, "parenttype": self.doctype, "parentfield": parentfield},
+				fields=["name", *fields],
+			)
+		}
 
 
 @frappe.whitelist()
@@ -367,7 +349,7 @@ def issue_parts(name):
 def _issue_parts(name):
 	work_order = frappe.get_doc("Service Work Order", name)
 	work_order.check_permission("write")
-	work_order._require_manager()
+	require_any_role(MANAGER_ROLES, "Only a service manager can issue inventory for a work order.")
 
 	# Lock the parent record before checking unissued rows, so retries cannot create duplicate stock issues.
 	frappe.db.sql("SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE", name)
@@ -418,7 +400,7 @@ def make_draft_sales_invoice(name):
 def _make_draft_sales_invoice(name):
 	work_order = frappe.get_doc("Service Work Order", name)
 	work_order.check_permission("read")
-	work_order._require_finance()
+	require_any_role(FINANCE_ROLES, "Only an Accounts User or Accounts Manager can draft a Sales Invoice.")
 	frappe.has_permission("Sales Invoice", ptype="create", throw=True)
 
 	frappe.db.sql("SELECT `name` FROM `tabService Work Order` WHERE `name` = %s FOR UPDATE", name)
