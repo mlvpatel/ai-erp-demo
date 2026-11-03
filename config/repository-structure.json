@@ -129,7 +129,7 @@
     "docs": "product, architecture, discovery, security, runbooks, and workflows",
     "infra": "non-secret infrastructure configuration only",
     "tests": "contract, e2e, fixture, and performance tests",
-    ".agents": "shared agent entrypoints, memory, and skills",
+    ".agents": "shared agent entrypoints and skills",
     ".claude": "Claude Code skills symlink only; local settings stay gitignored",
     ".cursor": "versioned Cursor agent skills and always-on rules only; no secrets or MCP credentials"
   }
