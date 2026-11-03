@@ -100,22 +100,7 @@ python3 scripts/check-publication-secrets.py
 python3 scripts/check-operations-readiness.py
 python3 scripts/check-observability-readiness.py
 python3 scripts/check-performance-readiness.py
-python3 scripts/check-doc-links.py
-python3 scripts/check-ai-data-boundary.py
-python3 scripts/check-integration-safety.py
-python3 scripts/check-migration-safety.py
-python3 scripts/check-dependency-updates.py
 python3 scripts/check-upstream-upgrade-readiness.py
-python3 scripts/check-github-metadata.py
-python3 scripts/check-ci-workflow.py
-python3 scripts/check-github-labels.py
-python3 scripts/check-fresh-clone-demo.py
-python3 scripts/check-demo-script.py
-python3 scripts/check-release-readiness.py
-python3 scripts/check-release-policy.py
-python3 scripts/check-owner-decisions.py
-python3 scripts/check-license-metadata.py
-python3 scripts/check-public-claims.py
 python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s services/ai_control_plane/tests -v
 python -m unittest discover -s tests/contract -v

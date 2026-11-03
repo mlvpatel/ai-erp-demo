@@ -95,30 +95,6 @@ The local Python interpreter must satisfy the repository requirement in
 Docker-backed `scripts/dev.sh control-plane-test` and
 `scripts/dev.sh contract-test` helpers instead.
 
-In the Docker dev stack, the equivalent contract-test path is:
-
-```sh
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m pip install ./services/ai_control_plane
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m unittest discover -s services/ai_control_plane/tests -v
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m pip install './services/ai_control_plane[test]'
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m unittest discover -s tests/contract -v
-```
-
 ## ERP service workflow gate
 
 Run when changing `apps/ai_erp_core/`, `apps/ai_erp_service/`, fixtures,
