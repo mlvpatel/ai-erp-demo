@@ -30,7 +30,8 @@ same files. Cursor also loads `.cursor/rules/behuman.mdc` as an always-on rule.
   fill-in checklist, inventory, DPA/DPIA templates, go/no-go); they are not
   counsel sign-off.
 - AI is proposal-only: it must never post accounting, stock, payroll,
-  permissions, compliance records, or customer messages.
+  permissions, compliance records, or customer messages. Deterministic ERP code
+  and authorized humans change business state.
 - Synthetic data only. No secrets, raw prompts, or raw provider responses in
   Git, tests, CI logs, or release evidence.
 - Custom behavior lives in `apps/`; provider calls, prompts, retrieval, and
@@ -43,6 +44,8 @@ same files. Cursor also loads `.cursor/rules/behuman.mdc` as an always-on rule.
 
 ## Gates
 
+Run the smallest relevant gate, then the broader one:
+
 ```sh
 scripts/run-quality-gates.sh          # always
 scripts/dev.sh control-plane-test     # control-plane or contract changes
@@ -50,3 +53,7 @@ scripts/dev.sh contract-test
 scripts/dev.sh service-test           # Frappe app, permission, stock, invoice
 scripts/dev.sh e2e-test               # closeout, AI Proposal, workflow changes
 ```
+
+The host Python may be older than the control plane's requirement; use the
+Docker-backed `scripts/dev.sh` helpers or a `uv`-managed Python that satisfies
+`services/ai_control_plane/pyproject.toml`.
