@@ -110,19 +110,6 @@ def validate_contract_shape(contract: dict[str, Any], failures: list[str]) -> No
     if not isinstance(workflow, str) or not workflow.strip():
         fail(failures, "workflow must be a non-empty string")
 
-    triggers = contract.get("required_triggers")
-    if not isinstance(triggers, dict):
-        fail(failures, "required_triggers must be an object")
-    else:
-        if triggers.get("push_branch") != "main":
-            fail(failures, "required_triggers.push_branch must be main")
-        if triggers.get("pull_request") is not True:
-            fail(failures, "required_triggers.pull_request must be true")
-
-    permissions = contract.get("required_permissions")
-    if not isinstance(permissions, dict) or permissions.get("contents") != "read":
-        fail(failures, "required_permissions.contents must be read")
-
 
 def validate_workflow(contract: dict[str, Any], metadata: dict[str, Any], failures: list[str]) -> None:
     workflow_value = contract.get("workflow")

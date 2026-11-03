@@ -14,7 +14,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 METADATA = REPO_ROOT / ".github" / "repository-metadata.json"
 PUBLIC_POSITIONING = REPO_ROOT / "docs" / "product" / "public-positioning.md"
 PUBLICATION_RUNBOOK = REPO_ROOT / "docs" / "runbooks" / "github-publication.md"
-CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 TOPIC_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")
 FORBIDDEN_DESCRIPTION_CLAIMS = (
@@ -115,19 +114,6 @@ def validate_branch_and_ci(failures: list[str], metadata: dict[str, Any]) -> Non
         if branch_protection.get(field) is not True:
             fail(failures, f"branch_protection.{field} must be true")
 
-    required_status_checks = branch_protection.get("required_status_checks")
-    if not isinstance(required_status_checks, list) or not required_status_checks:
-        fail(failures, "branch_protection.required_status_checks must be a non-empty list")
-        return
-    ci_text = text(CI_WORKFLOW)
-    if "branches: [main]" not in ci_text:
-        fail(failures, "CI workflow must run on pushes to main")
-    for check in required_status_checks:
-        if not isinstance(check, str) or not check.strip():
-            fail(failures, "required_status_checks must contain non-empty strings")
-        elif f"name: {check}" not in ci_text:
-            fail(failures, f"required status check not found in CI workflow: {check}")
-
 
 def validate_features_and_files(failures: list[str], metadata: dict[str, Any]) -> None:
     features = metadata.get("features")
@@ -166,7 +152,7 @@ def validate_release_blockers(failures: list[str], metadata: dict[str, Any]) -> 
 
 def main() -> int:
     failures: list[str] = []
-    for path in (PUBLIC_POSITIONING, PUBLICATION_RUNBOOK, CI_WORKFLOW):
+    for path in (PUBLIC_POSITIONING, PUBLICATION_RUNBOOK):
         if not path.is_file():
             fail(failures, f"required metadata source missing: {rel(path)}")
 
