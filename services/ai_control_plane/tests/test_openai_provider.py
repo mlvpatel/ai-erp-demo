@@ -1,11 +1,10 @@
-import hashlib
 import json
 import os
 import unittest
 from unittest.mock import patch
-from uuid import uuid4
 
 import httpx
+from _payloads import envelope, source
 
 from ai_erp_control_plane.models import RelatedWorkSummary, RepairMemoryRequest, ServiceCloseoutSummaryRequest
 from ai_erp_control_plane.openai_provider import (
@@ -23,12 +22,10 @@ from ai_erp_control_plane.openai_provider import (
 
 def _request():
 	return ServiceCloseoutSummaryRequest.model_validate(
-		{
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "private-tenant.example",
-			"requested_by": "private-user@example.test",
-			"work_order": {
+		envelope(
+			"private-user@example.test",
+			tenant_site="private-tenant.example",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "PRIVATE-WO-0001",
 				"subject": "Inspect pump",
@@ -45,15 +42,8 @@ def _request():
 				],
 				"parts": [{"item": "MOUNT-1", "qty": 1, "source_warehouse": "PRIVATE-WH", "issued": True}],
 			},
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "PRIVATE-WO-0001",
-					"field": "closeout_notes",
-					"content_hash": hashlib.sha256(b"Tightened the mount.").hexdigest(),
-				}
-			],
-		}
+			sources=[source("PRIVATE-WO-0001", "closeout_notes", "Tightened the mount.")],
+		)
 	)
 
 
@@ -351,19 +341,17 @@ class TestOpenAIProvider(unittest.TestCase):
 
 def _repair_memory_request():
 	return RepairMemoryRequest.model_validate(
-		{
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "private-tenant.example",
-			"requested_by": "private-user@example.test",
-			"work_order": {
+		envelope(
+			"private-user@example.test",
+			tenant_site="private-tenant.example",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "PRIVATE-WO-0002",
 				"subject": "Inspect pump again",
 				"status": "In Progress",
 				"description": "Investigate noise recurrence.",
 			},
-			"related_history": [
+			related_history=[
 				{
 					"name": "PRIVATE-WO-HIST-1",
 					"subject": "Prior pump repair",
@@ -373,13 +361,6 @@ def _repair_memory_request():
 					"parts": [{"item": "SEAL-1", "qty": 1, "issued": True}],
 				}
 			],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "PRIVATE-WO-0002",
-					"field": "repair_context",
-					"content_hash": "0" * 64,
-				}
-			],
-		}
+			sources=[source("PRIVATE-WO-0002", "repair_context")],
+		)
 	)

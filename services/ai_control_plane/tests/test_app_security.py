@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from _payloads import envelope, source
 from fastapi.testclient import TestClient
 
 from ai_erp_control_plane.app import app
@@ -11,12 +12,8 @@ SHARED_SECRET = "example-shared-secret"
 
 
 def _valid_request_payload():
-	return {
-		"schema_version": 1,
-		"request_id": "00000000-0000-4000-8000-000000000001",
-		"tenant_site": "demo.localhost",
-		"requested_by": "technician@example.test",
-		"work_order": {
+	return envelope(
+		work_order={
 			"doctype": "Service Work Order",
 			"name": "SVC-WO-00001",
 			"subject": "Inspect pump",
@@ -26,15 +23,8 @@ def _valid_request_payload():
 			"time_entries": [],
 			"parts": [],
 		},
-		"sources": [
-			{
-				"doctype": "Service Work Order",
-				"name": "SVC-WO-00001",
-				"field": "closeout_notes",
-				"content_hash": "0" * 64,
-			}
-		],
-	}
+		sources=[source("SVC-WO-00001", "closeout_notes", "Tightened the mount.")],
+	)
 
 
 class TestAppSecurity(unittest.TestCase):
@@ -112,27 +102,17 @@ class TestAppSecurity(unittest.TestCase):
 			self.assertEqual(self.client.get("/readyz").status_code, 503)
 
 	def test_scheduling_route_requires_service_key_and_strict_payload(self):
-		scheduling_payload = {
-			"schema_version": 1,
-			"request_id": "00000000-0000-4000-8000-000000000002",
-			"tenant_site": "demo.localhost",
-			"requested_by": "dispatcher@example.test",
-			"work_order": {
+		scheduling_payload = envelope(
+			"dispatcher@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-00002",
 				"subject": "Quarterly pump service",
 				"status": "Draft",
 			},
-			"candidates": [],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-00002",
-					"field": "scheduling",
-					"content_hash": "0" * 64,
-				}
-			],
-		}
+			candidates=[],
+			sources=[source("SVC-WO-00002", "scheduling")],
+		)
 		environment = {
 			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
 			"AI_ERP_PROVIDER": "template",
