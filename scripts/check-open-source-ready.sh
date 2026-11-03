@@ -152,7 +152,6 @@ require_file docs/workflows/authorization-and-approvals.md
 require_file docs/workflows/transaction-safety.md
 require_file docs/workflows/audit-evidence.md
 require_file infra/observability/README.md
-require_file infra/observability/alert-rules.example.yml
 require_file tests/performance/README.md
 require_file tests/performance/service-operations-load-profile.example.json
 require_file contracts/openapi/ai-control-plane-v1.yaml

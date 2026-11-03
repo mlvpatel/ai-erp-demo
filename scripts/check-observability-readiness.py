@@ -85,7 +85,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     for field in (
         "workflow_doc",
         "infra_readme",
-        "alert_rules_example",
         "operations_readiness_doc",
         "incident_response_runbook",
         "backup_restore_runbook",
@@ -99,8 +98,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
 
     for field in (
         "signal_groups",
-        "required_alerts",
-        "forbidden_observability_snippets",
         "required_doc_phrases",
     ):
         value = manifest.get(field)
@@ -133,25 +130,6 @@ def validate_signal_groups(manifest: dict[str, Any], failures: list[str]) -> Non
                 fail(failures, f"{workflow_path} missing signal term: {term}")
 
 
-def validate_alert_rules(manifest: dict[str, Any], failures: list[str]) -> None:
-    path_value = manifest.get("alert_rules_example")
-    if not isinstance(path_value, str):
-        return
-    text = read_text(REPO_ROOT / path_value, failures)
-    for alert in string_list(manifest.get("required_alerts"), "required_alerts", failures):
-        if not contains_snippet(text, f"alert: {alert}"):
-            fail(failures, f"{path_value} missing alert rule: {alert}")
-
-    lower_text = text.lower()
-    for snippet in string_list(
-        manifest.get("forbidden_observability_snippets"),
-        "forbidden_observability_snippets",
-        failures,
-    ):
-        if snippet.lower() in lower_text:
-            fail(failures, f"{path_value} contains forbidden observability snippet: {snippet}")
-
-
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
     entries = manifest.get("required_doc_phrases")
     if not isinstance(entries, list):
@@ -178,7 +156,6 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_signal_groups(manifest, failures)
-        validate_alert_rules(manifest, failures)
         validate_docs(manifest, failures)
 
     if failures:

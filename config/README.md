@@ -29,8 +29,8 @@ secrets belong in the deployment platform or a secrets manager.
   guardrail. It keeps backup/restore runbooks, incident handling, publication
   exclusions, support/security docs, and release checks aligned.
 - `observability-readiness.json`: machine-readable monitoring and alerting
-  guardrail. It keeps public observability guidance, safe example alerts,
-  telemetry data boundaries, incident runbooks, and release checks aligned.
+  guardrail. It keeps public observability guidance, telemetry data
+  boundaries, incident runbooks, and release checks aligned.
 - `performance-readiness.json`: machine-readable performance guardrail. It
   keeps load-profile examples, record-volume targets, safety invariants,
   workflow docs, and release checks aligned.
