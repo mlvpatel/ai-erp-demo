@@ -89,7 +89,16 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0009-scheduling-explanation-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-scheduling.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "candidates",
+        "excluded",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
@@ -151,7 +160,17 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0010-exception-recovery-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-exception-recovery.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "exception",
+        "parts",
+        "related_history",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
@@ -213,7 +232,15 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0011-repair-memory-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-repair-memory.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "related_history",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",

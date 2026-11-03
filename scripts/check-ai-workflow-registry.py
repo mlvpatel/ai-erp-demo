@@ -198,9 +198,11 @@ def validate_implemented_workflow(workflow: dict[str, Any], failures: list[str])
     workflow_id = str(workflow.get("id", "<missing-id>"))
 
     data_boundary_path = workflow.get("data_boundary_manifest")
-    if not isinstance(data_boundary_path, str):
+    data_boundary: dict[str, Any] = {}
+    if workflow.get("provider_mode") == "deterministic":
+        string_list(workflow.get("allowed_request_fields"), f"{workflow_id}.allowed_request_fields", failures)
+    elif not isinstance(data_boundary_path, str):
         fail(failures, f"{workflow_id}: data_boundary_manifest must be a string")
-        data_boundary = {}
     else:
         data_boundary = load_json(REPO_ROOT / data_boundary_path, failures)
 

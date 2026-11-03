@@ -13,11 +13,8 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
-REGISTERED_MANIFESTS = (
-    (REPO_ROOT / "config" / "ai-data-boundary-scheduling.json", "scheduling_explanation"),
-    (REPO_ROOT / "config" / "ai-data-boundary-exception-recovery.json", "exception_recovery"),
-    (REPO_ROOT / "config" / "ai-data-boundary-repair-memory.json", "repair_memory"),
-)
+REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
+DETERMINISTIC_WORKFLOWS = ("scheduling_explanation", "exception_recovery", "repair_memory")
 
 
 def rel(path: Path) -> str:
@@ -304,44 +301,33 @@ def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> No
             fail(failures, f"AI data-boundary test phrase missing: {phrase}")
 
 
-def validate_registered_manifest(path: Path, expected_workflow: str, failures: list[str]) -> None:
-    """Validate one registered deterministic workflow manifest (ADR-0009 pattern)."""
-    manifest = load_json(path, failures)
-    if not manifest:
-        return
-    label = rel(path)
-    if manifest.get("schema_version") != 1:
-        fail(failures, f"{label}: schema_version must be 1")
-    if manifest.get("workflow") != expected_workflow:
-        fail(failures, f"{label}: workflow must be {expected_workflow}")
-    if manifest.get("proposal_type") != expected_workflow:
-        fail(failures, f"{label}: proposal_type must be {expected_workflow}")
-    if manifest.get("provider_mode") != "deterministic":
+def validate_registered_workflow(workflow_id: str, workflow: dict[str, Any], failures: list[str]) -> None:
+    """Validate one deterministic registry workflow's request boundary (ADR-0009 pattern)."""
+    label = f"{rel(REGISTRY_PATH)} {workflow_id}"
+    if workflow.get("proposal_type") != workflow_id:
+        fail(failures, f"{label}: proposal_type must be {workflow_id}")
+    if workflow.get("provider_mode") != "deterministic":
         fail(failures, f"{label}: provider_mode must stay deterministic per ADR-0009")
-    policy = manifest.get("required_policy")
-    if not isinstance(policy, dict) or policy.get("decision") != "draft_only" or policy.get("allowed_action") != "none":
-        fail(failures, f"{label}: required_policy must be draft_only/none")
 
-    allowed = manifest.get("allowed_request_fields")
+    allowed = workflow.get("allowed_request_fields")
     if not isinstance(allowed, list) or not allowed or any(not isinstance(item, str) for item in allowed):
         fail(failures, f"{label}: allowed_request_fields must be a non-empty string list")
         return
 
-    models_path = manifest.get("control_plane_models")
-    request_class = manifest.get("request_class")
-    if isinstance(models_path, str) and isinstance(request_class, str):
-        module = parse_python(REPO_ROOT / models_path, failures)
+    model = workflow.get("request_model")
+    if isinstance(model, dict) and isinstance(model.get("path"), str) and isinstance(model.get("class"), str):
+        module = parse_python(REPO_ROOT / model["path"], failures)
         if module is not None:
-            actual = class_fields(module, request_class)
+            actual = class_fields(module, model["class"])
             if actual != set(allowed):
                 fail(
                     failures,
-                    f"{models_path}: {request_class} fields mismatch: expected={sorted(allowed)} actual={sorted(actual)}",
+                    f"{model['path']}: {model['class']} fields mismatch: expected={sorted(allowed)} actual={sorted(actual)}",
                 )
     else:
-        fail(failures, f"{label}: control_plane_models and request_class must be strings")
+        fail(failures, f"{label}: request_model must name a path and class")
 
-    builder = manifest.get("payload_builder")
+    builder = workflow.get("payload_builder")
     if isinstance(builder, dict) and isinstance(builder.get("path"), str) and isinstance(builder.get("function"), str):
         module = parse_python(REPO_ROOT / builder["path"], failures)
         if module is not None:
@@ -352,16 +338,6 @@ def validate_registered_manifest(path: Path, expected_workflow: str, failures: l
                 fail(failures, f"{builder['path']}: payload keys must match allowed_request_fields")
     else:
         fail(failures, f"{label}: payload_builder must name a path and function")
-
-    contract_path = manifest.get("openapi_contract")
-    route = manifest.get("route")
-    if isinstance(contract_path, str) and isinstance(route, str):
-        contract_text = read_text(REPO_ROOT / contract_path, failures)
-        for snippet in (route, f"const: {expected_workflow}"):
-            if snippet not in contract_text:
-                fail(failures, f"{contract_path}: missing contract snippet {snippet!r}")
-    else:
-        fail(failures, f"{label}: openapi_contract and route must be strings")
 
 
 def main() -> int:
@@ -375,8 +351,15 @@ def main() -> int:
             validate_models(manifest, failures)
             validate_openapi(manifest, failures)
             validate_docs_and_tests(manifest, failures)
-    for registered_path, registered_workflow in REGISTERED_MANIFESTS:
-        validate_registered_manifest(registered_path, registered_workflow, failures)
+    registry = load_json(REGISTRY_PATH, failures)
+    workflows = registry.get("workflows")
+    by_id = {item.get("id"): item for item in workflows if isinstance(item, dict)} if isinstance(workflows, list) else {}
+    for workflow_id in DETERMINISTIC_WORKFLOWS:
+        workflow = by_id.get(workflow_id)
+        if workflow is None:
+            fail(failures, f"{rel(REGISTRY_PATH)}: missing deterministic workflow {workflow_id}")
+        else:
+            validate_registered_workflow(workflow_id, workflow, failures)
 
     if failures:
         print("AI data-boundary check failed:", file=sys.stderr)
