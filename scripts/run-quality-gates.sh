@@ -31,92 +31,41 @@ scripts/dev.sh help >/dev/null
 scripts/dev.sh demo-info >/dev/null
 scripts/local-artifacts.sh --count >/dev/null
 
-echo "==> Markdown local links"
-"$python_bin" scripts/check-doc-links.py
-
-echo "==> Contract lifecycle"
-"$python_bin" scripts/check-contract-lifecycle.py
-
-echo "==> Integration safety"
-"$python_bin" scripts/check-integration-safety.py
-
-echo "==> Operations readiness"
-"$python_bin" scripts/check-operations-readiness.py
-
-echo "==> AWS production IaC"
-"$python_bin" scripts/check-aws-iac.py
-
-echo "==> Service pilot readiness"
-"$python_bin" scripts/check-pilot-readiness.py
-
-echo "==> Observability readiness"
-"$python_bin" scripts/check-observability-readiness.py
-
-echo "==> Performance readiness"
-"$python_bin" scripts/check-performance-readiness.py
-
-echo "==> AI data boundary"
-"$python_bin" scripts/check-ai-data-boundary.py
-
-echo "==> AI workflow registry"
-"$python_bin" scripts/check-ai-workflow-registry.py
-
-echo "==> Tenant isolation"
-"$python_bin" scripts/check-tenant-isolation.py
-
-echo "==> Migration safety"
-"$python_bin" scripts/check-migration-safety.py
-
-echo "==> GitHub metadata"
-"$python_bin" scripts/check-github-metadata.py
-
-echo "==> CI workflow"
-"$python_bin" scripts/check-ci-workflow.py
-
-echo "==> GitHub labels"
-"$python_bin" scripts/check-github-labels.py
-
-echo "==> MVP acceptance"
-"$python_bin" scripts/check-mvp-acceptance.py
-
-echo "==> Field-service 9/10 scorecard"
-"$python_bin" scripts/check-field-service-9-scorecard.py
-
-echo "==> Authorization matrix"
-"$python_bin" scripts/check-authorization-matrix.py
-
-echo "==> Transaction safety"
-"$python_bin" scripts/check-transaction-safety.py
-
-echo "==> Audit evidence"
-"$python_bin" scripts/check-audit-evidence.py
-
-echo "==> Fresh-clone demo"
-"$python_bin" scripts/check-fresh-clone-demo.py
-
-echo "==> Demo script"
-"$python_bin" scripts/check-demo-script.py
-
-echo "==> Demo Version packaging"
-"$python_bin" scripts/check-demo-version.py
-
-echo "==> Release readiness manifest"
-"$python_bin" scripts/check-release-readiness.py
-
-echo "==> Release policy"
-"$python_bin" scripts/check-release-policy.py
-
-echo "==> Owner decision template"
-"$python_bin" scripts/check-owner-decisions.py
-
-echo "==> License metadata"
-"$python_bin" scripts/check-license-metadata.py
-
-echo "==> Industry pack lifecycle"
-"$python_bin" scripts/check-industry-pack-lifecycle.py
-
-echo "==> Public claims"
-"$python_bin" scripts/check-public-claims.py
+python_gates=(
+  "doc-links|Markdown local links"
+  "contract-lifecycle|Contract lifecycle"
+  "integration-safety|Integration safety"
+  "operations-readiness|Operations readiness"
+  "aws-iac|AWS production IaC"
+  "pilot-readiness|Service pilot readiness"
+  "observability-readiness|Observability readiness"
+  "performance-readiness|Performance readiness"
+  "ai-data-boundary|AI data boundary"
+  "ai-workflow-registry|AI workflow registry"
+  "tenant-isolation|Tenant isolation"
+  "migration-safety|Migration safety"
+  "github-metadata|GitHub metadata"
+  "ci-workflow|CI workflow"
+  "github-labels|GitHub labels"
+  "mvp-acceptance|MVP acceptance"
+  "field-service-9-scorecard|Field-service 9/10 scorecard"
+  "authorization-matrix|Authorization matrix"
+  "transaction-safety|Transaction safety"
+  "audit-evidence|Audit evidence"
+  "fresh-clone-demo|Fresh-clone demo"
+  "demo-script|Demo script"
+  "demo-version|Demo Version packaging"
+  "release-readiness|Release readiness manifest"
+  "release-policy|Release policy"
+  "owner-decisions|Owner decision template"
+  "license-metadata|License metadata"
+  "industry-pack-lifecycle|Industry pack lifecycle"
+  "public-claims|Public claims"
+)
+for entry in "${python_gates[@]}"; do
+  echo "==> ${entry#*|}"
+  "$python_bin" "scripts/check-${entry%%|*}.py"
+done
 
 echo "==> Python syntax"
 PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-./.pycache}" \
