@@ -8,19 +8,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MATRIX_PATH = REPO_ROOT / "config" / "authorization-matrix.json"
 
 
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
+# Role fixtures are JSON lists, so this gate keeps a loader that returns any JSON value.
+def load_json_value(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -28,14 +23,6 @@ def load_json(path: Path, failures: list[str]) -> Any:
     except json.JSONDecodeError as exc:
         failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -76,7 +63,7 @@ def validate_shape(matrix: dict[str, Any], failures: list[str]) -> None:
 def collect_fixture_roles(matrix: dict[str, Any], failures: list[str]) -> set[str]:
     roles: set[str] = set()
     for fixture_path in string_list(matrix.get("role_fixtures"), "role_fixtures", failures):
-        value = load_json(REPO_ROOT / fixture_path, failures)
+        value = load_json_value(REPO_ROOT / fixture_path, failures)
         if not isinstance(value, list):
             failures.append(f"{fixture_path}: role fixture must contain a list")
             continue
@@ -117,7 +104,7 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
         if doctype in accounted_doctypes:
             failures.append(f"duplicate doctype_permissions entry: {doctype}")
         accounted_doctypes.add(doctype)
-        doctype_json = load_json(REPO_ROOT / path_value, failures)
+        doctype_json = load_json_value(REPO_ROOT / path_value, failures)
         if not isinstance(doctype_json, dict):
             continue
         if doctype_json.get("name") != doctype:
@@ -172,7 +159,7 @@ def validate_doctype_permissions(matrix: dict[str, Any], failures: list[str]) ->
     shipped_role_doctypes: set[str] = set()
     pattern = "apps/*/*/*/doctype/*/*.json"
     for doctype_path in REPO_ROOT.glob(pattern):
-        doctype_json = load_json(doctype_path, failures)
+        doctype_json = load_json_value(doctype_path, failures)
         if not isinstance(doctype_json, dict):
             continue
         permissions = doctype_json.get("permissions")
@@ -251,7 +238,7 @@ def validate_docs(matrix: dict[str, Any], failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MATRIX_PATH, failures)
+    value = load_json_value(MATRIX_PATH, failures)
     matrix = value if isinstance(value, dict) else {}
 
     if matrix:

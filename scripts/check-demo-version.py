@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "demo-version.json"
 REQUIRED_KEYS = (
     "demo_version",

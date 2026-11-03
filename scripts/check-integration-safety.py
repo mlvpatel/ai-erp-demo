@@ -3,40 +3,14 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json, load_json_object, read_text
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "integration-safety.json"
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-    return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -160,7 +134,7 @@ def validate_catalog(manifest: dict[str, Any], failures: list[str]) -> None:
     spec = manifest.get("catalog_event_contract")
     if not isinstance(catalog_path, str) or not isinstance(spec, dict):
         return
-    value = load_json(REPO_ROOT / catalog_path, failures)
+    value = load_json_object(REPO_ROOT / catalog_path, failures)
     if not isinstance(value, dict):
         return
     contracts = value.get("contracts")
@@ -228,8 +202,7 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MANIFEST_PATH, failures)
-    manifest = value if isinstance(value, dict) else {}
+    manifest = load_json(MANIFEST_PATH, failures)
 
     if manifest:
         validate_shape(manifest, failures)

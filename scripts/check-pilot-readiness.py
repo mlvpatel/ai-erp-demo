@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
+
+from _gate import REPO_ROOT as ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "pilot-readiness.json"
 EXPECTED_STATUS = "DEMO_READY_PRODUCTION_PILOT_GATES_PENDING"
 EXPECTED_DEMO_STATE = {

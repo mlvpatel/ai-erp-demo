@@ -3,41 +3,15 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json, load_json_object, read_text
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "demo-script.json"
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-    return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -122,7 +96,7 @@ def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[s
     path_value = manifest.get("mvp_acceptance")
     if not isinstance(path_value, str):
         return set()
-    value = load_json(REPO_ROOT / path_value, failures)
+    value = load_json_object(REPO_ROOT / path_value, failures)
     if not isinstance(value, dict):
         return set()
     claims = value.get("claims")
@@ -192,8 +166,7 @@ def validate_doc_phrases(manifest: dict[str, Any], failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MANIFEST_PATH, failures)
-    manifest = value if isinstance(value, dict) else {}
+    manifest = load_json(MANIFEST_PATH, failures)
 
     if manifest:
         validate_shape(manifest, failures)

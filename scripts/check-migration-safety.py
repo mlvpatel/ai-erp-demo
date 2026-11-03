@@ -3,39 +3,14 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json, load_json_object, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "migration-safety.json"
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-    return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -124,7 +99,7 @@ def validate_apps(manifest: dict[str, Any], failures: list[str]) -> None:
             failures,
         )
         for doctype_path in string_list(app.get("doctypes"), f"{app_name}.doctypes", failures):
-            value = load_json(REPO_ROOT / doctype_path, failures)
+            value = load_json_object(REPO_ROOT / doctype_path, failures)
             if not isinstance(value, dict):
                 continue
             if value.get("doctype") != "DocType":
@@ -184,7 +159,7 @@ def validate_fresh_clone_steps(manifest: dict[str, Any], failures: list[str]) ->
     path_value = manifest.get("fresh_clone_demo")
     if not isinstance(path_value, str):
         return
-    value = load_json(REPO_ROOT / path_value, failures)
+    value = load_json_object(REPO_ROOT / path_value, failures)
     if not isinstance(value, dict):
         return
     steps = value.get("steps")
@@ -255,8 +230,7 @@ def validate_no_direct_schema_ddl(manifest: dict[str, Any], failures: list[str])
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MANIFEST_PATH, failures)
-    manifest = value if isinstance(value, dict) else {}
+    manifest = load_json(MANIFEST_PATH, failures)
 
     if manifest:
         validate_shape(manifest, failures)

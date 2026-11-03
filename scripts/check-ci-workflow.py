@@ -3,48 +3,17 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json, read_text
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 CONTRACT_PATH = REPO_ROOT / "config" / "ci-workflow.json"
 METADATA_PATH = REPO_ROOT / ".github" / "repository-metadata.json"
 
 JOB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-        return {}
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-        return {}
-    if not isinstance(value, dict):
-        failures.append(f"{rel(path)} must contain a JSON object")
-        return {}
-    return value
-
-
-def text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -110,7 +79,7 @@ def validate_workflow(contract: dict[str, Any], metadata: dict[str, Any], failur
     if not isinstance(workflow_value, str):
         return
     workflow_path = REPO_ROOT / workflow_value
-    workflow_text = text(workflow_path, failures)
+    workflow_text = read_text(workflow_path, failures)
     if not workflow_text:
         return
 

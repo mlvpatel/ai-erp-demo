@@ -4,15 +4,17 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+# --strict counts local artifacts, so importing _gate must not write one.
+sys.dont_write_bytecode = True
+from _gate import REPO_ROOT, load_json, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "release-readiness.json"
 METADATA_PATH = REPO_ROOT / ".github" / "repository-metadata.json"
 TRACEABILITY_PATH = REPO_ROOT / "docs" / "product" / "requirements-traceability.md"
@@ -23,36 +25,6 @@ VALID_CATEGORIES = {"owner-decision", "local-state", "external-verification"}
 VALID_STATUSES = {"blocked", "prepared", "manual"}
 METADATA_PLACEHOLDER_PATTERN = re.compile(r"(\[year\]|\[fullname\]|opensource@ai-erp\.example)")
 PUBLISHABLE_SUFFIXES = {".md", ".py", ".toml", ".txt"}
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-        return {}
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-        return {}
-    if not isinstance(value, dict):
-        failures.append(f"{rel(path)} must contain a JSON object")
-        return {}
-    return value
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def normalize_space(value: str) -> str:

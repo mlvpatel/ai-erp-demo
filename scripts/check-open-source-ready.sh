@@ -3,6 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="${PYTHON:-python3}"
+# check-publication-secrets.py imports scripts/_gate.py; keep its bytecode out of the artifact count below.
+export PYTHONDONTWRITEBYTECODE=1
 strict_release=0
 
 if [ "${1:-}" = "--release" ]; then

@@ -4,51 +4,20 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json_object, read_text
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "license-metadata.json"
 OWNER_DECISIONS_PATH = REPO_ROOT / "config" / "owner-decisions.local.json"
 LICENSE_RUNBOOK = REPO_ROOT / "docs" / "runbooks" / "license-decision.md"
 DEFAULT_PLACEHOLDER_PATTERN = re.compile(r"(\[year\]|\[fullname\]|opensource@ai-erp\.example)")
 HOOK_EMAIL_PATTERN = re.compile(r'^app_email\s*=\s*"([^"]+)"', re.MULTILINE)
 HOOK_LICENSE_PATTERN = re.compile(r'^app_license\s*=\s*"([^"]+)"', re.MULTILINE)
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any] | None:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-        return None
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-        return None
-    if not isinstance(value, dict):
-        failures.append(f"{rel(path)} must contain a JSON object")
-        return None
-    return value
-
-
-def text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -154,7 +123,7 @@ def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> No
 
 def validate_target_files(manifest: dict[str, Any], failures: list[str]) -> None:
     paths = manifest_paths(manifest)
-    runbook = text(LICENSE_RUNBOOK, failures)
+    runbook = read_text(LICENSE_RUNBOOK, failures)
     for value in sorted(paths):
         path = REPO_ROOT / value
         if value == "LICENSE":
@@ -170,7 +139,7 @@ def load_owner_decisions(failures: list[str]) -> dict[str, Any] | None:
     if result.returncode != 0:
         failures.append("owner decisions are required for strict license metadata check:\n" + result.stderr.strip())
         return None
-    return load_json(OWNER_DECISIONS_PATH, failures)
+    return load_json_object(OWNER_DECISIONS_PATH, failures)
 
 
 def value_from_regex(pattern: re.Pattern[str], source: str) -> str | None:
@@ -211,7 +180,7 @@ def validate_reconciled_state(
         if not isinstance(app, dict):
             continue
         hook_path = REPO_ROOT / app["hook_path"]
-        hook_text = text(hook_path, failures)
+        hook_text = read_text(hook_path, failures)
         hook_email = value_from_regex(HOOK_EMAIL_PATTERN, hook_text)
         hook_license = value_from_regex(HOOK_LICENSE_PATTERN, hook_text)
         if hook_email != public_email:
@@ -219,24 +188,24 @@ def validate_reconciled_state(
         if expected_hook_license and hook_license != expected_hook_license:
             failures.append(f"{app['hook_path']}: app_license must be {expected_hook_license!r}")
 
-        pyproject_text = text(REPO_ROOT / app["pyproject_path"], failures)
+        pyproject_text = read_text(REPO_ROOT / app["pyproject_path"], failures)
         if isinstance(public_email, str) and public_email not in pyproject_text:
             failures.append(f"{app['pyproject_path']}: public contact email missing")
         if isinstance(display, str) and display not in pyproject_text:
             failures.append(f"{app['pyproject_path']}: selected license display missing")
 
-        license_text = text(REPO_ROOT / app["license_path"], failures)
+        license_text = read_text(REPO_ROOT / app["license_path"], failures)
         if copyright_line not in license_text:
             failures.append(f"{app['license_path']}: copyright line does not match owner decisions")
 
-        readme_text = text(REPO_ROOT / app["readme_path"], failures)
+        readme_text = read_text(REPO_ROOT / app["readme_path"], failures)
         if isinstance(display, str) and display not in readme_text:
             failures.append(f"{app['readme_path']}: license section must mention {display}")
 
     for service in manifest.get("python_services", []):
         if not isinstance(service, dict):
             continue
-        pyproject_text = text(REPO_ROOT / service["pyproject_path"], failures)
+        pyproject_text = read_text(REPO_ROOT / service["pyproject_path"], failures)
         if isinstance(public_email, str) and public_email not in pyproject_text:
             failures.append(f"{service['pyproject_path']}: public contact email missing")
         if isinstance(display, str) and display not in pyproject_text:
@@ -286,7 +255,7 @@ def main() -> int:
     args = parser.parse_args()
 
     failures: list[str] = []
-    manifest = load_json(MANIFEST_PATH, failures)
+    manifest = load_json_object(MANIFEST_PATH, failures)
     if manifest is not None:
         validate_manifest_shape(manifest, failures)
         validate_target_files(manifest, failures)

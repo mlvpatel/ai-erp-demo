@@ -6,11 +6,11 @@ from __future__ import annotations
 import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 METADATA = REPO_ROOT / ".github" / "repository-metadata.json"
 PUBLIC_POSITIONING = REPO_ROOT / "docs" / "product" / "public-positioning.md"
 PUBLICATION_RUNBOOK = REPO_ROOT / "docs" / "runbooks" / "github-publication.md"
@@ -22,17 +22,6 @@ FORBIDDEN_DESCRIPTION_CLAIMS = (
     "all industries",
     "all-industry",
 )
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
 
 
 def load_metadata(failures: list[str]) -> dict[str, Any]:
@@ -88,7 +77,7 @@ def validate_topics(failures: list[str], metadata: dict[str, Any]) -> None:
         if not TOPIC_PATTERN.match(topic):
             failures.append(f"invalid GitHub topic: {topic}")
 
-    positioning_text = text(PUBLIC_POSITIONING)
+    positioning_text = read_text(PUBLIC_POSITIONING, failures)
     for topic in topics:
         if topic not in positioning_text:
             failures.append(f"topic {topic!r} must appear in public-positioning suggested topics")
@@ -135,7 +124,7 @@ def validate_release_blockers(failures: list[str], metadata: dict[str, Any]) -> 
         if required not in blocker_text:
             failures.append(f"public_release_blockers must mention {required}")
 
-    runbook_text = text(PUBLICATION_RUNBOOK)
+    runbook_text = read_text(PUBLICATION_RUNBOOK, failures)
     for phrase in (
         "Confirm the selected AGPL-3.0-only policy remains consistent",
         "Name the initial maintainer",

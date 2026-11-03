@@ -9,16 +9,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST = REPO_ROOT / "config" / "repository-structure.json"
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
 
 
 def load_manifest(failures: list[str]) -> dict[str, Any]:

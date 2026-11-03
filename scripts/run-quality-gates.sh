@@ -3,6 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="${PYTHON:-python3}"
+# Gates import scripts/_gate.py; keep its bytecode out of the local-artifact count.
+export PYTHONDONTWRITEBYTECODE=1
 
 cd "$repo_root"
 

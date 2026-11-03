@@ -14,8 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+from _gate import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 
 README = REPO_ROOT / "README.md"
 PUBLIC_POSITIONING = REPO_ROOT / "docs" / "product" / "public-positioning.md"

@@ -4,14 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json_object, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 EXAMPLE_PATH = REPO_ROOT / "config" / "owner-decisions.example.json"
 LOCAL_PATH = REPO_ROOT / "config" / "owner-decisions.local.json"
 GITIGNORE_PATH = REPO_ROOT / ".gitignore"
@@ -42,28 +41,6 @@ PLACEHOLDER_TERMS = {
     "your-",
     "placeholder",
 }
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any] | None:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-        return None
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-        return None
-    if not isinstance(value, dict):
-        failures.append(f"{rel(path)} must contain a JSON object")
-        return None
-    return value
 
 
 def is_placeholder(value: str) -> bool:
@@ -188,12 +165,12 @@ def main() -> int:
     failures: list[str] = []
     validate_gitignore(failures)
 
-    example = load_json(EXAMPLE_PATH, failures)
+    example = load_json_object(EXAMPLE_PATH, failures)
     if example is not None:
         validate_decision_file(example, failures, rel(EXAMPLE_PATH), local=False)
 
     if LOCAL_PATH.exists():
-        local = load_json(LOCAL_PATH, failures)
+        local = load_json_object(LOCAL_PATH, failures)
         if local is not None:
             validate_decision_file(local, failures, rel(LOCAL_PATH), local=True)
     elif args.strict:

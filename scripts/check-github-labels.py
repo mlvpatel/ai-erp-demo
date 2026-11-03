@@ -9,8 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 LABELS_FILE = REPO_ROOT / ".github" / "labels.json"
 ISSUE_TEMPLATE_DIR = REPO_ROOT / ".github" / "ISSUE_TEMPLATE"
 DOCS_WITH_LABEL_REFERENCES = [
@@ -22,13 +23,6 @@ LABEL_ARRAY_PATTERN = re.compile(r"^labels:\s*\[(.*)\]\s*$", re.MULTILINE)
 QUOTED_VALUE_PATTERN = re.compile(r'"([^"]+)"|\'([^\']+)\'')
 BACKTICK_VALUE_PATTERN = re.compile(r"`([^`]+)`")
 HEX_COLOR_PATTERN = re.compile(r"^[0-9A-Fa-f]{6}$")
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
 
 
 def load_manifest(failures: list[str]) -> list[dict[str, Any]]:

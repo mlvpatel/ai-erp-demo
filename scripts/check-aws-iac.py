@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
+
+from _gate import REPO_ROOT as ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 TF_ROOT = ROOT / "infra" / "aws" / "terraform"
 BOOTSTRAP_ROOT = ROOT / "infra" / "aws" / "bootstrap"
 

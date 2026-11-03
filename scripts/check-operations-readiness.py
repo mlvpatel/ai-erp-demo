@@ -3,46 +3,17 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "operations-readiness.json"
 GITIGNORE = REPO_ROOT / ".gitignore"
 GITATTRIBUTES = REPO_ROOT / ".gitattributes"
 PUBLICATION_SOURCE_SCRIPT = REPO_ROOT / "scripts" / "check-publication-source.sh"
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-    return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-        return ""
-    except UnicodeDecodeError as exc:
-        failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
-        return ""
 
 
 def normalize_space(value: str) -> str:
@@ -119,8 +90,7 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MANIFEST_PATH, failures)
-    manifest = value if isinstance(value, dict) else {}
+    manifest = load_json(MANIFEST_PATH, failures)
 
     if manifest:
         validate_shape(manifest, failures)

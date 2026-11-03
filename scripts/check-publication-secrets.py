@@ -3,15 +3,15 @@
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
 
+from _gate import REPO_ROOT, load_json, read_text, rel
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "publication-secret-scan.json"
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,}|localhost)\b")
 ASSIGNMENT_PATTERN = re.compile(
@@ -26,38 +26,6 @@ ASSIGNMENT_PATTERN = re.compile(
     """,
     re.VERBOSE,
 )
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        failures.append(f"missing JSON file: {rel(path)}")
-        return {}
-    except json.JSONDecodeError as exc:
-        failures.append(f"invalid JSON in {rel(path)}: {exc}")
-        return {}
-    if not isinstance(value, dict):
-        failures.append(f"{rel(path)} must contain a JSON object")
-        return {}
-    return value
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        failures.append(f"missing file: {rel(path)}")
-    except UnicodeDecodeError as exc:
-        failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
-    return ""
 
 
 def normalize_space(value: str) -> str:
