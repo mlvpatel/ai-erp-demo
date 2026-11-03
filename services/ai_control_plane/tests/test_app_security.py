@@ -11,6 +11,10 @@ PROPOSAL_PATH = "/v1/proposals/service-closeout-summary"
 SHARED_SECRET = "example-shared-secret"
 
 
+def _env(provider):
+	return {"AI_CONTROL_PLANE_SHARED_SECRET": SHARED_SECRET, "AI_ERP_PROVIDER": provider}
+
+
 def _valid_request_payload():
 	return envelope(
 		work_order={
@@ -37,11 +41,7 @@ class TestAppSecurity(unittest.TestCase):
 		return self.client.post(PROPOSAL_PATH, headers=headers, json=_valid_request_payload())
 
 	def test_rejects_missing_empty_and_wrong_bearer_tokens(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			for authorization in (None, "Bearer", "Bearer wrong-secret"):
 				with self.subTest(authorization=authorization):
 					self.assertEqual(self._post(authorization).status_code, 401)
@@ -53,33 +53,21 @@ class TestAppSecurity(unittest.TestCase):
 		self.assertEqual(response.status_code, 401)
 
 	def test_rejects_unapproved_provider(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "unapproved-provider",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("unapproved-provider"), clear=True):
 			response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 503)
 
 	def test_accepts_valid_service_key_for_template_provider(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json()["policy"]["decision"], "draft_only")
 
 	def test_openai_provider_without_key_fails_closed(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "openai",
-		}
 		with (
-			patch.dict(os.environ, environment, clear=True),
+			patch.dict(os.environ, _env("openai"), clear=True),
 			self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured,
 		):
 			response = self._post(f"Bearer {SHARED_SECRET}")
@@ -113,11 +101,7 @@ class TestAppSecurity(unittest.TestCase):
 			candidates=[],
 			sources=[source("SVC-WO-00002", "scheduling")],
 		)
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			denied = self.client.post("/v1/proposals/scheduling-explanation", json=scheduling_payload)
 			self.assertEqual(denied.status_code, 401)
 
@@ -149,8 +133,7 @@ class TestAppSecurity(unittest.TestCase):
 				{"parts": [{"item": "PART", "qty": 100001, "source_warehouse": "WH", "issued": False}]}
 			),
 		)
-		environment = {"AI_CONTROL_PLANE_SHARED_SECRET": SHARED_SECRET, "AI_ERP_PROVIDER": "template"}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			for mutate in invalid_mutations:
 				payload = _valid_request_payload()
 				mutate(payload)
