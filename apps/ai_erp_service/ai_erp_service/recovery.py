@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import frappe
-from ai_erp_core.proposals import request_exception_recovery as store_exception_recovery
+from ai_erp_core.proposals import request_proposal
 from frappe import _
 
 from ai_erp_service.ai_drafts import _source
@@ -28,7 +28,7 @@ def request_recovery_draft(name):
 		frappe.throw(_("An open closure exception is required before requesting a recovery draft."))
 
 	payload = _recovery_payload(work_order, exceptions[0])
-	proposal = store_exception_recovery(work_order.doctype, work_order.name, payload)
+	proposal = request_proposal("Exception Recovery", work_order.doctype, work_order.name, payload)
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
 
 

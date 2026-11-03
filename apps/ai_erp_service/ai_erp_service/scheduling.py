@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import frappe
-from ai_erp_core.proposals import request_scheduling_explanation as store_scheduling_explanation
+from ai_erp_core.proposals import request_proposal
 from frappe import _
 from frappe.utils import flt
 
@@ -325,7 +325,7 @@ def request_scheduling_explanation(name):
 	suggestions = suggest_technicians(name)
 	work_order = frappe.get_doc("Service Work Order", name)
 	payload = _scheduling_explanation_payload(work_order, suggestions)
-	proposal = store_scheduling_explanation(work_order.doctype, work_order.name, payload)
+	proposal = request_proposal("Scheduling Explanation", work_order.doctype, work_order.name, payload)
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
 
 

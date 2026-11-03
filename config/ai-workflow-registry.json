@@ -47,7 +47,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_service_closeout_summary"
+        "function": "request_proposal"
       },
       "docs": [
         "apps/ai_erp_service/README.md",
@@ -113,7 +113,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_scheduling_explanation"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0009-scheduling-explanation-proposal-type.md",
@@ -175,7 +175,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_exception_recovery"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0010-exception-recovery-proposal-type.md",
@@ -237,7 +237,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_repair_memory"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0011-repair-memory-proposal-type.md",
