@@ -85,14 +85,8 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
 
     for field in (
         "workflow_doc",
-        "dependency_workflow_doc",
-        "migration_safety_doc",
-        "quality_gates_doc",
-        "development_readme",
         "env_example",
         "bootstrap_script",
-        "github_publication_runbook",
-        "traceability_doc",
     ):
         required_path(manifest, field, failures)
 

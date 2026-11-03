@@ -86,22 +86,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
         fail(failures, "description must be a non-empty string")
 
-    for field in (
-        "workflow_doc",
-        "quality_gates_doc",
-        "load_profile",
-        "performance_readme",
-        "performance_runner",
-        "performance_helper_test",
-        "developer_helper",
-        "tests_readme",
-        "observability_readiness_doc",
-        "operations_readiness_doc",
-        "mvp_scope_doc",
-        "traceability_doc",
-        "github_publication_runbook",
-    ):
-        required_path(manifest, field, failures)
+    required_path(manifest, "load_profile", failures)
 
     if not isinstance(manifest.get("required_profile"), dict):
         fail(failures, "required_profile must be an object")

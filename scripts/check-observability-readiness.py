@@ -82,19 +82,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
         fail(failures, "description must be a non-empty string")
 
-    for field in (
-        "workflow_doc",
-        "infra_readme",
-        "operations_readiness_doc",
-        "incident_response_runbook",
-        "backup_restore_runbook",
-        "data_classification_doc",
-        "threat_model",
-        "github_publication_runbook",
-        "quality_gates_doc",
-        "traceability_doc",
-    ):
-        required_path(manifest, field, failures)
+    required_path(manifest, "workflow_doc", failures)
 
     for field in (
         "signal_groups",

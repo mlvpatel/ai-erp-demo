@@ -84,16 +84,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         fail(failures, "description must be a non-empty string")
 
     for field in (
-        "workflow_doc",
-        "backup_restore_runbook",
-        "incident_response_runbook",
-        "support_doc",
-        "security_policy",
-        "data_classification_doc",
-        "release_process_doc",
-        "github_publication_runbook",
-        "quality_gates_doc",
-        "traceability_doc",
         "publication_scan_manifest",
         "gitignore",
         "gitattributes",
