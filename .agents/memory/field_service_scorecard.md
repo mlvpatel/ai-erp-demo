@@ -96,7 +96,7 @@
      390 by 844 walks assigned list, time, parts, inspection, attachment,
      closeout, cannot-close, validation copy, and a forbidden-field matrix.
      IndexedDB offline drafts remain intentionally gated off
-     (`mobile_helpers.js` not in `app_include_js`).
+     (no offline helper script ships or loads).
 
 8. **Governed Demo-to-Pilot Release** (Current: 7.3 / Target: 9.0)
    - *Status*: Partly Implemented. Demo Version packaging
