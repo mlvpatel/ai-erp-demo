@@ -27,10 +27,6 @@ REQUIRED_PATH_KEYS = (
 )
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def main() -> int:
     failures: list[str] = []
     try:
@@ -45,42 +41,42 @@ def main() -> int:
 
     for key in REQUIRED_KEYS:
         if key not in manifest:
-            fail(failures, f"missing key: {key}")
+            failures.append(f"missing key: {key}")
 
     demo_version = manifest.get("demo_version")
     if not isinstance(demo_version, str) or "-demo" not in demo_version:
-        fail(failures, "demo_version must be a string containing '-demo'")
+        failures.append("demo_version must be a string containing '-demo'")
 
     claim = manifest.get("claim_boundary")
     if not isinstance(claim, str) or "not a production" not in claim.lower():
-        fail(failures, "claim_boundary must state this is not a production release")
+        failures.append("claim_boundary must state this is not a production release")
 
     for key in REQUIRED_PATH_KEYS:
         path_value = manifest.get(key)
         if not isinstance(path_value, str) or not path_value.strip():
-            fail(failures, f"{key} must be a non-empty path string")
+            failures.append(f"{key} must be a non-empty path string")
             continue
         if not (REPO_ROOT / path_value).exists():
-            fail(failures, f"{key} path does not exist: {path_value}")
+            failures.append(f"{key} path does not exist: {path_value}")
 
     forbidden = manifest.get("forbidden_claims")
     if not isinstance(forbidden, list) or len(forbidden) < 4:
-        fail(failures, "forbidden_claims must list at least four claims")
+        failures.append("forbidden_claims must list at least four claims")
     else:
         joined = " ".join(str(item).lower() for item in forbidden)
         for phrase in ("production ready", "gdpr compliant", "human uat"):
             if phrase not in joined:
-                fail(failures, f"forbidden_claims must include {phrase!r}")
+                failures.append(f"forbidden_claims must include {phrase!r}")
 
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     if "Demo Version" not in readme or "demo-version.json" not in readme:
-        fail(failures, "README.md must mention Demo Version and demo-version.json")
+        failures.append("README.md must mention Demo Version and demo-version.json")
     if "demo-version-loop.md" not in readme or "demo-version-stack.md" not in readme:
-        fail(failures, "README.md must link demo-version-loop.md and demo-version-stack.md")
+        failures.append("README.md must link demo-version-loop.md and demo-version-stack.md")
 
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     if "demo-version-loop.md" not in agents:
-        fail(failures, "AGENTS.md must reference demo-version-loop.md")
+        failures.append("AGENTS.md must reference demo-version-loop.md")
 
     if failures:
         print("Demo Version packaging check failed:", file=sys.stderr)

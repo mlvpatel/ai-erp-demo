@@ -24,17 +24,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -42,10 +38,10 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
     except UnicodeDecodeError as exc:
-        fail(failures, f"expected UTF-8 text file: {rel(path)}: {exc}")
+        failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
         return ""
 
 
@@ -59,12 +55,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -78,7 +74,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
 
 def validate_local_artifacts(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -93,14 +89,14 @@ def validate_local_artifacts(manifest: dict[str, Any], failures: list[str]) -> N
     source_script = read_text(PUBLICATION_SOURCE_SCRIPT, failures)
     for pattern in shared + ignore_only:
         if pattern not in gitignore:
-            fail(failures, f".gitignore missing local/recovery artifact pattern: {pattern}")
+            failures.append(f".gitignore missing local/recovery artifact pattern: {pattern}")
         attribute = f"{re.escape(pattern[1:])}\\s+-export-ignore" if pattern.startswith("!") else f"{re.escape(pattern)}\\s+export-ignore"
         if not re.search(rf"^{attribute}(?:\s|$)", gitattributes, flags=re.MULTILINE):
-            fail(failures, f".gitattributes missing export rule for local/recovery artifact pattern: {pattern}")
+            failures.append(f".gitattributes missing export rule for local/recovery artifact pattern: {pattern}")
     for pattern in shared:
         clause = f"-name '{pattern}'" if "*" in pattern else f"-path './{pattern.rstrip('/')}'"
         if clause not in source_script:
-            fail(failures, f"{rel(PUBLICATION_SOURCE_SCRIPT)} missing publication-source exclusion: {clause}")
+            failures.append(f"{rel(PUBLICATION_SOURCE_SCRIPT)} missing publication-source exclusion: {clause}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -109,16 +105,16 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
         return
     for index, entry in enumerate(entries, 1):
         if not isinstance(entry, dict):
-            fail(failures, f"required_doc_phrases[{index}] must be an object")
+            failures.append(f"required_doc_phrases[{index}] must be an object")
             continue
         path_value = entry.get("path")
         if not isinstance(path_value, str) or not path_value:
-            fail(failures, f"required_doc_phrases[{index}].path must be a non-empty string")
+            failures.append(f"required_doc_phrases[{index}].path must be a non-empty string")
             continue
         text = read_text(REPO_ROOT / path_value, failures)
         for phrase in string_list(entry.get("phrases"), f"required_doc_phrases[{index}].phrases", failures):
             if not contains_snippet(text, phrase):
-                fail(failures, f"{path_value} missing operations-readiness phrase: {phrase}")
+                failures.append(f"{path_value} missing operations-readiness phrase: {phrase}")
 
 
 def main() -> int:

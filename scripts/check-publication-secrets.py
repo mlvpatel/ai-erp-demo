@@ -35,21 +35,17 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
         return {}
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
         return {}
     if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
+        failures.append(f"{rel(path)} must contain a JSON object")
         return {}
     return value
 
@@ -58,9 +54,9 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
     except UnicodeDecodeError as exc:
-        fail(failures, f"expected UTF-8 text file: {rel(path)}: {exc}")
+        failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
     return ""
 
 
@@ -74,12 +70,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def as_string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list):
-        fail(failures, f"{field} must be a list")
+        failures.append(f"{field} must be a list")
         return []
     strings: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item:
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         strings.append(item)
     return strings
@@ -89,29 +85,29 @@ def compile_patterns(manifest: dict[str, Any], failures: list[str]) -> list[tupl
     compiled: list[tuple[str, re.Pattern[str]]] = []
     patterns = manifest.get("secret_patterns")
     if not isinstance(patterns, list) or not patterns:
-        fail(failures, "secret_patterns must be a non-empty list")
+        failures.append("secret_patterns must be a non-empty list")
         return compiled
 
     seen_ids: set[str] = set()
     for index, entry in enumerate(patterns, 1):
         if not isinstance(entry, dict):
-            fail(failures, f"secret_patterns[{index}] must be an object")
+            failures.append(f"secret_patterns[{index}] must be an object")
             continue
         pattern_id = entry.get("id")
         regex = entry.get("regex")
         if not isinstance(pattern_id, str) or not pattern_id:
-            fail(failures, f"secret_patterns[{index}].id must be a non-empty string")
+            failures.append(f"secret_patterns[{index}].id must be a non-empty string")
             pattern_id = f"secret_patterns[{index}]"
         elif pattern_id in seen_ids:
-            fail(failures, f"duplicate secret pattern id: {pattern_id}")
+            failures.append(f"duplicate secret pattern id: {pattern_id}")
         seen_ids.add(pattern_id)
         if not isinstance(regex, str) or not regex:
-            fail(failures, f"{pattern_id}: regex must be a non-empty string")
+            failures.append(f"{pattern_id}: regex must be a non-empty string")
             continue
         try:
             compiled.append((pattern_id, re.compile(regex)))
         except re.error as exc:
-            fail(failures, f"{pattern_id}: invalid regex: {exc}")
+            failures.append(f"{pattern_id}: invalid regex: {exc}")
     return compiled
 
 
@@ -132,15 +128,15 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
 
     policy_documents = manifest.get("policy_documents")
     if not isinstance(policy_documents, list) or not policy_documents:
-        fail(failures, "policy_documents must be a non-empty list")
+        failures.append("policy_documents must be a non-empty list")
     else:
         for index, entry in enumerate(policy_documents, 1):
             if not isinstance(entry, dict):
-                fail(failures, f"policy_documents[{index}] must be an object")
+                failures.append(f"policy_documents[{index}] must be an object")
                 continue
             path = entry.get("path")
             if not isinstance(path, str) or not path:
-                fail(failures, f"policy_documents[{index}].path must be a non-empty string")
+                failures.append(f"policy_documents[{index}].path must be a non-empty string")
             as_string_list(entry.get("required_phrases"), f"policy_documents[{index}].required_phrases", failures)
 
     compile_patterns(manifest, failures)
@@ -148,7 +144,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         try:
             re.compile(pattern, flags=re.IGNORECASE)
         except re.error as exc:
-            fail(failures, f"allowed_assignment_value_patterns[{index}] invalid regex: {exc}")
+            failures.append(f"allowed_assignment_value_patterns[{index}] invalid regex: {exc}")
 
 
 def is_under_prefix(path_text: str, prefixes: Iterable[str]) -> bool:
@@ -188,14 +184,14 @@ def iter_scan_files(manifest: dict[str, Any], failures: list[str]) -> list[Path]
     for target in targets:
         path = REPO_ROOT / target
         if not path.exists():
-            fail(failures, f"scan target is missing: {target}")
+            failures.append(f"scan target is missing: {target}")
             continue
         if path.is_file():
             if not should_exclude(path, manifest) and is_text_file(path, manifest):
                 files.append(path)
             continue
         if not path.is_dir():
-            fail(failures, f"scan target must be a file or directory: {target}")
+            failures.append(f"scan target must be a file or directory: {target}")
             continue
         for child in path.rglob("*"):
             if child.is_file() and not should_exclude(child, manifest) and is_text_file(child, manifest):
@@ -248,7 +244,7 @@ def validate_forbidden_tracked_paths(manifest: dict[str, Any], failures: list[st
                 findings.append(path_text)
 
     if findings:
-        fail(failures, "forbidden local/secret-like paths are tracked:\n" + "\n".join(sorted(findings)))
+        failures.append("forbidden local/secret-like paths are tracked:\n" + "\n".join(sorted(findings)))
 
 
 def normalize_assignment_value(value: str) -> str:
@@ -324,8 +320,7 @@ def scan_sensitive_assignments(path: Path, text: str, manifest: dict[str, Any], 
             continue
         if allowed_sensitive_value(value, manifest):
             continue
-        fail(
-            failures,
+        failures.append(
             f"{rel(path)}:{line_no}: sensitive key {key!r} has a non-placeholder value",
         )
 
@@ -339,7 +334,7 @@ def scan_secret_patterns(
     for pattern_id, pattern in patterns:
         for match in pattern.finditer(text):
             line_no = text.count("\n", 0, match.start()) + 1
-            fail(failures, f"{rel(path)}:{line_no}: possible secret pattern matched: {pattern_id}")
+            failures.append(f"{rel(path)}:{line_no}: possible secret pattern matched: {pattern_id}")
 
 
 def allowed_email_domain(domain: str, manifest: dict[str, Any]) -> bool:
@@ -362,8 +357,7 @@ def scan_email_domains(path: Path, text: str, manifest: dict[str, Any], failures
         if allowed_email_domain(domain, manifest):
             continue
         line_no = text.count("\n", 0, match.start()) + 1
-        fail(
-            failures,
+        failures.append(
             f"{rel(path)}:{line_no}: email domain {domain!r} is not an allowed public or synthetic domain",
         )
 
@@ -386,7 +380,7 @@ def validate_policy_documents(manifest: dict[str, Any], failures: list[str]) -> 
             continue
         for phrase in phrases:
             if isinstance(phrase, str) and not contains_snippet(text, phrase):
-                fail(failures, f"{path_value}: missing publication safety phrase: {phrase}")
+                failures.append(f"{path_value}: missing publication safety phrase: {phrase}")
 
 
 def scan_files(manifest: dict[str, Any], failures: list[str]) -> None:

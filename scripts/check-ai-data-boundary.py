@@ -24,21 +24,17 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
         return {}
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
         return {}
     if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
+        failures.append(f"{rel(path)} must contain a JSON object")
         return {}
     return value
 
@@ -47,7 +43,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -58,7 +54,7 @@ def parse_python(path: Path, failures: list[str]) -> ast.Module | None:
     try:
         return ast.parse(source, filename=str(path))
     except SyntaxError as exc:
-        fail(failures, f"invalid Python in {rel(path)}: {exc}")
+        failures.append(f"invalid Python in {rel(path)}: {exc}")
         return None
 
 
@@ -135,38 +131,38 @@ def class_fields(module: ast.Module, class_name: str) -> set[str]:
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     if manifest.get("workflow") != "service_closeout_summary":
-        fail(failures, "workflow must be service_closeout_summary for the MVP")
+        failures.append("workflow must be service_closeout_summary for the MVP")
     if manifest.get("proposal_type") != "service_closeout_summary":
-        fail(failures, "proposal_type must be service_closeout_summary")
+        failures.append("proposal_type must be service_closeout_summary")
 
     for field in ("payload_builder", "control_plane_models", "openapi_contract", "service_readme"):
         if field not in manifest:
-            fail(failures, f"missing manifest field: {field}")
+            failures.append(f"missing manifest field: {field}")
 
     allowed_fields = manifest.get("allowed_fields")
     if not isinstance(allowed_fields, dict):
-        fail(failures, "allowed_fields must be an object")
+        failures.append("allowed_fields must be an object")
         return
     for key in ("request", "work_order", "time_entry", "part_usage", "related_work", "source_reference", "source_fields"):
         value = allowed_fields.get(key)
         if not isinstance(value, list) or not value or any(not isinstance(item, str) for item in value):
-            fail(failures, f"allowed_fields.{key} must be a non-empty list of strings")
+            failures.append(f"allowed_fields.{key} must be a non-empty list of strings")
 
     policy = manifest.get("required_policy")
     if not isinstance(policy, dict) or policy.get("decision") != "draft_only" or policy.get("allowed_action") != "none":
-        fail(failures, "required_policy must be draft_only/none")
+        failures.append("required_policy must be draft_only/none")
 
 
 def validate_payload_builder(manifest: dict[str, Any], failures: list[str]) -> None:
     builder = manifest.get("payload_builder")
     if not isinstance(builder, dict):
-        fail(failures, "payload_builder must be an object")
+        failures.append("payload_builder must be an object")
         return
 
     path_value = builder.get("path")
     function_name = builder.get("function")
     if not isinstance(path_value, str) or not isinstance(function_name, str):
-        fail(failures, "payload_builder.path and payload_builder.function must be strings")
+        failures.append("payload_builder.path and payload_builder.function must be strings")
         return
 
     path = REPO_ROOT / path_value
@@ -176,7 +172,7 @@ def validate_payload_builder(manifest: dict[str, Any], failures: list[str]) -> N
         return
     function = find_function(module, function_name)
     if function is None:
-        fail(failures, f"{path_value}: missing payload builder function {function_name}")
+        failures.append(f"{path_value}: missing payload builder function {function_name}")
         return
 
     allowed = manifest["allowed_fields"]
@@ -190,31 +186,30 @@ def validate_payload_builder(manifest: dict[str, Any], failures: list[str]) -> N
     for name, actual in checks.items():
         expected = set(allowed[name])
         if actual != expected:
-            fail(failures, f"{path_value}: {name} fields mismatch: expected={sorted(expected)} actual={sorted(actual or [])}")
+            failures.append(f"{path_value}: {name} fields mismatch: expected={sorted(expected)} actual={sorted(actual or [])}")
 
     source_fields = source_field_literals(module)
     expected_source_fields = set(allowed["source_fields"])
     if source_fields != expected_source_fields:
-        fail(
-            failures,
+        failures.append(
             f"{path_value}: source field citations mismatch: expected={sorted(expected_source_fields)} actual={sorted(source_fields)}",
         )
 
     snippets = manifest.get("forbidden_payload_builder_snippets")
     if not isinstance(snippets, list):
-        fail(failures, "forbidden_payload_builder_snippets must be a list")
+        failures.append("forbidden_payload_builder_snippets must be a list")
     else:
         for snippet in snippets:
             if not isinstance(snippet, str):
-                fail(failures, "forbidden payload builder snippets must be strings")
+                failures.append("forbidden payload builder snippets must be strings")
             elif snippet in source_text:
-                fail(failures, f"{path_value}: forbidden payload builder snippet present: {snippet}")
+                failures.append(f"{path_value}: forbidden payload builder snippet present: {snippet}")
 
 
 def validate_models(manifest: dict[str, Any], failures: list[str]) -> None:
     path_value = manifest.get("control_plane_models")
     if not isinstance(path_value, str):
-        fail(failures, "control_plane_models must be a string")
+        failures.append("control_plane_models must be a string")
         return
     path = REPO_ROOT / path_value
     text_value = read_text(path, failures)
@@ -223,7 +218,7 @@ def validate_models(manifest: dict[str, Any], failures: list[str]) -> None:
         return
 
     if 'ConfigDict(extra="forbid")' not in text_value:
-        fail(failures, f"{path_value}: strict models must forbid extra fields")
+        failures.append(f"{path_value}: strict models must forbid extra fields")
 
     allowed = manifest["allowed_fields"]
     class_map = {
@@ -238,17 +233,17 @@ def validate_models(manifest: dict[str, Any], failures: list[str]) -> None:
         actual = class_fields(module, class_name)
         expected = set(allowed[key])
         if actual != expected:
-            fail(failures, f"{path_value}: {class_name} fields mismatch: expected={sorted(expected)} actual={sorted(actual)}")
+            failures.append(f"{path_value}: {class_name} fields mismatch: expected={sorted(expected)} actual={sorted(actual)}")
 
     policy_fields = class_fields(module, "Policy")
     if "decision" not in policy_fields or "allowed_action" not in policy_fields:
-        fail(failures, f"{path_value}: Policy must include decision and allowed_action")
+        failures.append(f"{path_value}: Policy must include decision and allowed_action")
 
 
 def validate_openapi(manifest: dict[str, Any], failures: list[str]) -> None:
     path_value = manifest.get("openapi_contract")
     if not isinstance(path_value, str):
-        fail(failures, "openapi_contract must be a string")
+        failures.append("openapi_contract must be a string")
         return
     text_value = read_text(REPO_ROOT / path_value, failures)
     if not text_value:
@@ -262,15 +257,15 @@ def validate_openapi(manifest: dict[str, Any], failures: list[str]) -> None:
         "ControlPlaneServiceKey",
     ):
         if snippet not in text_value:
-            fail(failures, f"{path_value}: missing required OpenAPI snippet {snippet!r}")
+            failures.append(f"{path_value}: missing required OpenAPI snippet {snippet!r}")
 
     forbidden = manifest.get("forbidden_payload_keys", [])
     for key in forbidden:
         if not isinstance(key, str):
-            fail(failures, "forbidden_payload_keys entries must be strings")
+            failures.append("forbidden_payload_keys entries must be strings")
             continue
         if re.search(rf"^\s{{8,}}{re.escape(key)}:\s*$", text_value, flags=re.MULTILINE):
-            fail(failures, f"{path_value}: forbidden schema property appears: {key}")
+            failures.append(f"{path_value}: forbidden schema property appears: {key}")
 
 
 def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -283,9 +278,9 @@ def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> No
     )
     for phrase in manifest.get("required_doc_phrases", []):
         if not isinstance(phrase, str):
-            fail(failures, "required_doc_phrases entries must be strings")
+            failures.append("required_doc_phrases entries must be strings")
         elif not contains_snippet(doc_text, phrase):
-            fail(failures, f"AI data-boundary documentation phrase missing: {phrase}")
+            failures.append(f"AI data-boundary documentation phrase missing: {phrase}")
 
     test_text = "\n".join(
         read_text(REPO_ROOT / path, failures)
@@ -294,22 +289,22 @@ def validate_docs_and_tests(manifest: dict[str, Any], failures: list[str]) -> No
     )
     for phrase in manifest.get("required_test_phrases", []):
         if not isinstance(phrase, str):
-            fail(failures, "required_test_phrases entries must be strings")
+            failures.append("required_test_phrases entries must be strings")
         elif not contains_snippet(test_text, phrase):
-            fail(failures, f"AI data-boundary test phrase missing: {phrase}")
+            failures.append(f"AI data-boundary test phrase missing: {phrase}")
 
 
 def validate_registered_workflow(workflow_id: str, workflow: dict[str, Any], failures: list[str]) -> None:
     """Validate one deterministic registry workflow's request boundary (ADR-0009 pattern)."""
     label = f"{rel(REGISTRY_PATH)} {workflow_id}"
     if workflow.get("proposal_type") != workflow_id:
-        fail(failures, f"{label}: proposal_type must be {workflow_id}")
+        failures.append(f"{label}: proposal_type must be {workflow_id}")
     if workflow.get("provider_mode") != "deterministic":
-        fail(failures, f"{label}: provider_mode must stay deterministic per ADR-0009")
+        failures.append(f"{label}: provider_mode must stay deterministic per ADR-0009")
 
     allowed = workflow.get("allowed_request_fields")
     if not isinstance(allowed, list) or not allowed or any(not isinstance(item, str) for item in allowed):
-        fail(failures, f"{label}: allowed_request_fields must be a non-empty string list")
+        failures.append(f"{label}: allowed_request_fields must be a non-empty string list")
         return
 
     model = workflow.get("request_model")
@@ -318,12 +313,11 @@ def validate_registered_workflow(workflow_id: str, workflow: dict[str, Any], fai
         if module is not None:
             actual = class_fields(module, model["class"])
             if actual != set(allowed):
-                fail(
-                    failures,
+                failures.append(
                     f"{model['path']}: {model['class']} fields mismatch: expected={sorted(allowed)} actual={sorted(actual)}",
                 )
     else:
-        fail(failures, f"{label}: request_model must name a path and class")
+        failures.append(f"{label}: request_model must name a path and class")
 
     builder = workflow.get("payload_builder")
     if isinstance(builder, dict) and isinstance(builder.get("path"), str) and isinstance(builder.get("function"), str):
@@ -331,11 +325,11 @@ def validate_registered_workflow(workflow_id: str, workflow: dict[str, Any], fai
         if module is not None:
             function = find_function(module, builder["function"])
             if function is None:
-                fail(failures, f"{builder['path']}: missing payload builder function {builder['function']}")
+                failures.append(f"{builder['path']}: missing payload builder function {builder['function']}")
             elif returned_dict_keys(function) != set(allowed):
-                fail(failures, f"{builder['path']}: payload keys must match allowed_request_fields")
+                failures.append(f"{builder['path']}: payload keys must match allowed_request_fields")
     else:
-        fail(failures, f"{label}: payload_builder must name a path and function")
+        failures.append(f"{label}: payload_builder must name a path and function")
 
 
 def main() -> int:
@@ -355,7 +349,7 @@ def main() -> int:
     for workflow_id in DETERMINISTIC_WORKFLOWS:
         workflow = by_id.get(workflow_id)
         if workflow is None:
-            fail(failures, f"{rel(REGISTRY_PATH)}: missing deterministic workflow {workflow_id}")
+            failures.append(f"{rel(REGISTRY_PATH)}: missing deterministic workflow {workflow_id}")
         else:
             validate_registered_workflow(workflow_id, workflow, failures)
 

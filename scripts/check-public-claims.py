@@ -32,14 +32,10 @@ def normalized(text: str) -> str:
     return " ".join(text.split())
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def require_contains(failures: list[str], path: Path, needle: str) -> None:
     text = normalized(read(path))
     if normalized(needle) not in text:
-        fail(failures, f"{path.relative_to(REPO_ROOT)} must contain: {needle!r}")
+        failures.append(f"{path.relative_to(REPO_ROOT)} must contain: {needle!r}")
 
 
 def require_traceability_status(
@@ -51,8 +47,7 @@ def require_traceability_status(
         re.MULTILINE,
     )
     if not pattern.search(text):
-        fail(
-            failures,
+        failures.append(
             "requirements traceability must keep "
             f"{requirement!r} at status {expected_status!r}",
         )
@@ -88,17 +83,16 @@ def validate_industry_scope(failures: list[str]) -> None:
     try:
         manifest = json.loads(INDUSTRY_PACKS.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, "industry-pack manifest is missing")
+        failures.append("industry-pack manifest is missing")
         return
     except json.JSONDecodeError as exc:
-        fail(failures, f"industry-pack manifest is invalid JSON: {exc}")
+        failures.append(f"industry-pack manifest is invalid JSON: {exc}")
         return
 
     packs = manifest.get("packs", [])
     implemented = [pack for pack in packs if isinstance(pack, dict) and pack.get("status") == "implemented"]
     if len(implemented) != 1 or implemented[0].get("id") != "field_service":
-        fail(
-            failures,
+        failures.append(
             "public claims currently assume exactly one implemented pack: field_service",
         )
 
@@ -130,7 +124,7 @@ def main() -> int:
 
     for path in (README, PUBLIC_POSITIONING, TRACEABILITY, GITHUB_PUBLICATION):
         if not path.exists():
-            fail(failures, f"required public-claim source is missing: {path.relative_to(REPO_ROOT)}")
+            failures.append(f"required public-claim source is missing: {path.relative_to(REPO_ROOT)}")
 
     if not failures:
         validate_license_blockers(failures)

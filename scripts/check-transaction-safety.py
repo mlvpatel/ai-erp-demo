@@ -20,17 +20,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -38,7 +34,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -52,12 +48,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -74,28 +70,28 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, str) or not value.strip():
-            fail(failures, f"{field} must be a non-empty string")
+            failures.append(f"{field} must be a non-empty string")
         elif not (REPO_ROOT / value).is_file():
-            fail(failures, f"{field} path is missing: {value}")
+            failures.append(f"{field} path is missing: {value}")
 
     invariants = manifest.get("invariants")
     if not isinstance(invariants, list) or not invariants:
-        fail(failures, "invariants must be a non-empty list")
+        failures.append("invariants must be a non-empty list")
         return
     seen_ids: set[str] = set()
     for index, invariant in enumerate(invariants, 1):
         if not isinstance(invariant, dict):
-            fail(failures, f"invariants[{index}] must be an object")
+            failures.append(f"invariants[{index}] must be an object")
             continue
         invariant_id = invariant.get("id")
         if not isinstance(invariant_id, str) or not invariant_id:
-            fail(failures, f"invariants[{index}].id must be a non-empty string")
+            failures.append(f"invariants[{index}].id must be a non-empty string")
         elif invariant_id in seen_ids:
-            fail(failures, f"{invariant_id}: duplicate invariant id")
+            failures.append(f"{invariant_id}: duplicate invariant id")
         else:
             seen_ids.add(invariant_id)
         if not isinstance(invariant.get("description"), str) or not invariant["description"].strip():
-            fail(failures, f"{invariant_id}: description must be non-empty")
+            failures.append(f"{invariant_id}: description must be non-empty")
         string_list(invariant.get("code_snippets"), f"{invariant_id}.code_snippets", failures)
         string_list(invariant.get("test_anchors"), f"{invariant_id}.test_anchors", failures)
 
@@ -111,7 +107,7 @@ def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[s
         return set()
     claims = value.get("claims")
     if not isinstance(claims, list):
-        fail(failures, f"{path_value}: claims must be a list")
+        failures.append(f"{path_value}: claims must be a list")
         return set()
     return {
         claim["id"]
@@ -144,13 +140,13 @@ def validate_invariants(manifest: dict[str, Any], failures: list[str]) -> None:
         invariant_id = str(invariant.get("id", "<missing-id>"))
         for snippet in string_list(invariant.get("code_snippets"), f"{invariant_id}.code_snippets", failures):
             if not contains_snippet(source_text, snippet):
-                fail(failures, f"{invariant_id}: missing code snippet: {snippet}")
+                failures.append(f"{invariant_id}: missing code snippet: {snippet}")
         for anchor in string_list(invariant.get("test_anchors"), f"{invariant_id}.test_anchors", failures):
             if not contains_snippet(test_text, anchor):
-                fail(failures, f"{invariant_id}: missing test anchor: {anchor}")
+                failures.append(f"{invariant_id}: missing test anchor: {anchor}")
         claim_id = invariant.get("acceptance_claim")
         if isinstance(claim_id, str) and claim_id not in claim_ids:
-            fail(failures, f"{invariant_id}: acceptance claim is not in config/mvp-acceptance.json: {claim_id}")
+            failures.append(f"{invariant_id}: acceptance claim is not in config/mvp-acceptance.json: {claim_id}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -161,7 +157,7 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
     )
     for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
         if not contains_snippet(doc_text, phrase):
-            fail(failures, f"transaction safety docs missing phrase: {phrase}")
+            failures.append(f"transaction safety docs missing phrase: {phrase}")
 
 
 def main() -> int:

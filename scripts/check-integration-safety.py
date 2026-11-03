@@ -21,17 +21,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -39,7 +35,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -53,12 +49,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -67,10 +63,10 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
     value = manifest.get(field)
     if not isinstance(value, str) or not value.strip():
-        fail(failures, f"{field} must be a non-empty string")
+        failures.append(f"{field} must be a non-empty string")
         return None
     if not (REPO_ROOT / value).exists():
-        fail(failures, f"{field} path is missing: {value}")
+        failures.append(f"{field} path is missing: {value}")
     return value
 
 
@@ -99,10 +95,10 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
     if not isinstance(manifest.get("catalog_event_contract"), dict):
-        fail(failures, "catalog_event_contract must be an object")
+        failures.append("catalog_event_contract must be an object")
 
 
 def validate_reserved_connector(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -116,7 +112,7 @@ def validate_reserved_connector(manifest: dict[str, Any], failures: list[str]) -
             continue
         relative = str(path.relative_to(connector_dir))
         if relative not in allowed:
-            fail(failures, f"{dir_value} must remain reserved; unexpected file: {relative}")
+            failures.append(f"{dir_value} must remain reserved; unexpected file: {relative}")
 
     readme_value = manifest.get("connector_readme")
     if isinstance(readme_value, str):
@@ -127,7 +123,7 @@ def validate_reserved_connector(manifest: dict[str, Any], failures: list[str]) -
             failures,
         ):
             if not contains_snippet(readme_text, phrase):
-                fail(failures, f"{readme_value} missing connector rule: {phrase}")
+                failures.append(f"{readme_value} missing connector rule: {phrase}")
 
 
 def yaml_field_names(text: str) -> set[str]:
@@ -146,7 +142,7 @@ def validate_event_contract(manifest: dict[str, Any], failures: list[str]) -> No
     text = read_text(REPO_ROOT / path_value, failures)
     for snippet in string_list(manifest.get("event_contract_required_snippets"), "event_contract_required_snippets", failures):
         if not contains_snippet(text, snippet):
-            fail(failures, f"{path_value} missing event-contract snippet: {snippet}")
+            failures.append(f"{path_value} missing event-contract snippet: {snippet}")
 
     field_names = yaml_field_names(text)
     for term in string_list(
@@ -156,7 +152,7 @@ def validate_event_contract(manifest: dict[str, Any], failures: list[str]) -> No
     ):
         matched = sorted(field for field in field_names if term.lower() in field.lower())
         if matched:
-            fail(failures, f"{path_value} has forbidden payload/envelope field term {term!r}: {', '.join(matched)}")
+            failures.append(f"{path_value} has forbidden payload/envelope field term {term!r}: {', '.join(matched)}")
 
 
 def validate_catalog(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -169,7 +165,7 @@ def validate_catalog(manifest: dict[str, Any], failures: list[str]) -> None:
         return
     contracts = value.get("contracts")
     if not isinstance(contracts, list):
-        fail(failures, f"{catalog_path}: contracts must be a list")
+        failures.append(f"{catalog_path}: contracts must be a list")
         return
     expected_id = spec.get("id")
     entry = next(
@@ -177,30 +173,30 @@ def validate_catalog(manifest: dict[str, Any], failures: list[str]) -> None:
         None,
     )
     if not isinstance(entry, dict):
-        fail(failures, f"{catalog_path}: missing contract entry {expected_id}")
+        failures.append(f"{catalog_path}: missing contract entry {expected_id}")
         return
 
     for field in ("kind", "status", "path"):
         expected = spec.get(field)
         if isinstance(expected, str) and entry.get(field) != expected:
-            fail(failures, f"{expected_id}: expected catalog {field}={expected!r}")
+            failures.append(f"{expected_id}: expected catalog {field}={expected!r}")
 
     consumer = spec.get("consumer")
     consumers = entry.get("consumers")
     if isinstance(consumer, str) and (not isinstance(consumers, list) or consumer not in consumers):
-        fail(failures, f"{expected_id}: catalog consumers must include {consumer}")
+        failures.append(f"{expected_id}: catalog consumers must include {consumer}")
 
     producer_contains = spec.get("producer_contains")
     producer = entry.get("producer")
     if isinstance(producer_contains, str) and (
         not isinstance(producer, str) or producer_contains.lower() not in producer.lower()
     ):
-        fail(failures, f"{expected_id}: catalog producer must mention {producer_contains}")
+        failures.append(f"{expected_id}: catalog producer must mention {producer_contains}")
 
     boundary = str(entry.get("safety_boundary", ""))
     for term in string_list(spec.get("required_safety_terms"), "catalog_event_contract.required_safety_terms", failures):
         if term.lower() not in boundary.lower():
-            fail(failures, f"{expected_id}: safety_boundary missing term: {term}")
+            failures.append(f"{expected_id}: safety_boundary missing term: {term}")
 
 
 def validate_tests(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -210,7 +206,7 @@ def validate_tests(manifest: dict[str, Any], failures: list[str]) -> None:
     text = read_text(REPO_ROOT / path_value, failures)
     for snippet in string_list(manifest.get("test_required_snippets"), "test_required_snippets", failures):
         if not contains_snippet(text, snippet):
-            fail(failures, f"{path_value} missing event-contract test snippet: {snippet}")
+            failures.append(f"{path_value} missing event-contract test snippet: {snippet}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -227,7 +223,7 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
     )
     for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
         if not contains_snippet(doc_text, phrase):
-            fail(failures, f"integration safety docs missing phrase: {phrase}")
+            failures.append(f"integration safety docs missing phrase: {phrase}")
 
 
 def main() -> int:

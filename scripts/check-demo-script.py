@@ -22,17 +22,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -40,7 +36,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -54,12 +50,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -68,10 +64,10 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
     value = manifest.get(field)
     if not isinstance(value, str) or not value.strip():
-        fail(failures, f"{field} must be a non-empty string")
+        failures.append(f"{field} must be a non-empty string")
         return None
     if not (REPO_ROOT / value).is_file():
-        fail(failures, f"{field} path is missing: {value}")
+        failures.append(f"{field} path is missing: {value}")
     return value
 
 
@@ -102,7 +98,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
 
 def validate_commands(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -114,12 +110,12 @@ def validate_commands(manifest: dict[str, Any], failures: list[str]) -> None:
 
     for command in string_list(manifest.get("required_dev_commands"), "required_dev_commands", failures):
         if command not in commands:
-            fail(failures, f"scripts/dev.sh must implement/document demo command: {command}")
+            failures.append(f"scripts/dev.sh must implement/document demo command: {command}")
         if f"{command})" not in dev_text:
-            fail(failures, f"scripts/dev.sh missing case branch for demo command: {command}")
+            failures.append(f"scripts/dev.sh missing case branch for demo command: {command}")
         expected = f"scripts/dev.sh {command}"
         if expected not in script_text:
-            fail(failures, f"{script_path} must mention {expected}")
+            failures.append(f"{script_path} must mention {expected}")
 
 
 def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[str]:
@@ -131,7 +127,7 @@ def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[s
         return set()
     claims = value.get("claims")
     if not isinstance(claims, list):
-        fail(failures, f"{path_value}: claims must be a list")
+        failures.append(f"{path_value}: claims must be a list")
         return set()
     return {
         claim["id"]
@@ -148,35 +144,35 @@ def validate_story_beats(manifest: dict[str, Any], failures: list[str]) -> None:
 
     for index, beat in enumerate(manifest.get("story_beats", []), 1):
         if not isinstance(beat, dict):
-            fail(failures, f"story_beats[{index}] must be an object")
+            failures.append(f"story_beats[{index}] must be an object")
             continue
         beat_id = beat.get("id")
         if not isinstance(beat_id, str) or not ID_PATTERN.match(beat_id):
-            fail(failures, f"story_beats[{index}].id must be kebab-case")
+            failures.append(f"story_beats[{index}].id must be kebab-case")
             beat_id = f"story_beats[{index}]"
         elif beat_id in seen_ids:
-            fail(failures, f"{beat_id}: duplicate story beat id")
+            failures.append(f"{beat_id}: duplicate story beat id")
         seen_ids.add(str(beat_id))
 
         title = beat.get("title")
         if not isinstance(title, str) or not title.strip():
-            fail(failures, f"{beat_id}: title must be non-empty")
+            failures.append(f"{beat_id}: title must be non-empty")
         elif title not in script_text:
-            fail(failures, f"{beat_id}: script doc missing title: {title}")
+            failures.append(f"{beat_id}: script doc missing title: {title}")
 
         for claim_id in string_list(beat.get("acceptance_claims"), f"{beat_id}.acceptance_claims", failures):
             if claim_id not in claim_ids:
-                fail(failures, f"{beat_id}: acceptance claim is missing from config/mvp-acceptance.json: {claim_id}")
+                failures.append(f"{beat_id}: acceptance claim is missing from config/mvp-acceptance.json: {claim_id}")
             if claim_id not in script_text:
-                fail(failures, f"{beat_id}: script doc must mention acceptance claim {claim_id}")
+                failures.append(f"{beat_id}: script doc must mention acceptance claim {claim_id}")
 
         for phrase in string_list(beat.get("required_phrases"), f"{beat_id}.required_phrases", failures):
             if not contains_snippet(script_text, phrase):
-                fail(failures, f"{beat_id}: script doc missing phrase: {phrase}")
+                failures.append(f"{beat_id}: script doc missing phrase: {phrase}")
 
         for evidence in string_list(beat.get("evidence_paths"), f"{beat_id}.evidence_paths", failures):
             if not (REPO_ROOT / evidence).exists():
-                fail(failures, f"{beat_id}: evidence path does not exist: {evidence}")
+                failures.append(f"{beat_id}: evidence path does not exist: {evidence}")
 
 
 def validate_doc_phrases(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -191,7 +187,7 @@ def validate_doc_phrases(manifest: dict[str, Any], failures: list[str]) -> None:
         text = read_text(REPO_ROOT / path_value, failures) if isinstance(path_value, str) else ""
         for phrase in string_list(manifest.get(phrase_field), phrase_field, failures):
             if not contains_snippet(text, phrase):
-                fail(failures, f"{path_value} missing demo-script phrase: {phrase}")
+                failures.append(f"{path_value} missing demo-script phrase: {phrase}")
 
 
 def main() -> int:

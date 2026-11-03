@@ -20,21 +20,17 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
         return {}
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
         return {}
     if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
+        failures.append(f"{rel(path)} must contain a JSON object")
         return {}
     return value
 
@@ -43,7 +39,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -57,12 +53,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -77,9 +73,9 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, str) or not value.strip():
-            fail(failures, f"{field} must be a non-empty string")
+            failures.append(f"{field} must be a non-empty string")
         elif not (REPO_ROOT / value).is_file():
-            fail(failures, f"{field} path is missing: {value}")
+            failures.append(f"{field} path is missing: {value}")
 
     for field in (
         "required_release_commands",
@@ -105,17 +101,17 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
 
     for phrase in string_list(manifest.get("required_policy_phrases"), "required_policy_phrases", failures):
         if not contains_snippet(policy_text, phrase):
-            fail(failures, f"{policy_doc}: missing required release-policy phrase: {phrase}")
+            failures.append(f"{policy_doc}: missing required release-policy phrase: {phrase}")
 
     for phrase in string_list(manifest.get("required_changelog_phrases"), "required_changelog_phrases", failures):
         if not contains_snippet(changelog_text, phrase):
-            fail(failures, f"{changelog}: missing required changelog phrase: {phrase}")
+            failures.append(f"{changelog}: missing required changelog phrase: {phrase}")
 
     for command in string_list(manifest.get("required_release_commands"), "required_release_commands", failures):
         if not contains_snippet(policy_text, command):
-            fail(failures, f"{policy_doc}: missing release command: {command}")
+            failures.append(f"{policy_doc}: missing release command: {command}")
         if command != "scripts/check-publication-source.sh --strict" and not contains_snippet(runbook_text, command):
-            fail(failures, f"{publication_runbook}: missing release command: {command}")
+            failures.append(f"{publication_runbook}: missing release command: {command}")
 
     for claim in string_list(
         manifest.get("forbidden_public_claims_before_1_0"),
@@ -123,9 +119,9 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
         failures,
     ):
         if not contains_snippet(policy_text, claim):
-            fail(failures, f"{policy_doc}: missing forbidden pre-1.0 claim warning: {claim}")
+            failures.append(f"{policy_doc}: missing forbidden pre-1.0 claim warning: {claim}")
         if not contains_snippet(positioning_text, claim):
-            fail(failures, f"{public_positioning_doc}: missing public-positioning claim warning: {claim}")
+            failures.append(f"{public_positioning_doc}: missing public-positioning claim warning: {claim}")
 
 
 def main() -> int:

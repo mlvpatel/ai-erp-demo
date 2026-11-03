@@ -25,29 +25,25 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
         return {}
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
         return {}
 
     if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
+        failures.append(f"{rel(path)} must contain a JSON object")
         return {}
     return value
 
 
 def source_acceptance_metrics(path: Path, section_name: str, failures: list[str]) -> list[str]:
     if not path.is_file():
-        fail(failures, f"source_doc does not exist: {rel(path)}")
+        failures.append(f"source_doc does not exist: {rel(path)}")
         return []
 
     metrics: list[str] = []
@@ -75,7 +71,7 @@ def source_acceptance_metrics(path: Path, section_name: str, failures: list[str]
         metrics.append(" ".join(current_metric))
 
     if not metrics:
-        fail(failures, f"{rel(path)} has no bullet metrics in section {section_name!r}")
+        failures.append(f"{rel(path)} has no bullet metrics in section {section_name!r}")
     return metrics
 
 
@@ -88,40 +84,40 @@ def dev_helper_commands() -> set[str]:
 
 def validate_command(claim_id: str, command: Any, allowed_dev_commands: set[str], failures: list[str]) -> None:
     if not isinstance(command, str) or not command.strip():
-        fail(failures, f"{claim_id}: verification command must be a non-empty string")
+        failures.append(f"{claim_id}: verification command must be a non-empty string")
         return
 
     parts = command.split()
     if len(parts) != 2 or parts[0] != "scripts/dev.sh":
-        fail(failures, f"{claim_id}: command must use scripts/dev.sh <command>: {command}")
+        failures.append(f"{claim_id}: command must use scripts/dev.sh <command>: {command}")
         return
 
     if parts[1] not in allowed_dev_commands:
-        fail(failures, f"{claim_id}: scripts/dev.sh command is not documented in helper usage: {parts[1]}")
+        failures.append(f"{claim_id}: scripts/dev.sh command is not documented in helper usage: {parts[1]}")
 
 
 def validate_anchor(claim_id: str, anchor: Any, failures: list[str]) -> None:
     if not isinstance(anchor, dict):
-        fail(failures, f"{claim_id}: each anchor must be an object")
+        failures.append(f"{claim_id}: each anchor must be an object")
         return
 
     path_value = anchor.get("path")
     contains = anchor.get("contains")
     if not isinstance(path_value, str) or not path_value.strip():
-        fail(failures, f"{claim_id}: anchor path must be non-empty")
+        failures.append(f"{claim_id}: anchor path must be non-empty")
         return
     if not isinstance(contains, str) or not contains:
-        fail(failures, f"{claim_id}: anchor contains must be non-empty")
+        failures.append(f"{claim_id}: anchor contains must be non-empty")
         return
 
     path = REPO_ROOT / path_value
     if not path.is_file():
-        fail(failures, f"{claim_id}: anchor path does not exist: {path_value}")
+        failures.append(f"{claim_id}: anchor path does not exist: {path_value}")
         return
 
     text = path.read_text(encoding="utf-8")
     if contains not in text:
-        fail(failures, f"{claim_id}: anchor text not found in {path_value}: {contains!r}")
+        failures.append(f"{claim_id}: anchor text not found in {path_value}: {contains!r}")
 
 
 def validate_claim(
@@ -132,50 +128,50 @@ def validate_claim(
     failures: list[str],
 ) -> str | None:
     if not isinstance(claim, dict):
-        fail(failures, f"claims[{index}] must be an object")
+        failures.append(f"claims[{index}] must be an object")
         return None
 
     claim_id = claim.get("id")
     if not isinstance(claim_id, str) or not ID_PATTERN.match(claim_id):
-        fail(failures, f"claims[{index}].id must be kebab-case")
+        failures.append(f"claims[{index}].id must be kebab-case")
         claim_id = f"claims[{index}]"
     elif claim_id in seen_ids:
-        fail(failures, f"{claim_id}: duplicate claim id")
+        failures.append(f"{claim_id}: duplicate claim id")
     else:
         seen_ids.add(claim_id)
 
     source_metric = claim.get("source_metric")
     if not isinstance(source_metric, str) or not source_metric.strip():
-        fail(failures, f"{claim_id}: source_metric must be non-empty")
+        failures.append(f"{claim_id}: source_metric must be non-empty")
         source_metric = None
 
     if claim.get("status") not in VALID_STATUS:
-        fail(failures, f"{claim_id}: status must be one of {', '.join(sorted(VALID_STATUS))}")
+        failures.append(f"{claim_id}: status must be one of {', '.join(sorted(VALID_STATUS))}")
 
     safety_boundary = claim.get("safety_boundary")
     if not isinstance(safety_boundary, str) or len(safety_boundary.strip()) < 30:
-        fail(failures, f"{claim_id}: safety_boundary must describe the guarded behavior")
+        failures.append(f"{claim_id}: safety_boundary must describe the guarded behavior")
 
     evidence_paths = claim.get("evidence_paths")
     if not isinstance(evidence_paths, list) or not evidence_paths:
-        fail(failures, f"{claim_id}: evidence_paths must be a non-empty list")
+        failures.append(f"{claim_id}: evidence_paths must be a non-empty list")
     else:
         for evidence_path in evidence_paths:
             if not isinstance(evidence_path, str):
-                fail(failures, f"{claim_id}: every evidence path must be a string")
+                failures.append(f"{claim_id}: every evidence path must be a string")
             elif not (REPO_ROOT / evidence_path).exists():
-                fail(failures, f"{claim_id}: evidence path does not exist: {evidence_path}")
+                failures.append(f"{claim_id}: evidence path does not exist: {evidence_path}")
 
     anchors = claim.get("anchors")
     if not isinstance(anchors, list) or not anchors:
-        fail(failures, f"{claim_id}: anchors must be a non-empty list")
+        failures.append(f"{claim_id}: anchors must be a non-empty list")
     else:
         for anchor in anchors:
             validate_anchor(claim_id, anchor, failures)
 
     verification_commands = claim.get("verification_commands")
     if not isinstance(verification_commands, list) or not verification_commands:
-        fail(failures, f"{claim_id}: verification_commands must be a non-empty list")
+        failures.append(f"{claim_id}: verification_commands must be a non-empty list")
     else:
         for command in verification_commands:
             validate_command(claim_id, command, allowed_dev_commands, failures)
@@ -191,12 +187,12 @@ def main() -> int:
     source_doc_value = manifest.get("source_doc")
     section_name = manifest.get("acceptance_section")
     if not isinstance(source_doc_value, str):
-        fail(failures, "source_doc must be a string")
+        failures.append("source_doc must be a string")
         source_doc = REPO_ROOT / "__missing__"
     else:
         source_doc = REPO_ROOT / source_doc_value
     if not isinstance(section_name, str) or not section_name.strip():
-        fail(failures, "acceptance_section must be a non-empty string")
+        failures.append("acceptance_section must be a non-empty string")
         section_name = ""
 
     expected_metrics = source_acceptance_metrics(source_doc, section_name, failures)
@@ -204,12 +200,12 @@ def main() -> int:
 
     allowed_dev_commands = dev_helper_commands()
     if not allowed_dev_commands:
-        fail(failures, "could not parse commands from scripts/dev.sh")
+        failures.append("could not parse commands from scripts/dev.sh")
 
     claims = manifest.get("claims")
     claim_metrics: list[str] = []
     if not isinstance(claims, list) or not claims:
-        fail(failures, "claims must be a non-empty list")
+        failures.append("claims must be a non-empty list")
     else:
         seen_ids: set[str] = set()
         for index, claim in enumerate(claims, 1):
@@ -223,11 +219,11 @@ def main() -> int:
     duplicate_metrics = sorted(metric for metric in claim_metric_set if claim_metrics.count(metric) > 1)
 
     if missing_metrics:
-        fail(failures, "MVP acceptance metrics missing from manifest: " + "; ".join(missing_metrics))
+        failures.append("MVP acceptance metrics missing from manifest: " + "; ".join(missing_metrics))
     if extra_metrics:
-        fail(failures, "manifest source_metric values not present in source doc: " + "; ".join(extra_metrics))
+        failures.append("manifest source_metric values not present in source doc: " + "; ".join(extra_metrics))
     if duplicate_metrics:
-        fail(failures, "duplicate source_metric values in manifest: " + "; ".join(duplicate_metrics))
+        failures.append("duplicate source_metric values in manifest: " + "; ".join(duplicate_metrics))
 
     if failures:
         print("MVP acceptance check failed:", file=sys.stderr)

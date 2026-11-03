@@ -34,21 +34,17 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
         return {}
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
         return {}
     if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
+        failures.append(f"{rel(path)} must contain a JSON object")
         return {}
     return value
 
@@ -57,7 +53,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -71,12 +67,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -86,20 +82,20 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     for field in ("lifecycle_doc", "pack_manifest", "roadmap_doc", "design_template"):
         value = manifest.get(field)
         if not isinstance(value, str) or not value.strip():
-            fail(failures, f"{field} must be a non-empty string")
+            failures.append(f"{field} must be a non-empty string")
         elif not (REPO_ROOT / value).is_file():
-            fail(failures, f"{field} path is missing: {value}")
+            failures.append(f"{field} path is missing: {value}")
 
     rules = manifest.get("status_rules")
     if not isinstance(rules, dict):
-        fail(failures, "status_rules must be an object")
+        failures.append("status_rules must be an object")
         return
     if list(rules) != ["planned", "reserved", "configured_demo", "implemented"]:
-        fail(failures, "status_rules must list planned, reserved, configured_demo, implemented in that order")
+        failures.append("status_rules must list planned, reserved, configured_demo, implemented in that order")
     for status in ("planned", "reserved", "configured_demo", "implemented"):
         rule = rules.get(status)
         if not isinstance(rule, dict):
-            fail(failures, f"status_rules.{status} must be an object")
+            failures.append(f"status_rules.{status} must be an object")
             continue
         string_list(rule.get("allowed_entry_gates"), f"status_rules.{status}.allowed_entry_gates", failures)
 
@@ -124,29 +120,29 @@ def validate_doc_phrases(manifest: dict[str, Any], failures: list[str]) -> None:
         text = read_text(REPO_ROOT / path_value, failures)
         for phrase in string_list(manifest.get(phrase_field), phrase_field, failures):
             if not contains_snippet(text, phrase):
-                fail(failures, f"{path_value}: missing lifecycle phrase: {phrase}")
+                failures.append(f"{path_value}: missing lifecycle phrase: {phrase}")
 
 
 def pack_docs_exist(pack_id: str, pack: dict[str, Any], failures: list[str]) -> None:
     docs = pack.get("docs")
     if not isinstance(docs, list) or not docs:
-        fail(failures, f"{pack_id}: docs must be a non-empty list")
+        failures.append(f"{pack_id}: docs must be a non-empty list")
         return
     for doc in docs:
         if not isinstance(doc, str) or not doc.strip():
-            fail(failures, f"{pack_id}: docs entries must be non-empty strings")
+            failures.append(f"{pack_id}: docs entries must be non-empty strings")
         elif not (REPO_ROOT / doc).exists():
-            fail(failures, f"{pack_id}: doc path is missing: {doc}")
+            failures.append(f"{pack_id}: doc path is missing: {doc}")
 
 
 def validate_planned_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
     if pack.get("app_path") is not None:
-        fail(failures, f"{pack_id}: planned packs must leave app_path as null")
+        failures.append(f"{pack_id}: planned packs must leave app_path as null")
     phrase = rule.get("required_verification_phrase")
     verification = pack.get("verification")
     if isinstance(phrase, str):
         if not isinstance(verification, list) or phrase not in verification:
-            fail(failures, f"{pack_id}: planned pack verification must include {phrase!r}")
+            failures.append(f"{pack_id}: planned pack verification must include {phrase!r}")
 
 
 def validate_reserved_pack(
@@ -154,24 +150,24 @@ def validate_reserved_pack(
 ) -> None:
     app_path_value = pack.get("app_path")
     if not isinstance(app_path_value, str) or not app_path_value.strip():
-        fail(failures, f"{pack_id}: reserved packs must set app_path")
+        failures.append(f"{pack_id}: reserved packs must set app_path")
         return
 
     app_path = REPO_ROOT / app_path_value
     if not app_path.is_dir():
-        fail(failures, f"{pack_id}: reserved app_path is not a directory: {app_path_value}")
+        failures.append(f"{pack_id}: reserved app_path is not a directory: {app_path_value}")
         return
 
     readme = app_path / "README.md"
     readme_text = read_text(readme, failures)
     for phrase in string_list(rule.get("required_readme_phrases"), "reserved.required_readme_phrases", failures):
         if not contains_snippet(readme_text, phrase):
-            fail(failures, f"{pack_id}: reserved README missing phrase: {phrase}")
+            failures.append(f"{pack_id}: reserved README missing phrase: {phrase}")
 
     for marker in markers:
         matches = [path for path in app_path.rglob("*") if path.name == marker or marker in path.parts]
         for match in matches:
-            fail(failures, f"{pack_id}: reserved pack contains generated marker: {rel(match)}")
+            failures.append(f"{pack_id}: reserved pack contains generated marker: {rel(match)}")
 
     docs = pack.get("docs")
     discovery_docs = [
@@ -180,15 +176,14 @@ def validate_reserved_pack(
         if isinstance(doc, str) and doc.startswith("docs/discovery/")
     ] if isinstance(docs, list) else []
     if len(discovery_docs) != 1:
-        fail(failures, f"{pack_id}: reserved pack requires exactly one docs/discovery brief")
+        failures.append(f"{pack_id}: reserved pack requires exactly one docs/discovery brief")
         return
 
     evidence_level = pack.get("discovery_evidence_level")
     human_validation = pack.get("human_validation")
     if pack.get("entry_gate") == "not_started":
         if evidence_level != "hypothesis_only" or human_validation != "pending":
-            fail(
-                failures,
+            failures.append(
                 f"{pack_id}: not_started must remain hypothesis_only with human validation pending",
             )
         brief_text = read_text(REPO_ROOT / discovery_docs[0], failures)
@@ -199,10 +194,10 @@ def validate_reserved_pack(
         )
         for phrase in phrases:
             if not contains_snippet(brief_text, phrase):
-                fail(failures, f"{pack_id}: hypothesis brief missing phrase: {phrase}")
+                failures.append(f"{pack_id}: hypothesis brief missing phrase: {phrase}")
     elif pack.get("entry_gate") == "discovery_brief_ready":
         if evidence_level == "hypothesis_only" or human_validation != "approved":
-            fail(failures, f"{pack_id}: discovery_brief_ready requires approved human evidence")
+            failures.append(f"{pack_id}: discovery_brief_ready requires approved human evidence")
 
 
 def validate_documentation_only_app(
@@ -210,19 +205,19 @@ def validate_documentation_only_app(
 ) -> None:
     app_path_value = pack.get("app_path")
     if not isinstance(app_path_value, str) or not app_path_value.strip():
-        fail(failures, f"{pack_id}: documentation-only pack must set app_path")
+        failures.append(f"{pack_id}: documentation-only pack must set app_path")
         return
     app_path = REPO_ROOT / app_path_value
     if not app_path.is_dir():
-        fail(failures, f"{pack_id}: app_path is not a directory: {app_path_value}")
+        failures.append(f"{pack_id}: app_path is not a directory: {app_path_value}")
         return
     readme_text = read_text(app_path / "README.md", failures)
     for phrase in string_list(rule.get("required_readme_phrases"), f"{pack_id}.required_readme_phrases", failures):
         if not contains_snippet(readme_text, phrase):
-            fail(failures, f"{pack_id}: README missing configured-demo phrase: {phrase}")
+            failures.append(f"{pack_id}: README missing configured-demo phrase: {phrase}")
     for marker in markers:
         for match in [path for path in app_path.rglob("*") if path.name == marker or marker in path.parts]:
-            fail(failures, f"{pack_id}: configured demo contains generated marker: {rel(match)}")
+            failures.append(f"{pack_id}: configured demo contains generated marker: {rel(match)}")
 
 
 def validate_configured_demo(
@@ -230,71 +225,71 @@ def validate_configured_demo(
 ) -> None:
     validate_documentation_only_app(pack_id, pack, rule, markers, failures)
     if pack.get("entry_gate") != "configured_demo_ready":
-        fail(failures, f"{pack_id}: configured_demo must use configured_demo_ready entry gate")
+        failures.append(f"{pack_id}: configured_demo must use configured_demo_ready entry gate")
     if pack.get("discovery_evidence_level") != "hypothesis_only" or pack.get("human_validation") != "pending":
-        fail(failures, f"{pack_id}: configured demo must keep product evidence hypothesis_only and human validation pending")
+        failures.append(f"{pack_id}: configured demo must keep product evidence hypothesis_only and human validation pending")
 
     docs = pack.get("docs", [])
     discovery_docs = [doc for doc in docs if isinstance(doc, str) and doc.startswith("docs/discovery/")]
     runbooks = [doc for doc in docs if isinstance(doc, str) and doc.startswith("docs/runbooks/")]
     if len(discovery_docs) != 1:
-        fail(failures, f"{pack_id}: configured demo requires exactly one discovery brief")
+        failures.append(f"{pack_id}: configured demo requires exactly one discovery brief")
     else:
         discovery_text = read_text(REPO_ROOT / discovery_docs[0], failures)
         for phrase in string_list(rule.get("required_discovery_phrases"), "configured_demo.required_discovery_phrases", failures):
             if not contains_snippet(discovery_text, phrase):
-                fail(failures, f"{pack_id}: discovery brief missing configured-demo phrase: {phrase}")
+                failures.append(f"{pack_id}: discovery brief missing configured-demo phrase: {phrase}")
     if len(runbooks) != 1:
-        fail(failures, f"{pack_id}: configured demo requires exactly one walkthrough runbook")
+        failures.append(f"{pack_id}: configured demo requires exactly one walkthrough runbook")
 
     demo_manifest_path = pack.get("demo_manifest")
     if not isinstance(demo_manifest_path, str) or not demo_manifest_path.startswith("config/industry-demo-"):
-        fail(failures, f"{pack_id}: demo_manifest must use config/industry-demo-* path")
+        failures.append(f"{pack_id}: demo_manifest must use config/industry-demo-* path")
         return
     demo = load_json(REPO_ROOT / demo_manifest_path, failures)
     if demo.get("pack_id") != pack_id:
-        fail(failures, f"{pack_id}: demo manifest pack_id mismatch")
+        failures.append(f"{pack_id}: demo manifest pack_id mismatch")
     if demo.get("status") != "configured_demo" or demo.get("synthetic_only") is not True:
-        fail(failures, f"{pack_id}: demo manifest must be configured_demo and synthetic_only")
+        failures.append(f"{pack_id}: demo manifest must be configured_demo and synthetic_only")
     string_list(demo.get("invariants"), f"{pack_id}.demo.invariants", failures)
     for action in ("seeder", "reset"):
         value = demo.get(action)
         if not isinstance(value, dict):
-            fail(failures, f"{pack_id}: demo {action} must be an object")
+            failures.append(f"{pack_id}: demo {action} must be an object")
             continue
         path_value = value.get("path")
         if not isinstance(path_value, str) or not (REPO_ROOT / path_value).is_file():
-            fail(failures, f"{pack_id}: demo {action} path is missing")
+            failures.append(f"{pack_id}: demo {action} path is missing")
         if not isinstance(value.get("function"), str) or not value.get("function"):
-            fail(failures, f"{pack_id}: demo {action} function is required")
+            failures.append(f"{pack_id}: demo {action} function is required")
         if value.get("argument") != pack_id:
-            fail(failures, f"{pack_id}: demo {action} argument must match pack id")
+            failures.append(f"{pack_id}: demo {action} argument must match pack id")
     seeder = demo.get("seeder")
     seeder_path = seeder.get("path") if isinstance(seeder, dict) else None
     if isinstance(seeder_path, str) and (REPO_ROOT / seeder_path).is_file():
         seeder_text = read_text(REPO_ROOT / seeder_path, failures)
         for phrase in string_list(rule.get("required_seeder_phrases"), "configured_demo.required_seeder_phrases", failures):
             if phrase not in seeder_text:
-                fail(failures, f"{pack_id}: configured-demo seeder missing safety phrase: {phrase}")
+                failures.append(f"{pack_id}: configured-demo seeder missing safety phrase: {phrase}")
         for phrase in string_list(rule.get("forbidden_seeder_phrases"), "configured_demo.forbidden_seeder_phrases", failures):
             if phrase in seeder_text:
-                fail(failures, f"{pack_id}: configured-demo seeder contains forbidden posting phrase: {phrase}")
+                failures.append(f"{pack_id}: configured-demo seeder contains forbidden posting phrase: {phrase}")
     invariant_text = " ".join(demo.get("invariants", [])).casefold() if isinstance(demo.get("invariants"), list) else ""
     for phrase in ("does not submit", "no ai route", "human validation remains pending"):
         if phrase not in invariant_text:
-            fail(failures, f"{pack_id}: demo invariants must state {phrase!r}")
+            failures.append(f"{pack_id}: demo invariants must state {phrase!r}")
 
 
 def validate_implemented_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
     app_path_value = pack.get("app_path")
     if not isinstance(app_path_value, str) or not (REPO_ROOT / app_path_value / "README.md").is_file():
-        fail(failures, f"{pack_id}: implemented packs must set an existing app_path with README.md")
+        failures.append(f"{pack_id}: implemented packs must set an existing app_path with README.md")
 
     verification = pack.get("verification")
     prefix = rule.get("required_verification_prefix")
     if isinstance(prefix, str):
         if not isinstance(verification, list) or not any(isinstance(item, str) and item.startswith(prefix) for item in verification):
-            fail(failures, f"{pack_id}: implemented pack verification must include a {prefix!r} command")
+            failures.append(f"{pack_id}: implemented pack verification must include a {prefix!r} command")
 
     doc_phrase = rule.get("required_doc_phrase")
     if isinstance(doc_phrase, str):
@@ -307,7 +302,7 @@ def validate_implemented_pack(pack_id: str, pack: dict[str, Any], rule: dict[str
                 if isinstance(doc, str)
             )
         if not contains_snippet(combined_doc_text, doc_phrase):
-            fail(failures, f"{pack_id}: implemented pack docs must mention {doc_phrase!r}")
+            failures.append(f"{pack_id}: implemented pack docs must mention {doc_phrase!r}")
 
 
 def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -317,7 +312,7 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
     pack_manifest = load_json(REPO_ROOT / pack_manifest_path, failures)
     packs = pack_manifest.get("packs")
     if not isinstance(packs, list) or not packs:
-        fail(failures, f"{pack_manifest_path}: packs must be a non-empty list")
+        failures.append(f"{pack_manifest_path}: packs must be a non-empty list")
         return
 
     rules = manifest.get("status_rules")
@@ -331,31 +326,31 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
     seen_ids: set[str] = set()
     for index, pack in enumerate(packs, 1):
         if not isinstance(pack, dict):
-            fail(failures, f"{pack_manifest_path}: packs[{index}] must be an object")
+            failures.append(f"{pack_manifest_path}: packs[{index}] must be an object")
             continue
         pack_id = pack.get("id")
         if not isinstance(pack_id, str) or not pack_id.strip():
-            fail(failures, f"{pack_manifest_path}: packs[{index}].id must be a non-empty string")
+            failures.append(f"{pack_manifest_path}: packs[{index}].id must be a non-empty string")
             pack_id = f"packs[{index}]"
         elif pack_id in seen_ids:
-            fail(failures, f"{pack_id}: duplicate pack id")
+            failures.append(f"{pack_id}: duplicate pack id")
         seen_ids.add(pack_id)
         missing = sorted(REQUIRED_PACK_FIELDS - set(pack))
         if missing:
-            fail(failures, f"{pack_id}: missing required fields: {', '.join(missing)}")
+            failures.append(f"{pack_id}: missing required fields: {', '.join(missing)}")
         for field in ("title", "first_proof_workflow"):
             if not isinstance(pack.get(field), str) or not pack[field].strip():
-                fail(failures, f"{pack_id}: {field} must be a non-empty string")
+                failures.append(f"{pack_id}: {field} must be a non-empty string")
         for field in ("erpnext_reuse", "ai_allowed", "verification"):
             string_list(pack.get(field), f"{pack_id}.{field}", failures)
         forbidden_text = " ".join(string_list(pack.get("ai_forbidden"), f"{pack_id}.ai_forbidden", failures)).lower()
         for term in REQUIRED_AI_FORBIDDEN_TERMS:
             if term not in forbidden_text:
-                fail(failures, f"{pack_id}: ai_forbidden must mention {term}")
+                failures.append(f"{pack_id}: ai_forbidden must mention {term}")
 
         status = pack.get("status")
         if status not in allowed_statuses:
-            fail(failures, f"{pack_id}: unsupported lifecycle status {status!r}")
+            failures.append(f"{pack_id}: unsupported lifecycle status {status!r}")
             continue
 
         entry_gate = pack.get("entry_gate")
@@ -363,7 +358,7 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
         if isinstance(rule, dict):
             status_entry_gates = set(string_list(rule.get("allowed_entry_gates"), f"status_rules.{status}.allowed_entry_gates", failures))
             if entry_gate not in status_entry_gates:
-                fail(failures, f"{pack_id}: entry_gate {entry_gate!r} is not allowed for status {status!r}")
+                failures.append(f"{pack_id}: entry_gate {entry_gate!r} is not allowed for status {status!r}")
 
         pack_docs_exist(pack_id, pack, failures)
         if status == "planned" and isinstance(rule, dict):
@@ -380,9 +375,9 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
             validate_implemented_pack(pack_id, pack, rule, failures)
 
     if implemented_count < 1:
-        fail(failures, "industry lifecycle requires at least one implemented pack")
+        failures.append("industry lifecycle requires at least one implemented pack")
     if reserved_or_planned_count < 1:
-        fail(failures, "industry lifecycle requires at least one future pack")
+        failures.append("industry lifecycle requires at least one future pack")
 
 
 def main() -> int:

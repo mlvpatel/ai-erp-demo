@@ -20,17 +20,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -38,10 +34,10 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
     except UnicodeDecodeError as exc:
-        fail(failures, f"expected UTF-8 text file: {rel(path)}: {exc}")
+        failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
         return ""
 
 
@@ -55,12 +51,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -69,10 +65,10 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
     value = manifest.get(field)
     if not isinstance(value, str) or not value.strip():
-        fail(failures, f"{field} must be a non-empty string")
+        failures.append(f"{field} must be a non-empty string")
         return None
     if not (REPO_ROOT / value).is_file():
-        fail(failures, f"{field} path is missing: {value}")
+        failures.append(f"{field} path is missing: {value}")
     return value
 
 
@@ -85,7 +81,7 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
 
 def validate_signal_groups(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -99,18 +95,18 @@ def validate_signal_groups(manifest: dict[str, Any], failures: list[str]) -> Non
     seen: set[str] = set()
     for index, group in enumerate(groups, 1):
         if not isinstance(group, dict):
-            fail(failures, f"signal_groups[{index}] must be an object")
+            failures.append(f"signal_groups[{index}] must be an object")
             continue
         group_id = group.get("id")
         if not isinstance(group_id, str) or not group_id.strip():
-            fail(failures, f"signal_groups[{index}].id must be a non-empty string")
+            failures.append(f"signal_groups[{index}].id must be a non-empty string")
         elif group_id in seen:
-            fail(failures, f"duplicate signal group id: {group_id}")
+            failures.append(f"duplicate signal group id: {group_id}")
         else:
             seen.add(group_id)
         for term in string_list(group.get("required_terms"), f"signal_groups[{index}].required_terms", failures):
             if not contains_snippet(workflow_text, term):
-                fail(failures, f"{workflow_path} missing signal term: {term}")
+                failures.append(f"{workflow_path} missing signal term: {term}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -119,16 +115,16 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
         return
     for index, entry in enumerate(entries, 1):
         if not isinstance(entry, dict):
-            fail(failures, f"required_doc_phrases[{index}] must be an object")
+            failures.append(f"required_doc_phrases[{index}] must be an object")
             continue
         path_value = entry.get("path")
         if not isinstance(path_value, str) or not path_value:
-            fail(failures, f"required_doc_phrases[{index}].path must be a non-empty string")
+            failures.append(f"required_doc_phrases[{index}].path must be a non-empty string")
             continue
         text = read_text(REPO_ROOT / path_value, failures)
         for phrase in string_list(entry.get("phrases"), f"required_doc_phrases[{index}].phrases", failures):
             if not contains_snippet(text, phrase):
-                fail(failures, f"{path_value} missing observability-readiness phrase: {phrase}")
+                failures.append(f"{path_value} missing observability-readiness phrase: {phrase}")
 
 
 def main() -> int:

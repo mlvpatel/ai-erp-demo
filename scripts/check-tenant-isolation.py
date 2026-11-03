@@ -20,17 +20,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_json(path: Path, failures: list[str]) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
+        failures.append(f"missing JSON file: {rel(path)}")
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
+        failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
 
 
@@ -38,7 +34,7 @@ def read_text(path: Path, failures: list[str]) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
+        failures.append(f"missing file: {rel(path)}")
         return ""
 
 
@@ -52,12 +48,12 @@ def contains_snippet(haystack: str, needle: str) -> bool:
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
     if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
+        failures.append(f"{field} must be a non-empty list")
         return []
     result: list[str] = []
     for index, item in enumerate(value, 1):
         if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
+            failures.append(f"{field}[{index}] must be a non-empty string")
             continue
         result.append(item)
     return result
@@ -66,10 +62,10 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
     value = manifest.get(field)
     if not isinstance(value, str) or not value.strip():
-        fail(failures, f"{field} must be a non-empty string")
+        failures.append(f"{field} must be a non-empty string")
         return None
     if not (REPO_ROOT / value).is_file():
-        fail(failures, f"{field} path is missing: {value}")
+        failures.append(f"{field} path is missing: {value}")
     return value
 
 
@@ -87,31 +83,31 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     for field in ("source_anchors", "required_doc_phrases", "forbidden_source_terms"):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
 
 def validate_source_anchors(manifest: dict[str, Any], failures: list[str]) -> None:
     seen_ids: set[str] = set()
     for index, anchor in enumerate(manifest.get("source_anchors", []), 1):
         if not isinstance(anchor, dict):
-            fail(failures, f"source_anchors[{index}] must be an object")
+            failures.append(f"source_anchors[{index}] must be an object")
             continue
         anchor_id = anchor.get("id")
         if not isinstance(anchor_id, str) or not anchor_id:
-            fail(failures, f"source_anchors[{index}].id must be a non-empty string")
+            failures.append(f"source_anchors[{index}].id must be a non-empty string")
             anchor_id = f"source_anchors[{index}]"
         elif anchor_id in seen_ids:
-            fail(failures, f"{anchor_id}: duplicate source anchor id")
+            failures.append(f"{anchor_id}: duplicate source anchor id")
         seen_ids.add(str(anchor_id))
 
         path_value = anchor.get("path")
         if not isinstance(path_value, str) or not path_value.strip():
-            fail(failures, f"{anchor_id}: path must be a non-empty string")
+            failures.append(f"{anchor_id}: path must be a non-empty string")
             continue
         source_text = read_text(REPO_ROOT / path_value, failures)
         for snippet in string_list(anchor.get("required_snippets"), f"{anchor_id}.required_snippets", failures):
             if not contains_snippet(source_text, snippet):
-                fail(failures, f"{anchor_id}: {path_value} missing snippet: {snippet}")
+                failures.append(f"{anchor_id}: {path_value} missing snippet: {snippet}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -129,7 +125,7 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
     )
     for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
         if not contains_snippet(doc_text, phrase):
-            fail(failures, f"tenant isolation docs missing phrase: {phrase}")
+            failures.append(f"tenant isolation docs missing phrase: {phrase}")
 
 
 def iter_files(path: Path) -> list[Path]:
@@ -149,16 +145,16 @@ def iter_files(path: Path) -> list[Path]:
 def validate_forbidden_source_terms(manifest: dict[str, Any], failures: list[str]) -> None:
     for index, entry in enumerate(manifest.get("forbidden_source_terms", []), 1):
         if not isinstance(entry, dict):
-            fail(failures, f"forbidden_source_terms[{index}] must be an object")
+            failures.append(f"forbidden_source_terms[{index}] must be an object")
             continue
         term = entry.get("term")
         if not isinstance(term, str) or not term:
-            fail(failures, f"forbidden_source_terms[{index}].term must be a non-empty string")
+            failures.append(f"forbidden_source_terms[{index}].term must be a non-empty string")
             continue
         for path_value in string_list(entry.get("paths"), f"forbidden_source_terms[{index}].paths", failures):
             root = REPO_ROOT / path_value
             if not root.exists():
-                fail(failures, f"forbidden term path is missing: {path_value}")
+                failures.append(f"forbidden term path is missing: {path_value}")
                 continue
             for candidate in iter_files(root):
                 try:
@@ -166,7 +162,7 @@ def validate_forbidden_source_terms(manifest: dict[str, Any], failures: list[str
                 except UnicodeDecodeError:
                     continue
                 if term in text:
-                    fail(failures, f"{rel(candidate)} contains forbidden tenant shortcut {term!r}")
+                    failures.append(f"{rel(candidate)} contains forbidden tenant shortcut {term!r}")
 
 
 def main() -> int:
