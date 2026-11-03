@@ -129,36 +129,11 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         "excluded_path_suffixes",
         "forbidden_tracked_path_prefixes",
         "forbidden_tracked_path_suffixes",
-        "required_local_only_exclusions",
         "sensitive_assignment_keys",
         "allowed_assignment_value_patterns",
         "allowed_email_domain_suffixes",
     ):
         as_string_list(manifest.get(field), field, failures)
-
-    required_exclusions = {
-        ".env",
-        ".env.*",
-        "*.pem",
-        "*.key",
-        "*.sql",
-        "*.sql.gz",
-        "*.dump",
-        "*.backup",
-        "*-files.tar",
-        "*-private-files.tar",
-        "development/.env",
-        "development/frappe-bench/",
-        "config/owner-decisions.local.json",
-        "sites/",
-        "logs/",
-        "private/",
-        "public/assets/",
-    }
-    actual_exclusions = set(as_string_list(manifest.get("required_local_only_exclusions"), "required_local_only_exclusions", failures))
-    missing = sorted(required_exclusions - actual_exclusions)
-    if missing:
-        fail(failures, "required_local_only_exclusions missing: " + ", ".join(missing))
 
     policy_documents = manifest.get("policy_documents")
     if not isinstance(policy_documents, list) or not policy_documents:

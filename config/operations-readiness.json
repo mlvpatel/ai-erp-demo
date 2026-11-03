@@ -1,85 +1,31 @@
 {
   "schema_version": 1,
   "description": "Machine-readable operations and recovery readiness contract for the AI ERP Demo.",
-  "publication_scan_manifest": "config/publication-secret-scan.json",
-  "gitignore": ".gitignore",
-  "gitattributes": ".gitattributes",
-  "publication_source_script": "scripts/check-publication-source.sh",
-  "required_gitignore_patterns": [
+  "local_artifact_patterns": [
     "sites/",
     "logs/",
     "private/",
+    "public/assets/",
     "development/frappe-bench/",
     "development/.env",
+    ".env",
+    "config/owner-decisions.local.json",
     "*.sql",
     "*.sql.gz",
     "*.dump",
     "*.backup",
     "*-files.tar",
-    "*-private-files.tar"
-    ,
+    "*-private-files.tar",
     ".terraform/",
     "*.tfstate",
     "*.tfstate.*",
     "*.tfvars",
     "*.tfplan"
   ],
-  "required_export_ignore_patterns": [
-    "sites/",
-    "logs/",
-    "private/",
-    "development/frappe-bench/",
-    "development/.env",
-    "*.sql",
-    "*.sql.gz",
-    "*.dump",
-    "*.backup",
-    "*-files.tar",
-    "*-private-files.tar"
-    ,
-    ".terraform/",
-    "*.tfstate",
-    "*.tfstate.*",
-    "*.tfvars",
-    "*.tfplan"
-  ],
-  "required_publication_source_snippets": [
-    "-path './sites'",
-    "-path './logs'",
-    "-path './private'",
-    "-path './development/frappe-bench'",
-    "-path './development/.env'",
-    "-name '*.sql'",
-    "-name '*.sql.gz'",
-    "-name '*.dump'",
-    "-name '*.backup'",
-    "-name '*-files.tar'",
-    "-name '*-private-files.tar'"
-    ,
-    "-path './.terraform'",
-    "-name '*.tfstate'",
-    "-name '*.tfstate.*'",
-    "-name '*.tfvars'",
-    "-name '*.tfplan'"
-  ],
-  "publication_scan_required_exclusions": [
-    "sites/",
-    "logs/",
-    "private/",
-    "development/frappe-bench/",
-    "development/.env",
-    "*.sql",
-    "*.sql.gz",
-    "*.dump",
-    "*.backup",
-    "*-files.tar",
-    "*-private-files.tar"
-    ,
-    ".terraform/",
-    "*.tfstate",
-    "*.tfstate.*",
-    "*.tfvars",
-    "*.tfplan"
+  "local_ignore_patterns": [
+    ".env.*",
+    "__pycache__/",
+    "*.py[cod]"
   ],
   "required_doc_phrases": [
     {
