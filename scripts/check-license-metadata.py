@@ -59,14 +59,6 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, check=False)
 
 
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
-
-
 def manifest_paths(manifest: dict[str, Any]) -> set[str]:
     paths: set[str] = set()
     for path in manifest.get("root_targets", []):
@@ -102,10 +94,8 @@ def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> No
     if manifest.get("schema_version") != 1:
         fail(failures, "license-metadata.json schema_version must be 1")
     status = manifest.get("status")
-    if status not in {"pending-owner-decision", "selected"}:
-        fail(failures, "license-metadata.json status must be pending-owner-decision or selected")
-    if manifest.get("owner_decision_file") != "config/owner-decisions.local.json":
-        fail(failures, "owner_decision_file must be config/owner-decisions.local.json")
+    if status != "selected":
+        fail(failures, "license-metadata.json status must be selected")
 
     placeholders = manifest.get("placeholder_patterns")
     if not isinstance(placeholders, list) or not placeholders:
@@ -179,26 +169,6 @@ def validate_target_files(manifest: dict[str, Any], failures: list[str]) -> None
             fail(failures, f"license metadata target missing: {value}")
         if value not in runbook:
             fail(failures, f"license decision runbook must mention metadata target: {value}")
-
-
-def validate_pending_state(manifest: dict[str, Any], failures: list[str]) -> None:
-    paths = manifest_paths(manifest)
-    findings = current_placeholder_locations(paths)
-    expected_fragments = {
-        "apps/ai_erp_core/pyproject.toml:",
-        "apps/ai_erp_core/license.txt:",
-        "apps/ai_erp_core/ai_erp_core/hooks.py:",
-        "apps/ai_erp_service/pyproject.toml:",
-        "apps/ai_erp_service/license.txt:",
-        "apps/ai_erp_service/ai_erp_service/hooks.py:",
-    }
-    missing = [fragment for fragment in sorted(expected_fragments) if not any(fragment in item for item in findings)]
-    if missing and not (REPO_ROOT / "LICENSE").is_file():
-        fail(
-            failures,
-            "pending license state should keep known placeholder evidence until owner reconciliation: "
-            + ", ".join(missing),
-        )
 
 
 def load_owner_decisions(failures: list[str]) -> dict[str, Any] | None:
@@ -329,10 +299,8 @@ def main() -> int:
         validate_target_files(manifest, failures)
         if args.strict:
             validate_strict_state(manifest, failures)
-        elif manifest.get("status") == "selected":
-            validate_selected_state(manifest, failures)
         else:
-            validate_pending_state(manifest, failures)
+            validate_selected_state(manifest, failures)
 
     if failures:
         label = "Strict license metadata check failed" if args.strict else "License metadata check failed"
@@ -343,10 +311,8 @@ def main() -> int:
 
     if args.strict:
         print("Strict license metadata check passed.")
-    elif manifest is not None and manifest.get("status") == "selected":
-        print("License metadata check passed; AGPL-3.0-only is selected and reconciled.")
     else:
-        print("License metadata check passed; owner license/contact reconciliation is still pending.")
+        print("License metadata check passed; AGPL-3.0-only is selected and reconciled.")
     return 0
 
 
