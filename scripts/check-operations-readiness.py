@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, doc_phrase_entries, load_json, read_text, rel, string_list
+from _gate import REPO_ROOT, doc_phrase_entries, load_json, read_text, rel, report, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "operations-readiness.json"
@@ -58,14 +57,7 @@ def main() -> int:
         validate_local_artifacts(manifest, failures)
         doc_phrase_entries(manifest, "operations-readiness", failures)
 
-    if failures:
-        print("Operations readiness check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Operations readiness check passed.")
-    return 0
+    return report("Operations readiness check", failures)
 
 
 if __name__ == "__main__":

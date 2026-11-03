@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
 from _gate import (
@@ -14,6 +13,7 @@ from _gate import (
     dev_commands,
     load_json,
     read_text,
+    report,
     required_path,
     string_list,
 )
@@ -128,14 +128,7 @@ def main() -> int:
         validate_story_beats(manifest, failures)
         validate_doc_phrases(manifest, failures)
 
-    if failures:
-        print("Demo script check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Demo script check passed.")
-    return 0
+    return report("Demo script check", failures)
 
 
 if __name__ == "__main__":

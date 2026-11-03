@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, rel
+from _gate import REPO_ROOT, rel, report
 
 
 MANIFEST = REPO_ROOT / "config" / "repository-structure.json"
@@ -307,14 +306,7 @@ def main() -> int:
         validate_claude_layout(failures, manifest)
         validate_cursor_layout(failures, manifest)
 
-    if failures:
-        print("Repository structure check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Repository structure check passed.")
-    return 0
+    return report("Repository structure check", failures)
 
 
 if __name__ == "__main__":

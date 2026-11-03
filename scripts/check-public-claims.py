@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 
-from _gate import REPO_ROOT, normalize_space
+from _gate import REPO_ROOT, normalize_space, report
 
 
 README = REPO_ROOT / "README.md"
@@ -128,14 +127,7 @@ def main() -> int:
         validate_industry_scope(failures)
         validate_release_runbook(failures)
 
-    if failures:
-        print("Public claims check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Public claims check passed.")
-    return 0
+    return report("Public claims check", failures)
 
 
 if __name__ == "__main__":

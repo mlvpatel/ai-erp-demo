@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
 from _gate import (
@@ -13,6 +12,7 @@ from _gate import (
     doc_phrase_entries,
     load_json,
     read_text,
+    report,
     required_path,
     string_list,
 )
@@ -95,14 +95,7 @@ def main() -> int:
         validate_workflow_commands(manifest, failures)
         doc_phrase_entries(manifest, "upstream-upgrade", failures)
 
-    if failures:
-        print("Upstream upgrade readiness check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Upstream upgrade readiness check passed.")
-    return 0
+    return report("Upstream upgrade readiness check", failures)
 
 
 if __name__ == "__main__":

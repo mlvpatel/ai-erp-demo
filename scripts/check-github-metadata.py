@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, read_text, rel
+from _gate import REPO_ROOT, read_text, rel, report
 
 
 METADATA = REPO_ROOT / ".github" / "repository-metadata.json"
@@ -149,14 +148,7 @@ def main() -> int:
         validate_features_and_files(failures, metadata)
         validate_release_blockers(failures, metadata)
 
-    if failures:
-        print("GitHub metadata check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("GitHub metadata check passed.")
-    return 0
+    return report("GitHub metadata check", failures)
 
 
 if __name__ == "__main__":

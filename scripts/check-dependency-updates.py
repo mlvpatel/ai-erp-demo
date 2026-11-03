@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "dependency-updates.json"
@@ -195,14 +194,7 @@ def main() -> int:
         validate_dependabot(manifest, failures)
         validate_manual_pins_and_docs(manifest, failures)
 
-    if failures:
-        print("Dependency update policy check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Dependency update policy check passed.")
-    return 0
+    return report("Dependency update policy check", failures)
 
 
 if __name__ == "__main__":

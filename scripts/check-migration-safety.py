@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +14,7 @@ from _gate import (
     load_json_object,
     read_text,
     rel,
+    report,
     required_path,
     string_list,
 )
@@ -205,14 +205,7 @@ def main() -> int:
         joined_doc_phrases(manifest, DOC_FIELDS, "migration safety", failures)
         validate_no_direct_schema_ddl(manifest, failures)
 
-    if failures:
-        print("Migration safety check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Migration safety check passed.")
-    return 0
+    return report("Migration safety check", failures)
 
 
 if __name__ == "__main__":

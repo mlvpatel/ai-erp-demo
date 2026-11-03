@@ -3,10 +3,9 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, string_list
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, report, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "release-policy.json"
@@ -80,14 +79,7 @@ def main() -> int:
         validate_shape(manifest, failures)
         validate_docs(manifest, failures)
 
-    if failures:
-        print("Release policy check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Release policy check passed.")
-    return 0
+    return report("Release policy check", failures)
 
 
 if __name__ == "__main__":

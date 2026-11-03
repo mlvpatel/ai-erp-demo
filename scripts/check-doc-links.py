@@ -9,12 +9,11 @@ deterministic, and useful in offline CI.
 from __future__ import annotations
 
 import re
-import sys
 import urllib.parse
 from pathlib import Path
 from typing import Iterable
 
-from _gate import REPO_ROOT, rel
+from _gate import REPO_ROOT, rel, report
 
 
 INLINE_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]\n]+\]\(([^)\n]+)\)")
@@ -110,14 +109,7 @@ def main() -> int:
                     f"{raw_target!r} -> {rel(target_path)}"
                 )
 
-    if failures:
-        print("Markdown local link check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Markdown local link check passed.")
-    return 0
+    return report("Markdown local link check", failures)
 
 
 if __name__ == "__main__":

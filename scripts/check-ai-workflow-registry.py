@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import ast
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, string_list
+from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, report, string_list
 
 
 REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
@@ -233,14 +232,7 @@ def main() -> int:
         validate_registry_docs(registry, failures)
         validate_workflows(registry, failures)
 
-    if failures:
-        print("AI workflow registry check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("AI workflow registry check passed.")
-    return 0
+    return report("AI workflow registry check", failures)
 
 
 if __name__ == "__main__":

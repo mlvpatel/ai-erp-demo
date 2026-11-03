@@ -6,10 +6,9 @@ from __future__ import annotations
 import argparse
 import re
 import subprocess
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json_object, read_text
+from _gate import REPO_ROOT, load_json_object, read_text, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "license-metadata.json"
@@ -264,18 +263,13 @@ def main() -> int:
         else:
             validate_selected_state(manifest, failures)
 
-    if failures:
-        label = "Strict license metadata check failed" if args.strict else "License metadata check failed"
-        print(label + ":", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
     if args.strict:
-        print("Strict license metadata check passed.")
-    else:
-        print("License metadata check passed; AGPL-3.0-only is selected and reconciled.")
-    return 0
+        return report("Strict license metadata check", failures)
+    return report(
+        "License metadata check",
+        failures,
+        "License metadata check passed; AGPL-3.0-only is selected and reconciled.",
+    )
 
 
 if __name__ == "__main__":

@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import ast
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, rel, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
@@ -303,14 +302,7 @@ def main() -> int:
         else:
             validate_registered_workflow(workflow_id, workflow, failures)
 
-    if failures:
-        print("AI data-boundary check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("AI data-boundary check passed.")
-    return 0
+    return report("AI data-boundary check", failures)
 
 
 if __name__ == "__main__":

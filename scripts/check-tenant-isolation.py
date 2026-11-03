@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +13,7 @@ from _gate import (
     load_json,
     read_text,
     rel,
+    report,
     required_path,
     string_list,
 )
@@ -118,14 +118,7 @@ def main() -> int:
         joined_doc_phrases(manifest, DOC_FIELDS, "tenant isolation", failures)
         validate_forbidden_source_terms(manifest, failures)
 
-    if failures:
-        print("Tenant isolation check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Tenant isolation check passed.")
-    return 0
+    return report("Tenant isolation check", failures)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from typing import Any
 
 # --strict counts local artifacts, so importing _gate must not write one.
 sys.dont_write_bytecode = True
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "release-readiness.json"
@@ -215,18 +215,8 @@ def main() -> int:
             + "; ".join(missing_from_manifest),
         )
 
-    if failures:
-        label = "Release readiness strict check failed" if args.strict else "Release readiness manifest check failed"
-        print(label + ":", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    if args.strict:
-        print("Release readiness strict check passed.")
-    else:
-        print("Release readiness manifest check passed.")
-    return 0
+    name = "Release readiness strict check" if args.strict else "Release readiness manifest check"
+    return report(name, failures)
 
 
 if __name__ == "__main__":

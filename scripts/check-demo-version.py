@@ -7,7 +7,7 @@ import json
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT
+from _gate import REPO_ROOT, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "demo-version.json"
@@ -78,14 +78,7 @@ def main() -> int:
     if "demo-version-loop.md" not in agents:
         failures.append("AGENTS.md must reference demo-version-loop.md")
 
-    if failures:
-        print("Demo Version packaging check failed:", file=sys.stderr)
-        for item in failures:
-            print(f"FAIL: {item}", file=sys.stderr)
-        return 1
-
-    print("Demo Version packaging check passed.")
-    return 0
+    return report("Demo Version packaging check", failures)
 
 
 if __name__ == "__main__":

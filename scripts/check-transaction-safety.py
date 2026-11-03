@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from _gate import (
@@ -13,6 +12,7 @@ from _gate import (
     joined_doc_phrases,
     load_json,
     read_text,
+    report,
     string_list,
 )
 
@@ -102,14 +102,7 @@ def main() -> int:
         validate_invariants(manifest, failures)
         joined_doc_phrases(manifest, DOC_FIELDS, "transaction safety", failures)
 
-    if failures:
-        print("Transaction safety check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Transaction safety check passed.")
-    return 0
+    return report("Transaction safety check", failures)
 
 
 if __name__ == "__main__":

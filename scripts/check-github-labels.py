@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, rel
+from _gate import REPO_ROOT, rel, report
 
 
 LABELS_FILE = REPO_ROOT / ".github" / "labels.json"
@@ -137,14 +136,7 @@ def main() -> int:
     if "good first issue" not in manifest_names:
         failures.append("good first issue label is required for contributor onboarding")
 
-    if failures:
-        print("GitHub label check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("GitHub label check passed.")
-    return 0
+    return report("GitHub label check", failures)
 
 
 if __name__ == "__main__":

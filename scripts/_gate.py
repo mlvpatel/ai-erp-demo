@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -51,6 +52,17 @@ def read_text(path: Path, failures: list[str]) -> str:
     except UnicodeDecodeError as exc:
         failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
     return ""
+
+
+def report(name: str, failures: list[str], passed: str = "") -> int:
+    """Print the gate result the same way every gate does and return its exit code."""
+    if failures:
+        print(f"{name} failed:", file=sys.stderr)
+        for failure in failures:
+            print(f"FAIL: {failure}", file=sys.stderr)
+        return 1
+    print(passed or f"{name} passed.")
+    return 0
 
 
 def normalize_space(value: str) -> str:

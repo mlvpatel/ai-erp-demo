@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, string_list
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, report, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "contract-lifecycle.json"
@@ -235,14 +234,7 @@ def main() -> int:
         validate_doc_phrases(manifest, failures)
         validate_catalog(manifest, failures)
 
-    if failures:
-        print("Contract lifecycle check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Contract lifecycle check passed.")
-    return 0
+    return report("Contract lifecycle check", failures)
 
 
 if __name__ == "__main__":

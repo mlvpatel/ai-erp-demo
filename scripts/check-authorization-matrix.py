@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, joined_doc_phrases, read_text, rel, string_list
+from _gate import REPO_ROOT, contains_snippet, joined_doc_phrases, read_text, rel, report, string_list
 
 
 MATRIX_PATH = REPO_ROOT / "config" / "authorization-matrix.json"
@@ -213,14 +212,7 @@ def main() -> int:
         validate_sensitive_actions(matrix, failures)
         joined_doc_phrases(matrix, DOC_FIELDS, "authorization", failures)
 
-    if failures:
-        print("Authorization matrix check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Authorization matrix check passed.")
-    return 0
+    return report("Authorization matrix check", failures)
 
 
 if __name__ == "__main__":

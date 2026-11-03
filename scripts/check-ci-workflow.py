@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, report
 
 
 CONTRACT_PATH = REPO_ROOT / "config" / "ci-workflow.json"
@@ -161,14 +160,7 @@ def main() -> int:
     if contract and metadata:
         validate_workflow(contract, metadata, failures)
 
-    if failures:
-        print("CI workflow check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("CI workflow check passed.")
-    return 0
+    return report("CI workflow check", failures)
 
 
 if __name__ == "__main__":

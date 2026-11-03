@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
 from _gate import (
@@ -14,6 +13,7 @@ from _gate import (
     load_json,
     load_json_object,
     read_text,
+    report,
     string_list,
 )
 
@@ -183,14 +183,7 @@ def main() -> int:
         validate_tests(manifest, failures)
         joined_doc_phrases(manifest, DOC_FIELDS, "integration safety", failures)
 
-    if failures:
-        print("Integration safety check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Integration safety check passed.")
-    return 0
+    return report("Integration safety check", failures)
 
 
 if __name__ == "__main__":

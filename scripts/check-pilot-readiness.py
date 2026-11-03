@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import sys
 
-from _gate import REPO_ROOT as ROOT
+from _gate import REPO_ROOT as ROOT, report
 
 
 MANIFEST = ROOT / "config" / "pilot-readiness.json"
@@ -148,13 +148,11 @@ def main() -> int:
     if set(value.get("forbidden_claims", [])) != expected_claims:
         failures.append("forbidden_claims must preserve all public-claim guardrails")
 
-    if failures:
-        print("Pilot readiness check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-    print("Pilot readiness check passed (demo ready; production-pilot gates pending).")
-    return 0
+    return report(
+        "Pilot readiness check",
+        failures,
+        "Pilot readiness check passed (demo ready; production-pilot gates pending).",
+    )
 
 
 if __name__ == "__main__":

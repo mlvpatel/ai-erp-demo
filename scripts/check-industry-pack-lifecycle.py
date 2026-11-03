@@ -3,10 +3,9 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, string_list
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, report, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "industry-pack-lifecycle.json"
@@ -337,14 +336,7 @@ def main() -> int:
         validate_doc_phrases(manifest, failures)
         validate_pack_statuses(manifest, failures)
 
-    if failures:
-        print("Industry pack lifecycle check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Industry pack lifecycle check passed.")
-    return 0
+    return report("Industry pack lifecycle check", failures)
 
 
 if __name__ == "__main__":

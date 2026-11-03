@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, load_json, rel
+from _gate import REPO_ROOT, load_json, rel, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "mvp-acceptance.json"
@@ -202,14 +201,7 @@ def main() -> int:
     if duplicate_metrics:
         failures.append("duplicate source_metric values in manifest: " + "; ".join(duplicate_metrics))
 
-    if failures:
-        print("MVP acceptance check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("MVP acceptance check passed.")
-    return 0
+    return report("MVP acceptance check", failures)
 
 
 if __name__ == "__main__":

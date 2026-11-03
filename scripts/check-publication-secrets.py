@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Iterable
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "publication-secret-scan.json"
@@ -365,14 +364,7 @@ def main() -> int:
         validate_policy_documents(manifest, failures)
         scan_files(manifest, failures)
 
-    if failures:
-        print("Publication secret and sensitive-data scan failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Publication secret and sensitive-data scan passed.")
-    return 0
+    return report("Publication secret and sensitive-data scan", failures)
 
 
 if __name__ == "__main__":

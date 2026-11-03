@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from _gate import (
@@ -13,6 +12,7 @@ from _gate import (
     load_json,
     load_json_object,
     read_text,
+    report,
     required_path,
     string_list,
 )
@@ -147,14 +147,7 @@ def main() -> int:
         validate_test_anchors(manifest, failures)
         joined_doc_phrases(manifest, DOC_FIELDS, "audit evidence", failures)
 
-    if failures:
-        print("Audit evidence check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Audit evidence check passed.")
-    return 0
+    return report("Audit evidence check", failures)
 
 
 if __name__ == "__main__":

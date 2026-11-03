@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json
+from _gate import REPO_ROOT, load_json, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "field-service-9-scorecard.json"
@@ -192,14 +191,7 @@ def main() -> int:
 
     validate_claim_boundaries([path for path in source_docs if isinstance(path, str)], failures)
 
-    if failures:
-        print("Field-service 9/10 scorecard check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Field-service 9/10 scorecard check passed.")
-    return 0
+    return report("Field-service 9/10 scorecard check", failures)
 
 
 if __name__ == "__main__":

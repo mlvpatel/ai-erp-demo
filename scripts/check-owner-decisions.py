@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json_object, rel
+from _gate import REPO_ROOT, load_json_object, rel, report
 
 
 EXAMPLE_PATH = REPO_ROOT / "config" / "owner-decisions.example.json"
@@ -178,17 +177,11 @@ def main() -> int:
             "config/owner-decisions.local.json is required in --strict mode; copy the example and replace values",
         )
 
-    if failures:
-        print("Owner decision check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
     if LOCAL_PATH.exists():
-        print("Owner decision check passed with local decisions present.")
+        passed = "Owner decision check passed with local decisions present."
     else:
-        print("Owner decision template check passed; local owner decisions are still pending.")
-    return 0
+        passed = "Owner decision template check passed; local owner decisions are still pending."
+    return report("Owner decision check", failures, passed)
 
 
 if __name__ == "__main__":

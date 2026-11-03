@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from _gate import (
@@ -12,6 +11,7 @@ from _gate import (
     doc_phrase_entries,
     load_json,
     read_text,
+    report,
     required_path,
     string_list,
 )
@@ -66,14 +66,7 @@ def main() -> int:
         validate_signal_groups(manifest, failures)
         doc_phrase_entries(manifest, "observability-readiness", failures)
 
-    if failures:
-        print("Observability readiness check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Observability readiness check passed.")
-    return 0
+    return report("Observability readiness check", failures)
 
 
 if __name__ == "__main__":

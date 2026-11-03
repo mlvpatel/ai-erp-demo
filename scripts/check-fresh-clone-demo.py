@@ -6,11 +6,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, dev_commands, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, dev_commands, load_json, read_text, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "fresh-clone-demo.json"
@@ -252,14 +251,7 @@ def main() -> int:
         validate_safety_phrases(manifest, failures)
         validate_demo_info_output(manifest, failures)
 
-    if failures:
-        print("Fresh-clone demo check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Fresh-clone demo check passed.")
-    return 0
+    return report("Fresh-clone demo check", failures)
 
 
 if __name__ == "__main__":
