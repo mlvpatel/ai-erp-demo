@@ -8,10 +8,10 @@ from typing import Any
 
 from _gate import (
     REPO_ROOT,
+    acceptance_claim_ids,
     contains_snippet,
     joined_doc_phrases,
     load_json,
-    load_json_object,
     read_text,
     string_list,
 )
@@ -58,24 +58,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         string_list(invariant.get("test_anchors"), f"{invariant_id}.test_anchors", failures)
 
     string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures)
-
-
-def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[str]:
-    path_value = manifest.get("mvp_acceptance")
-    if not isinstance(path_value, str):
-        return set()
-    value = load_json_object(REPO_ROOT / path_value, failures)
-    if not isinstance(value, dict):
-        return set()
-    claims = value.get("claims")
-    if not isinstance(claims, list):
-        failures.append(f"{path_value}: claims must be a list")
-        return set()
-    return {
-        claim["id"]
-        for claim in claims
-        if isinstance(claim, dict) and isinstance(claim.get("id"), str)
-    }
 
 
 def validate_invariants(manifest: dict[str, Any], failures: list[str]) -> None:

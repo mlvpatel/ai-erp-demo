@@ -6,7 +6,9 @@ on sys.path, so each gate imports what it needs with `from _gate import ...`.
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -118,3 +120,38 @@ def joined_doc_phrases(
     for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
         if not contains_snippet(doc_text, phrase):
             failures.append(f"{label} docs missing phrase: {phrase}")
+
+
+def parse_python(path: Path, failures: list[str]) -> ast.Module | None:
+    source = read_text(path, failures)
+    if not source:
+        return None
+    try:
+        return ast.parse(source, filename=str(path))
+    except SyntaxError as exc:
+        failures.append(f"invalid Python in {rel(path)}: {exc}")
+        return None
+
+
+def dev_commands(dev_text: str) -> set[str]:
+    commands = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\s", dev_text, flags=re.MULTILINE))
+    case_labels = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\)", dev_text, flags=re.MULTILINE))
+    return commands | case_labels
+
+
+def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[str]:
+    path_value = manifest.get("mvp_acceptance")
+    if not isinstance(path_value, str):
+        return set()
+    value = load_json_object(REPO_ROOT / path_value, failures)
+    if not isinstance(value, dict):
+        return set()
+    claims = value.get("claims")
+    if not isinstance(claims, list):
+        failures.append(f"{path_value}: claims must be a list")
+        return set()
+    return {
+        claim["id"]
+        for claim in claims
+        if isinstance(claim, dict) and isinstance(claim.get("id"), str)
+    }

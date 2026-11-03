@@ -9,24 +9,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, string_list
+from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, string_list
 
 
 REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
 ALLOWED_STATUSES = {"proposed", "approved_for_implementation", "implemented"}
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
 ROUTE_PATTERN = re.compile(r"^(GET|POST|PUT|PATCH|DELETE) /[A-Za-z0-9/_{}.-]+$")
-
-
-def parse_python(path: Path, failures: list[str]) -> ast.Module | None:
-    source = read_text(path, failures)
-    if not source:
-        return None
-    try:
-        return ast.parse(source, filename=str(path))
-    except SyntaxError as exc:
-        failures.append(f"invalid Python in {rel(path)}: {exc}")
-        return None
 
 
 def python_has_function(path: Path, function_name: str, failures: list[str]) -> bool:

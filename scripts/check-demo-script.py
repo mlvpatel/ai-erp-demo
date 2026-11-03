@@ -9,9 +9,10 @@ from typing import Any
 
 from _gate import (
     REPO_ROOT,
+    acceptance_claim_ids,
     contains_snippet,
+    dev_commands,
     load_json,
-    load_json_object,
     read_text,
     required_path,
     string_list,
@@ -20,12 +21,6 @@ from _gate import (
 
 MANIFEST_PATH = REPO_ROOT / "config" / "demo-script.json"
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-
-
-def dev_commands(dev_text: str) -> set[str]:
-    commands = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\s", dev_text, flags=re.MULTILINE))
-    case_labels = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\)", dev_text, flags=re.MULTILINE))
-    return commands | case_labels
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -67,24 +62,6 @@ def validate_commands(manifest: dict[str, Any], failures: list[str]) -> None:
         expected = f"scripts/dev.sh {command}"
         if expected not in script_text:
             failures.append(f"{script_path} must mention {expected}")
-
-
-def acceptance_claim_ids(manifest: dict[str, Any], failures: list[str]) -> set[str]:
-    path_value = manifest.get("mvp_acceptance")
-    if not isinstance(path_value, str):
-        return set()
-    value = load_json_object(REPO_ROOT / path_value, failures)
-    if not isinstance(value, dict):
-        return set()
-    claims = value.get("claims")
-    if not isinstance(claims, list):
-        failures.append(f"{path_value}: claims must be a list")
-        return set()
-    return {
-        claim["id"]
-        for claim in claims
-        if isinstance(claim, dict) and isinstance(claim.get("id"), str)
-    }
 
 
 def validate_story_beats(manifest: dict[str, Any], failures: list[str]) -> None:

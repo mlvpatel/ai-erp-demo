@@ -6,26 +6,14 @@ from __future__ import annotations
 import ast
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_text, rel
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "ai-data-boundary.json"
 REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
 DETERMINISTIC_WORKFLOWS = ("scheduling_explanation", "exception_recovery", "repair_memory")
-
-
-def parse_python(path: Path, failures: list[str]) -> ast.Module | None:
-    source = read_text(path, failures)
-    if not source:
-        return None
-    try:
-        return ast.parse(source, filename=str(path))
-    except SyntaxError as exc:
-        failures.append(f"invalid Python in {rel(path)}: {exc}")
-        return None
 
 
 def literal_dict_keys(node: ast.AST) -> set[str] | None:

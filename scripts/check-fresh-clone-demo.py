@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, dev_commands, load_json, read_text
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "fresh-clone-demo.json"
@@ -19,12 +19,6 @@ ENV_EXAMPLE = REPO_ROOT / "development" / ".env.example"
 COMPOSE_FILE = REPO_ROOT / "infra" / "compose" / "docker-compose.dev.yml"
 
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-
-
-def dev_commands(dev_text: str) -> set[str]:
-    commands = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\s", dev_text, flags=re.MULTILINE))
-    case_labels = set(re.findall(r"^\s{2}([a-z][a-z0-9-]*)\)", dev_text, flags=re.MULTILINE))
-    return commands | case_labels
 
 
 def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> None:
