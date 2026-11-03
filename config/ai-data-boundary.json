@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "workflow": "service_closeout_summary",
   "proposal_type": "service_closeout_summary",
   "payload_builder": {

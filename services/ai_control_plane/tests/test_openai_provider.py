@@ -1,11 +1,10 @@
-import hashlib
 import json
 import os
 import unittest
 from unittest.mock import patch
-from uuid import uuid4
 
 import httpx
+from _payloads import envelope, source
 
 from ai_erp_control_plane.models import RelatedWorkSummary, RepairMemoryRequest, ServiceCloseoutSummaryRequest
 from ai_erp_control_plane.openai_provider import (
@@ -23,12 +22,10 @@ from ai_erp_control_plane.openai_provider import (
 
 def _request():
 	return ServiceCloseoutSummaryRequest.model_validate(
-		{
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "private-tenant.example",
-			"requested_by": "private-user@example.test",
-			"work_order": {
+		envelope(
+			"private-user@example.test",
+			tenant_site="private-tenant.example",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "PRIVATE-WO-0001",
 				"subject": "Inspect pump",
@@ -45,15 +42,8 @@ def _request():
 				],
 				"parts": [{"item": "MOUNT-1", "qty": 1, "source_warehouse": "PRIVATE-WH", "issued": True}],
 			},
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "PRIVATE-WO-0001",
-					"field": "closeout_notes",
-					"content_hash": hashlib.sha256(b"Tightened the mount.").hexdigest(),
-				}
-			],
-		}
+			sources=[source("PRIVATE-WO-0001", "closeout_notes", "Tightened the mount.")],
+		)
 	)
 
 
@@ -80,24 +70,30 @@ def _provider_payload(draft="Pump mount tightened.", **overrides):
 	return payload
 
 
+def _capture(render, request, payload=None):
+	"""Render once against a mock provider; return the response and the outbound HTTP request."""
+	sent = []
+
+	def handler(http_request):
+		sent.append(http_request)
+		return httpx.Response(200, json=payload or _provider_payload())
+
+	client = httpx.Client(transport=httpx.MockTransport(handler))
+	with patch.dict(os.environ, _environment(), clear=True):
+		response = render(request, client=client)
+	client.close()
+	return response, sent[0]
+
+
 class TestOpenAIProvider(unittest.TestCase):
 	def test_minimizes_input_and_constructs_policy_and_sources_locally(self):
 		request = _request()
-		captured = {}
+		response, sent = _capture(render_openai, request)
 
-		def handler(http_request):
-			captured["request"] = http_request
-			return httpx.Response(200, json=_provider_payload())
-
-		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			response = render_openai(request, client=client)
-		client.close()
-
-		outbound = json.loads(captured["request"].content)
+		outbound = json.loads(sent.content)
 		model_input = json.loads(outbound["input"])
-		self.assertEqual(captured["request"].url, "https://eu.api.openai.com/v1/responses")
-		self.assertEqual(captured["request"].headers["authorization"], "Bearer example")
+		self.assertEqual(sent.url, "https://eu.api.openai.com/v1/responses")
+		self.assertEqual(sent.headers["authorization"], "Bearer example")
 		self.assertEqual(
 			set(outbound),
 			{"model", "store", "max_output_tokens", "reasoning", "instructions", "input", "text"},
@@ -121,7 +117,7 @@ class TestOpenAIProvider(unittest.TestCase):
 		self.assertEqual(response.audit.output_tokens, 20)
 		self.assertEqual(response.audit.redaction_count, 0)
 		self.assertEqual(len(response.audit.response_id_hash), 64)
-		serialized_body = captured["request"].content.decode()
+		serialized_body = sent.content.decode()
 		for private_value in (
 			"private-tenant.example",
 			"private-user@example.test",
@@ -230,19 +226,11 @@ class TestOpenAIProvider(unittest.TestCase):
 		request = _request()
 		request.work_order.description = "Email alice@example.test or call +1 (415) 555-0100."
 		request.work_order.closeout_notes = "credential=synthetic-value-1234"
-		captured = {}
-
-		def handler(http_request):
-			captured["body"] = http_request.content.decode()
-			return httpx.Response(200, json=_provider_payload())
-
-		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			response = render_openai(request, client=client)
-		client.close()
+		response, sent = _capture(render_openai, request)
+		body = sent.content.decode()
 
 		for sensitive in ("alice@example.test", "+1 (415) 555-0100", "synthetic-value-1234"):
-			self.assertNotIn(sensitive, captured["body"])
+			self.assertNotIn(sensitive, body)
 		self.assertGreaterEqual(response.audit.redaction_count, 3)
 
 	def test_related_history_is_minimized_and_redacted_before_provider_call(self):
@@ -256,46 +244,30 @@ class TestOpenAIProvider(unittest.TestCase):
 				closeout_notes="Replaced the seal; owner is alice@example.test.",
 			)
 		]
-		captured = {}
+		response, sent = _capture(render_openai, request)
+		body = sent.content.decode()
 
-		def handler(http_request):
-			captured["body"] = http_request.content.decode()
-			return httpx.Response(200, json=_provider_payload())
-
-		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			response = render_openai(request, client=client)
-		client.close()
-
-		model_input = json.loads(json.loads(captured["body"])["input"])
+		model_input = json.loads(json.loads(body)["input"])
 		self.assertEqual(
 			set(model_input["related_history"][0]),
 			{"subject", "status", "inspection_result", "closeout_notes"},
 		)
-		self.assertNotIn("PRIVATE-WO-HIST-1", captured["body"])
-		self.assertNotIn("alice@example.test", captured["body"])
-		self.assertIn("Replaced the seal", captured["body"])
+		self.assertNotIn("PRIVATE-WO-HIST-1", body)
+		self.assertNotIn("alice@example.test", body)
+		self.assertIn("Replaced the seal", body)
 		self.assertGreaterEqual(response.audit.redaction_count, 1)
 
 	def test_preserves_date_and_amount_facts_while_redacting_phone_shapes(self):
 		request = _request()
 		request.work_order.description = "Visited on 2026-07-10 and quoted 12 500.00 for the repair."
 		request.work_order.closeout_notes = "Call 415-555-0100 or +1 (415) 555-0100 with ref 12345678901."
-		captured = {}
-
-		def handler(http_request):
-			captured["body"] = http_request.content.decode()
-			return httpx.Response(200, json=_provider_payload())
-
-		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			response = render_openai(request, client=client)
-		client.close()
+		response, sent = _capture(render_openai, request)
+		body = sent.content.decode()
 
 		for preserved_fact in ("2026-07-10", "12 500.00"):
-			self.assertIn(preserved_fact, captured["body"])
+			self.assertIn(preserved_fact, body)
 		for phone_shape in ("415-555-0100", "+1 (415) 555-0100", "12345678901"):
-			self.assertNotIn(phone_shape, captured["body"])
+			self.assertNotIn(phone_shape, body)
 		self.assertEqual(response.audit.redaction_count, 3)
 
 	def test_rejects_model_mismatch_and_missing_audit_metadata(self):
@@ -320,26 +292,20 @@ class TestOpenAIProvider(unittest.TestCase):
 		request = _repair_memory_request()
 		request.work_order.description = "Email alice@example.test or call +1 (415) 555-0100."
 		request.related_history[0].closeout_notes = "credential=synthetic-value-1234 and owner alice@example.test"
-		captured = {}
-
-		def handler(http_request):
-			captured["body"] = http_request.content.decode()
-			return httpx.Response(200, json=_provider_payload(draft="Prior seal replacement."))
-
-		client = httpx.Client(transport=httpx.MockTransport(handler))
-		with patch.dict(os.environ, _environment(), clear=True):
-			response = render_openai_repair_memory(request, client=client)
-		client.close()
+		response, sent = _capture(
+			render_openai_repair_memory, request, _provider_payload(draft="Prior seal replacement.")
+		)
+		body = sent.content.decode()
 
 		for sensitive in ("alice@example.test", "+1 (415) 555-0100", "synthetic-value-1234"):
-			self.assertNotIn(sensitive, captured["body"])
-		model_input = json.loads(json.loads(captured["body"])["input"])
+			self.assertNotIn(sensitive, body)
+		model_input = json.loads(json.loads(body)["input"])
 		self.assertEqual(
 			set(model_input["related_history"][0]),
 			{"subject", "status", "inspection_result", "closeout_notes", "parts"},
 		)
-		self.assertNotIn("PRIVATE-WO-HIST-1", captured["body"])
-		self.assertNotIn("PRIVATE-WO-0002", captured["body"])
+		self.assertNotIn("PRIVATE-WO-HIST-1", body)
+		self.assertNotIn("PRIVATE-WO-0002", body)
 		self.assertEqual(response.proposal_type, "repair_memory")
 		self.assertEqual(response.policy.decision, "draft_only")
 		self.assertIsNotNone(response.audit)
@@ -351,19 +317,17 @@ class TestOpenAIProvider(unittest.TestCase):
 
 def _repair_memory_request():
 	return RepairMemoryRequest.model_validate(
-		{
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "private-tenant.example",
-			"requested_by": "private-user@example.test",
-			"work_order": {
+		envelope(
+			"private-user@example.test",
+			tenant_site="private-tenant.example",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "PRIVATE-WO-0002",
 				"subject": "Inspect pump again",
 				"status": "In Progress",
 				"description": "Investigate noise recurrence.",
 			},
-			"related_history": [
+			related_history=[
 				{
 					"name": "PRIVATE-WO-HIST-1",
 					"subject": "Prior pump repair",
@@ -373,13 +337,6 @@ def _repair_memory_request():
 					"parts": [{"item": "SEAL-1", "qty": 1, "issued": True}],
 				}
 			],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "PRIVATE-WO-0002",
-					"field": "repair_context",
-					"content_hash": "0" * 64,
-				}
-			],
-		}
+			sources=[source("PRIVATE-WO-0002", "repair_context")],
+		)
 	)

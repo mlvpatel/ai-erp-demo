@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable audit evidence contract for AI-supported ERP actions. It keeps AI Proposal ledger fields, source hashes, review metadata, deterministic transaction links, tests, and docs aligned.",
   "workflow_doc": "docs/workflows/audit-evidence.md",
   "review_checklist": "docs/security/ai-workflow-review.md",
   "threat_model": "docs/security/threat-model.md",

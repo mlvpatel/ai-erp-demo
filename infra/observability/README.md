@@ -21,6 +21,3 @@ Minimum deployment signals:
 - ERP safety events for permission bypass attempts, tenant-boundary failures,
   AI approval-bypass attempts, idempotency conflicts, and connector delivery
   failures.
-
-`alert-rules.example.yml` names expected alerts and metric shapes. Treat it as
-a vendor-neutral starting point, not a production-ready monitoring stack.

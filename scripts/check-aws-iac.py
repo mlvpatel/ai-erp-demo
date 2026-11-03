@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
+
+from _gate import REPO_ROOT as ROOT, report
 
 
-ROOT = Path(__file__).resolve().parents[1]
 TF_ROOT = ROOT / "infra" / "aws" / "terraform"
 BOOTSTRAP_ROOT = ROOT / "infra" / "aws" / "bootstrap"
 
@@ -328,14 +327,11 @@ def main() -> int:
             if marker not in image_text:
                 failures.append(f"production image contract missing marker: {marker}")
 
-    if failures:
-        print("AWS production IaC check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("AWS production IaC check passed (static, plan-only, no AWS calls).")
-    return 0
+    return report(
+        "AWS production IaC check",
+        failures,
+        "AWS production IaC check passed (static, plan-only, no AWS calls).",
+    )
 
 
 if __name__ == "__main__":

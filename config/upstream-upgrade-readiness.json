@@ -1,16 +1,7 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable upstream Frappe/ERPNext upgrade readiness contract for the AI ERP Demo.",
   "workflow_doc": "docs/workflows/upstream-upgrade-readiness.md",
-  "dependency_workflow_doc": "docs/workflows/dependency-updates.md",
-  "migration_safety_doc": "docs/workflows/migration-safety.md",
-  "quality_gates_doc": "docs/workflows/quality-gates.md",
-  "development_readme": "development/README.md",
   "env_example": "development/.env.example",
   "bootstrap_script": "scripts/bootstrap-frappe-dev.sh",
-  "reproducibility_script": "scripts/check-reproducibility.sh",
-  "github_publication_runbook": "docs/runbooks/github-publication.md",
-  "traceability_doc": "docs/product/requirements-traceability.md",
   "required_env_pins": [
     "FRAPPE_BRANCH",
     "FRAPPE_COMMIT",
@@ -20,7 +11,6 @@
     "FRAPPE_BENCH_IMAGE"
   ],
   "required_validation_commands": [
-    "scripts/check-reproducibility.sh",
     "docker compose --env-file development/.env",
     "scripts/dev.sh migrate",
     "scripts/dev.sh seed-demo",

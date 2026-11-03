@@ -1,7 +1,5 @@
 {
-  "schema_version": 1,
   "status": "selected",
-  "owner_decision_file": "config/owner-decisions.local.json",
   "selected_policy": "AGPL-3.0-only",
   "copyright_year": "2026",
   "copyright_holder": "AI ERP Demo contributors",
@@ -12,25 +10,10 @@
     "opensource@ai-erp.example"
   ],
   "policies": {
-    "MIT": {
-      "display": "MIT",
-      "frappe_app_license": "mit",
-      "root_license_hint": "MIT License"
-    },
     "AGPL-3.0-only": {
       "display": "AGPL-3.0-only",
       "frappe_app_license": "agpl-3.0",
       "root_license_hint": "GNU AFFERO GENERAL PUBLIC LICENSE"
-    },
-    "GPL-3.0-only": {
-      "display": "GPL-3.0-only",
-      "frappe_app_license": "gpl-3.0",
-      "root_license_hint": "GNU GENERAL PUBLIC LICENSE"
-    },
-    "custom-split-policy": {
-      "display": "custom split policy",
-      "frappe_app_license": "custom",
-      "root_license_hint": null
     }
   },
   "root_targets": [

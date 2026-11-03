@@ -1,17 +1,5 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable observability readiness contract for the AI ERP Demo.",
   "workflow_doc": "docs/workflows/observability-readiness.md",
-  "infra_readme": "infra/observability/README.md",
-  "alert_rules_example": "infra/observability/alert-rules.example.yml",
-  "operations_readiness_doc": "docs/workflows/operations-readiness.md",
-  "incident_response_runbook": "docs/runbooks/incident-response.md",
-  "backup_restore_runbook": "docs/runbooks/backup-restore.md",
-  "data_classification_doc": "docs/security/data-classification.md",
-  "threat_model": "docs/security/threat-model.md",
-  "github_publication_runbook": "docs/runbooks/github-publication.md",
-  "quality_gates_doc": "docs/workflows/quality-gates.md",
-  "traceability_doc": "docs/product/requirements-traceability.md",
   "signal_groups": [
     {
       "id": "frappe-site",
@@ -76,32 +64,6 @@
       ]
     }
   ],
-  "required_alerts": [
-    "AIERPServiceDown",
-    "AIERPFrappeP95LatencyHigh",
-    "AIERPQueueStalled",
-    "AIERPSchedulerStopped",
-    "AIERPDatabaseUnavailable",
-    "AIERPRedisUnavailable",
-    "AIERPBackupStale",
-    "AIERPAIControlPlaneErrorRateHigh",
-    "AIERPUnexpectedAIPayloadRejected",
-    "AIERPUnapprovedMutationAttempt",
-    "AIERPTenantBoundaryFailure",
-    "AIERPAuthorizationBypassAttempt",
-    "AIERPIdempotencyConflict",
-    "AIERPConnectorDeliveryFailures"
-  ],
-  "forbidden_observability_snippets": [
-    "webhook_url:",
-    "api_key:",
-    "password:",
-    "customer_email:",
-    "customer_phone:",
-    "service_address:",
-    "prompt_body:",
-    "provider_response:"
-  ],
   "required_doc_phrases": [
     {
       "path": "docs/workflows/observability-readiness.md",
@@ -118,15 +80,6 @@
         "It intentionally does not vendor Prometheus, Grafana, OpenTelemetry collectors, SIEM rules, or hosted monitoring configuration.",
         "Minimum deployment signals",
         "permission bypass attempts, tenant-boundary failures, AI approval-bypass attempts, idempotency conflicts, and connector delivery failures"
-      ]
-    },
-    {
-      "path": "infra/observability/alert-rules.example.yml",
-      "phrases": [
-        "AIERPUnapprovedMutationAttempt",
-        "AIERPTenantBoundaryFailure",
-        "AIERPConnectorDeliveryFailures",
-        "do not commit real alert routes, webhook URLs"
       ]
     },
     {

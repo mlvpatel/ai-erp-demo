@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, rel, report
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 LABELS_FILE = REPO_ROOT / ".github" / "labels.json"
 ISSUE_TEMPLATE_DIR = REPO_ROOT / ".github" / "ISSUE_TEMPLATE"
 DOCS_WITH_LABEL_REFERENCES = [
@@ -24,33 +24,22 @@ BACKTICK_VALUE_PATTERN = re.compile(r"`([^`]+)`")
 HEX_COLOR_PATTERN = re.compile(r"^[0-9A-Fa-f]{6}$")
 
 
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def load_manifest(failures: list[str]) -> list[dict[str, Any]]:
     try:
         manifest = json.loads(LABELS_FILE.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, f"missing label manifest: {rel(LABELS_FILE)}")
+        failures.append(f"missing label manifest: {rel(LABELS_FILE)}")
         return []
     except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(LABELS_FILE)}: {exc}")
+        failures.append(f"invalid JSON in {rel(LABELS_FILE)}: {exc}")
         return []
 
     if manifest.get("schema_version") != 1:
-        fail(failures, "labels.json schema_version must be 1")
+        failures.append("labels.json schema_version must be 1")
 
     labels = manifest.get("labels")
     if not isinstance(labels, list) or not labels:
-        fail(failures, "labels.json must contain a non-empty labels list")
+        failures.append("labels.json must contain a non-empty labels list")
         return []
     return labels
 
@@ -60,7 +49,7 @@ def validate_manifest_labels(failures: list[str], labels: list[dict[str, Any]]) 
 
     for index, label in enumerate(labels, 1):
         if not isinstance(label, dict):
-            fail(failures, f"labels[{index}] must be an object")
+            failures.append(f"labels[{index}] must be an object")
             continue
 
         name = label.get("name")
@@ -68,20 +57,20 @@ def validate_manifest_labels(failures: list[str], labels: list[dict[str, Any]]) 
         description = label.get("description")
 
         if not isinstance(name, str) or not name.strip():
-            fail(failures, f"labels[{index}].name must be a non-empty string")
+            failures.append(f"labels[{index}].name must be a non-empty string")
             continue
         if name != name.strip() or "  " in name:
-            fail(failures, f"{name!r}: label name has suspicious whitespace")
+            failures.append(f"{name!r}: label name has suspicious whitespace")
         if name in names:
-            fail(failures, f"{name}: duplicate label name")
+            failures.append(f"{name}: duplicate label name")
         names.add(name)
 
         if not isinstance(color, str) or not HEX_COLOR_PATTERN.match(color):
-            fail(failures, f"{name}: color must be a six-character hex value")
+            failures.append(f"{name}: color must be a six-character hex value")
         if not isinstance(description, str) or not description.strip():
-            fail(failures, f"{name}: description must be non-empty")
+            failures.append(f"{name}: description must be non-empty")
         elif len(description) > 100:
-            fail(failures, f"{name}: description should be 100 characters or less")
+            failures.append(f"{name}: description should be 100 characters or less")
 
     return names
 
@@ -138,23 +127,16 @@ def main() -> int:
     for source, labels_in_source in sorted(references.items()):
         missing = sorted(labels_in_source - manifest_names)
         if missing:
-            fail(failures, f"{source}: missing labels in manifest: {', '.join(missing)}")
+            failures.append(f"{source}: missing labels in manifest: {', '.join(missing)}")
 
     if "blocked-license" not in manifest_names:
-        fail(failures, "blocked-license label is required while ADR-0005 is unresolved")
+        failures.append("blocked-license label is required while ADR-0005 is unresolved")
     if "erp-safety" not in manifest_names or "ai-safety" not in manifest_names:
-        fail(failures, "erp-safety and ai-safety labels are required")
+        failures.append("erp-safety and ai-safety labels are required")
     if "good first issue" not in manifest_names:
-        fail(failures, "good first issue label is required for contributor onboarding")
+        failures.append("good first issue label is required for contributor onboarding")
 
-    if failures:
-        print("GitHub label check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("GitHub label check passed.")
-    return 0
+    return report("GitHub label check", failures)
 
 
 if __name__ == "__main__":

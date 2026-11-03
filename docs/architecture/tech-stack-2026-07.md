@@ -81,7 +81,7 @@ Do not update Frappe, ERPNext, MariaDB, Redis, or image digests only because a
 new tag exists. Update them together with:
 
 - a short note in `development/README.md`,
-- a passing `scripts/check-reproducibility.sh`,
+- a passing `python3 scripts/check-upstream-upgrade-readiness.py`,
 - a Docker Compose config check,
 - a site migration,
 - whole service-app integration tests, and

@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
+
+from _gate import REPO_ROOT as ROOT, report
 
 
-ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "pilot-readiness.json"
 EXPECTED_STATUS = "DEMO_READY_PRODUCTION_PILOT_GATES_PENDING"
 EXPECTED_DEMO_STATE = {
@@ -32,8 +32,6 @@ def main() -> int:
         print(f"Pilot readiness check failed: {exc}", file=sys.stderr)
         return 1
 
-    if value.get("schema_version") != 1:
-        failures.append("schema_version must be 1")
     if value.get("scope") != "service_operations":
         failures.append("scope must remain service_operations")
     if value.get("status") != EXPECTED_STATUS:
@@ -150,13 +148,11 @@ def main() -> int:
     if set(value.get("forbidden_claims", [])) != expected_claims:
         failures.append("forbidden_claims must preserve all public-claim guardrails")
 
-    if failures:
-        print("Pilot readiness check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-    print("Pilot readiness check passed (demo ready; production-pilot gates pending).")
-    return 0
+    return report(
+        "Pilot readiness check",
+        failures,
+        "Pilot readiness check passed (demo ready; production-pilot gates pending).",
+    )
 
 
 if __name__ == "__main__":

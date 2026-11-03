@@ -30,4 +30,4 @@ Enforces repository tech stack standards, runtime version constraints, and repro
    - **Browser E2E**: Playwright TypeScript (`tests/e2e/package.json`).
 
 ## Lockfile & Pin Verification
-- Maintain reproducible dependencies. Run `scripts/check-reproducibility.sh` and `scripts/check-dependency-updates.py` to verify lockfile integrity.
+- Maintain reproducible dependencies. Run `scripts/check-upstream-upgrade-readiness.py` and `scripts/check-dependency-updates.py` to verify lockfile integrity.

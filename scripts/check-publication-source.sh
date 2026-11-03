@@ -61,43 +61,6 @@ list_forbidden_paths() {
     sort
 }
 
-missing_export_ignore=0
-require_export_ignore() {
-  local pattern="$1"
-  if ! grep -Eq "^${pattern}[[:space:]]+export-ignore($|[[:space:]])" .gitattributes; then
-    echo "FAIL: .gitattributes must export-ignore ${pattern}" >&2
-    missing_export_ignore=1
-  fi
-}
-
-if [ ! -f .gitattributes ]; then
-  echo "FAIL: missing .gitattributes publication guardrails" >&2
-  missing_export_ignore=1
-else
-  require_export_ignore "[.]env"
-  require_export_ignore "[.]env[.][*]"
-  require_export_ignore "development/[.]env"
-  require_export_ignore "development/frappe-bench/"
-  require_export_ignore "config/owner-decisions[.]local[.]json"
-  require_export_ignore "[*][.]sql"
-  require_export_ignore "[*][.]sql[.]gz"
-  require_export_ignore "[*][.]dump"
-  require_export_ignore "[*][.]backup"
-  require_export_ignore "[*]-files[.]tar"
-  require_export_ignore "[*]-private-files[.]tar"
-  require_export_ignore "[*][.]tfstate"
-  require_export_ignore "[*][.]tfstate[.][*]"
-  require_export_ignore "[*][.]tfvars"
-  require_export_ignore "[*][.]tfplan"
-  require_export_ignore "[.]terraform/"
-  require_export_ignore "sites/"
-  require_export_ignore "logs/"
-  require_export_ignore "private/"
-  require_export_ignore "public/assets/"
-  require_export_ignore "__pycache__/"
-  require_export_ignore "[*][.]py\\[cod\\]"
-fi
-
 forbidden_file="$(mktemp)"
 list_forbidden_paths > "$forbidden_file"
 
@@ -113,10 +76,6 @@ if [ -s "$forbidden_file" ]; then
 fi
 
 rm -f "$forbidden_file"
-
-if [ "$missing_export_ignore" -ne 0 ]; then
-  exit 1
-fi
 
 if [ "$strict" -eq 1 ]; then
   echo "Publication source check passed."

@@ -18,7 +18,7 @@ resource "aws_db_instance" "mariadb" {
   identifier                    = "${local.name}-mariadb"
   engine                        = "mariadb"
   engine_version                = "11.4"
-  instance_class                = var.db_instance_class
+  instance_class                = "db.t4g.medium"
   allocated_storage             = 40
   max_allocated_storage         = 200
   storage_type                  = "gp3"
@@ -54,7 +54,7 @@ resource "aws_elasticache_replication_group" "redis" {
   replication_group_id       = "${local.name}-redis"
   description                = "AI ERP encrypted queue and cache"
   engine                     = "valkey"
-  node_type                  = var.redis_node_type
+  node_type                  = "cache.t4g.small"
   port                       = 6379
   num_cache_clusters         = 1
   automatic_failover_enabled = false

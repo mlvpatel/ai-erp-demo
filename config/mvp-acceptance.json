@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "source_doc": "docs/product/mvp-scope.md",
   "acceptance_section": "Acceptance metrics",
   "status_definitions": {
@@ -123,7 +122,7 @@
         },
         {
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
-          "contains": "work_order._require_finance()"
+          "contains": "require_any_role(FINANCE_ROLES, \"Only an Accounts User or Accounts Manager can draft a Sales Invoice.\")"
         }
       ],
       "verification_commands": [

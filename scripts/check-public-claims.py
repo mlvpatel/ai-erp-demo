@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 
+from _gate import REPO_ROOT, normalize_space, report
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 
 README = REPO_ROOT / "README.md"
 PUBLIC_POSITIONING = REPO_ROOT / "docs" / "product" / "public-positioning.md"
@@ -28,18 +27,10 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def normalized(text: str) -> str:
-    return " ".join(text.split())
-
-
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
 def require_contains(failures: list[str], path: Path, needle: str) -> None:
-    text = normalized(read(path))
-    if normalized(needle) not in text:
-        fail(failures, f"{path.relative_to(REPO_ROOT)} must contain: {needle!r}")
+    text = normalize_space(read(path))
+    if normalize_space(needle) not in text:
+        failures.append(f"{path.relative_to(REPO_ROOT)} must contain: {needle!r}")
 
 
 def require_traceability_status(
@@ -51,8 +42,7 @@ def require_traceability_status(
         re.MULTILINE,
     )
     if not pattern.search(text):
-        fail(
-            failures,
+        failures.append(
             "requirements traceability must keep "
             f"{requirement!r} at status {expected_status!r}",
         )
@@ -88,17 +78,16 @@ def validate_industry_scope(failures: list[str]) -> None:
     try:
         manifest = json.loads(INDUSTRY_PACKS.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        fail(failures, "industry-pack manifest is missing")
+        failures.append("industry-pack manifest is missing")
         return
     except json.JSONDecodeError as exc:
-        fail(failures, f"industry-pack manifest is invalid JSON: {exc}")
+        failures.append(f"industry-pack manifest is invalid JSON: {exc}")
         return
 
     packs = manifest.get("packs", [])
     implemented = [pack for pack in packs if isinstance(pack, dict) and pack.get("status") == "implemented"]
     if len(implemented) != 1 or implemented[0].get("id") != "field_service":
-        fail(
-            failures,
+        failures.append(
             "public claims currently assume exactly one implemented pack: field_service",
         )
 
@@ -130,7 +119,7 @@ def main() -> int:
 
     for path in (README, PUBLIC_POSITIONING, TRACEABILITY, GITHUB_PUBLICATION):
         if not path.exists():
-            fail(failures, f"required public-claim source is missing: {path.relative_to(REPO_ROOT)}")
+            failures.append(f"required public-claim source is missing: {path.relative_to(REPO_ROOT)}")
 
     if not failures:
         validate_license_blockers(failures)
@@ -138,14 +127,7 @@ def main() -> int:
         validate_industry_scope(failures)
         validate_release_runbook(failures)
 
-    if failures:
-        print("Public claims check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Public claims check passed.")
-    return 0
+    return report("Public claims check", failures)
 
 
 if __name__ == "__main__":

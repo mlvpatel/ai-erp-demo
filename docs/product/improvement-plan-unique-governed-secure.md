@@ -46,9 +46,10 @@ Evidence-backed claims only. These are structural, not marketing adjectives.
    Skills under `.agents/skills/` bind the same rules to coding agents.
 
 5. **Synthetic Demo Version packaging with explicit claim boundaries.**
-   `config/demo-version.json` pins `synthetic_only`, `proposal_only`,
-   `template` provider, and forbidden claims (production ready, GDPR
-   compliant, human UAT, shipped 9/10). Compliance templates under
+   `config/demo-version.json` carries the claim boundary and forbidden
+   claims (production ready, GDPR compliant, human UAT, shipped 9/10), and
+   `config/pilot-readiness.json` pins synthetic-only data with no live OpenAI
+   or AWS apply. Compliance templates under
    `docs/compliance/` are worksheets, not counsel sign-off.
 
 ## Principles (non-negotiable)

@@ -13,7 +13,7 @@ Run contract tests from the repository root after installing the relevant
 service package:
 
 ```sh
-python -m pip install ./services/ai_control_plane
+python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s tests/contract -v
 ```
 

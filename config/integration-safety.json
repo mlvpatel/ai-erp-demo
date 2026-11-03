@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable integration and connector safety guardrail. It keeps the connector app reserved, business events notification-only, and future adapter boundaries contract-first.",
   "workflow_doc": "docs/workflows/integration-safety.md",
   "connector_readme": "apps/ai_erp_connectors/README.md",
   "contracts_readme": "contracts/README.md",

@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "source_docs": [
     "docs/product/field-service-9-target.md",
     "docs/discovery/design-partner-validation-template.md",
@@ -11,8 +10,6 @@
   "process_owner": "Service Manager",
   "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
   "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
-  "current_demo_average_score": 8.1,
-  "target_average_score": 9.1,
   "requirements_status": {
     "verified": [
       "Technician and manager responsibilities are separated in the local demo.",
@@ -230,7 +227,6 @@
       "scalability_note": "Technician lists must filter by assigned work and avoid loading finance or unrelated customer data.",
       "evidence_paths": [
         "apps/ai_erp_service/ai_erp_service/public/css/mobile_field.css",
-        "apps/ai_erp_service/ai_erp_service/public/js/mobile_helpers.js",
         "apps/ai_erp_service/ai_erp_service/hooks.py",
         "config/authorization-matrix.json",
         "tests/e2e/service-operations.spec.ts",

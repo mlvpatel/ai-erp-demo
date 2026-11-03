@@ -22,4 +22,4 @@ Governs system architecture evolution, Architecture Decision Record (ADR) author
 3. **API & Event Contract Specification**:
    - REST/HTTP contracts for the AI control plane are defined in `contracts/openapi/ai-control-plane-v1.yaml`.
    - Asynchronous domain events are specified in `contracts/events/service-operations-v1.yaml`.
-   - Update `contracts/catalog.json` when adding or modifying contracts and verify via `scripts/check-contract-catalog.py`.
+   - Update `contracts/catalog.json` when adding or modifying contracts and verify via `scripts/check-contract-lifecycle.py`.
