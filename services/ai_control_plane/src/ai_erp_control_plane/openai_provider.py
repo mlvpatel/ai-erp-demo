@@ -20,12 +20,6 @@ from .models import (
 	ServiceCloseoutSummaryRequest,
 )
 from .render import POLICY_REASON
-from .safety import (
-	EMAIL_PATTERN,
-	GROUNDING_FACT_PATTERN,
-	PHONE_PATTERN,
-	SENSITIVE_VALUE_PATTERN,
-)
 from .safety import redact as _redact
 
 PROMPT_VERSION = "service-closeout-summary@v2"
@@ -37,17 +31,6 @@ MAX_OUTPUT_TOKENS = 2_000
 MAX_PROVIDER_CALLS = 1
 MAX_AUTOMATIC_RETRIES = 0
 MAX_TIMEOUT_SECONDS = 8
-
-__all__ = [
-	"EMAIL_PATTERN",
-	"GROUNDING_FACT_PATTERN",
-	"PHONE_PATTERN",
-	"SENSITIVE_VALUE_PATTERN",
-	"OpenAIConfig",
-	"OpenAIProviderError",
-	"render_openai",
-	"render_openai_repair_memory",
-]
 
 
 class OpenAIProviderError(RuntimeError):
