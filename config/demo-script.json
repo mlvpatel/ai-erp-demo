@@ -1,14 +1,10 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable public demo script contract. It keeps the README/demo walkthrough story aligned with actual MVP claims, local demo commands, screenshot safety rules, and first-public issue planning.",
   "script_doc": "docs/runbooks/demo-script.md",
   "local_demo_runbook": "docs/runbooks/local-demo.md",
   "readme": "README.md",
   "backlog": "BACKLOG.md",
   "dev_helper": "scripts/dev.sh",
   "mvp_acceptance": "config/mvp-acceptance.json",
-  "first_public_issues": "config/first-public-issues.json",
-  "first_public_issue_id": "docs-local-demo-walkthrough",
   "required_dev_commands": [
     "demo-info",
     "seed-demo",

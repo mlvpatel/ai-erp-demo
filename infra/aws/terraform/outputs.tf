@@ -48,34 +48,6 @@ output "alb_dns_name" {
   value = aws_lb.this.dns_name
 }
 
-output "web_target_group_arn" {
-  value = aws_lb_target_group.web.arn
-}
-
-output "websocket_target_group_arn" {
-  value = aws_lb_target_group.websocket.arn
-}
-
-output "database_endpoint" {
-  value = aws_db_instance.mariadb.address
-}
-
-output "database_master_secret_arn" {
-  value = aws_db_instance.mariadb.master_user_secret[0].secret_arn
-}
-
-output "redis_primary_endpoint" {
-  value = aws_elasticache_replication_group.redis.primary_endpoint_address
-}
-
-output "efs_file_system_id" {
-  value = aws_efs_file_system.sites.id
-}
-
-output "efs_access_point_id" {
-  value = aws_efs_access_point.sites.id
-}
-
 output "backup_bucket_name" {
   value = aws_s3_bucket.backups.id
 }
@@ -90,10 +62,6 @@ output "control_plane_secret_arn" {
 
 output "openai_secret_arn" {
   value = aws_secretsmanager_secret.openai.arn
-}
-
-output "ecs_execution_role_name" {
-  value = aws_iam_role.ecs_execution.name
 }
 
 output "ecs_operation_role_arn" {

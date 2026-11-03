@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from _payloads import envelope, source
 from fastapi.testclient import TestClient
 
 from ai_erp_control_plane.app import app
@@ -10,13 +11,13 @@ PROPOSAL_PATH = "/v1/proposals/service-closeout-summary"
 SHARED_SECRET = "example-shared-secret"
 
 
+def _env(provider):
+	return {"AI_CONTROL_PLANE_SHARED_SECRET": SHARED_SECRET, "AI_ERP_PROVIDER": provider}
+
+
 def _valid_request_payload():
-	return {
-		"schema_version": 1,
-		"request_id": "00000000-0000-4000-8000-000000000001",
-		"tenant_site": "demo.localhost",
-		"requested_by": "technician@example.test",
-		"work_order": {
+	return envelope(
+		work_order={
 			"doctype": "Service Work Order",
 			"name": "SVC-WO-00001",
 			"subject": "Inspect pump",
@@ -26,15 +27,8 @@ def _valid_request_payload():
 			"time_entries": [],
 			"parts": [],
 		},
-		"sources": [
-			{
-				"doctype": "Service Work Order",
-				"name": "SVC-WO-00001",
-				"field": "closeout_notes",
-				"content_hash": "0" * 64,
-			}
-		],
-	}
+		sources=[source("SVC-WO-00001", "closeout_notes", "Tightened the mount.")],
+	)
 
 
 class TestAppSecurity(unittest.TestCase):
@@ -47,11 +41,7 @@ class TestAppSecurity(unittest.TestCase):
 		return self.client.post(PROPOSAL_PATH, headers=headers, json=_valid_request_payload())
 
 	def test_rejects_missing_empty_and_wrong_bearer_tokens(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			for authorization in (None, "Bearer", "Bearer wrong-secret"):
 				with self.subTest(authorization=authorization):
 					self.assertEqual(self._post(authorization).status_code, 401)
@@ -63,33 +53,21 @@ class TestAppSecurity(unittest.TestCase):
 		self.assertEqual(response.status_code, 401)
 
 	def test_rejects_unapproved_provider(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "unapproved-provider",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("unapproved-provider"), clear=True):
 			response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 503)
 
 	def test_accepts_valid_service_key_for_template_provider(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			response = self._post(f"Bearer {SHARED_SECRET}")
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json()["policy"]["decision"], "draft_only")
 
 	def test_openai_provider_without_key_fails_closed(self):
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "openai",
-		}
 		with (
-			patch.dict(os.environ, environment, clear=True),
+			patch.dict(os.environ, _env("openai"), clear=True),
 			self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured,
 		):
 			response = self._post(f"Bearer {SHARED_SECRET}")
@@ -112,32 +90,18 @@ class TestAppSecurity(unittest.TestCase):
 			self.assertEqual(self.client.get("/readyz").status_code, 503)
 
 	def test_scheduling_route_requires_service_key_and_strict_payload(self):
-		scheduling_payload = {
-			"schema_version": 1,
-			"request_id": "00000000-0000-4000-8000-000000000002",
-			"tenant_site": "demo.localhost",
-			"requested_by": "dispatcher@example.test",
-			"work_order": {
+		scheduling_payload = envelope(
+			"dispatcher@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-00002",
 				"subject": "Quarterly pump service",
 				"status": "Draft",
 			},
-			"candidates": [],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-00002",
-					"field": "scheduling",
-					"content_hash": "0" * 64,
-				}
-			],
-		}
-		environment = {
-			"AI_CONTROL_PLANE_SHARED_SECRET": "example-shared-secret",
-			"AI_ERP_PROVIDER": "template",
-		}
-		with patch.dict(os.environ, environment, clear=True):
+			candidates=[],
+			sources=[source("SVC-WO-00002", "scheduling")],
+		)
+		with patch.dict(os.environ, _env("template"), clear=True):
 			denied = self.client.post("/v1/proposals/scheduling-explanation", json=scheduling_payload)
 			self.assertEqual(denied.status_code, 401)
 
@@ -169,8 +133,7 @@ class TestAppSecurity(unittest.TestCase):
 				{"parts": [{"item": "PART", "qty": 100001, "source_warehouse": "WH", "issued": False}]}
 			),
 		)
-		environment = {"AI_CONTROL_PLANE_SHARED_SECRET": SHARED_SECRET, "AI_ERP_PROVIDER": "template"}
-		with patch.dict(os.environ, environment, clear=True):
+		with patch.dict(os.environ, _env("template"), clear=True):
 			for mutate in invalid_mutations:
 				payload = _valid_request_payload()
 				mutate(payload)

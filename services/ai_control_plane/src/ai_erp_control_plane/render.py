@@ -1,5 +1,7 @@
 """Deterministic renderers for the governed proposal routes."""
 
+from typing import Any
+
 from .models import (
 	ExceptionRecoveryProposalResponse,
 	ExceptionRecoveryRequest,
@@ -22,6 +24,18 @@ from .safety import (
 )
 
 POLICY_REASON = "This response is a cited draft only; a human review records no ERP action."
+
+
+def _template_draft(request: Any, name: str, prompt_version: str, lines: list[str], review: str) -> dict[str, Any]:
+	"""Fields every template response shares: local draft-only policy, model identity, and citations."""
+	return {
+		"schema_version": 1,
+		"request_id": request.request_id,
+		"policy": Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
+		"model": ModelMetadata(provider="development-template", name=name, prompt_version=prompt_version),
+		"draft_content": "\n".join([*lines, "", "Review required", review]),
+		"sources": request.sources,
+	}
 
 
 def render_development_template(request: ServiceCloseoutSummaryRequest) -> ProposalResponse:
@@ -59,26 +73,15 @@ def render_development_template(request: ServiceCloseoutSummaryRequest) -> Propo
 			if entry.closeout_notes:
 				lines.append(f"  Closeout notes: {quote_inline(entry.closeout_notes)}")
 	lines.extend(omission_note(omitted))
-
-	lines.extend(
-		[
-			"",
-			"Review required",
-			"This is a draft only. Approval does not update the work order or perform an ERP transaction.",
-		]
-	)
 	return ProposalResponse(
-		schema_version=1,
-		request_id=request.request_id,
 		proposal_type="service_closeout_summary",
-		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
-		model=ModelMetadata(
-			provider="development-template",
-			name="deterministic-closeout-v1",
-			prompt_version="service-closeout-summary@v1",
+		**_template_draft(
+			request,
+			"deterministic-closeout-v1",
+			"service-closeout-summary@v1",
+			lines,
+			"This is a draft only. Approval does not update the work order or perform an ERP transaction.",
 		),
-		draft_content="\n".join(lines),
-		sources=request.sources,
 	)
 
 
@@ -116,25 +119,15 @@ def render_scheduling_template(request: SchedulingExplanationRequest) -> Schedul
 		lines.extend(["", "Excluded"])
 		for exclusion in request.excluded:
 			lines.append(f"- {exclusion.technician}: {exclusion.reason}")
-	lines.extend(
-		[
-			"",
-			"Review required",
-			"This explanation is a draft only. It cannot assign a technician; the dispatcher assigns through the saved form.",
-		]
-	)
 	return SchedulingProposalResponse(
-		schema_version=1,
-		request_id=request.request_id,
 		proposal_type="scheduling_explanation",
-		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
-		model=ModelMetadata(
-			provider="development-template",
-			name="deterministic-scheduling-v1",
-			prompt_version="scheduling-explanation@v1",
+		**_template_draft(
+			request,
+			"deterministic-scheduling-v1",
+			"scheduling-explanation@v1",
+			lines,
+			"This explanation is a draft only. It cannot assign a technician; the dispatcher assigns through the saved form.",
 		),
-		draft_content="\n".join(lines),
-		sources=request.sources,
 	)
 
 
@@ -206,26 +199,16 @@ def render_recovery_template(request: ExceptionRecoveryRequest) -> ExceptionReco
 			if entry.closeout_notes:
 				lines.append(f"  Closeout notes: {quote_inline(entry.closeout_notes)}")
 	lines.extend(omission_note(omitted))
-	lines.extend(
-		[
-			"",
-			"Review required",
+	return ExceptionRecoveryProposalResponse(
+		proposal_type="exception_recovery",
+		**_template_draft(
+			request,
+			"deterministic-recovery-v1",
+			"exception-recovery@v1",
+			lines,
 			"This is a draft only. It cannot close the work order or resolve the exception; "
 			"the manager owns the recovery action and closure.",
-		]
-	)
-	return ExceptionRecoveryProposalResponse(
-		schema_version=1,
-		request_id=request.request_id,
-		proposal_type="exception_recovery",
-		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
-		model=ModelMetadata(
-			provider="development-template",
-			name="deterministic-recovery-v1",
-			prompt_version="exception-recovery@v1",
 		),
-		draft_content="\n".join(lines),
-		sources=request.sources,
 	)
 
 
@@ -275,24 +258,14 @@ def render_repair_memory_template(request: RepairMemoryRequest) -> RepairMemoryP
 				]
 			)
 	lines.extend(omission_note(omitted, weak=weak))
-	lines.extend(
-		[
-			"",
-			"Review required",
+	return RepairMemoryProposalResponse(
+		proposal_type="repair_memory",
+		**_template_draft(
+			request,
+			"deterministic-repair-memory-v1",
+			"repair-memory@v1",
+			lines,
 			"This is a draft only. It cannot change the work order, stock, or billing; "
 			"human review records the decision.",
-		]
-	)
-	return RepairMemoryProposalResponse(
-		schema_version=1,
-		request_id=request.request_id,
-		proposal_type="repair_memory",
-		policy=Policy(decision="draft_only", allowed_action="none", reason=POLICY_REASON),
-		model=ModelMetadata(
-			provider="development-template",
-			name="deterministic-repair-memory-v1",
-			prompt_version="repair-memory@v1",
 		),
-		draft_content="\n".join(lines),
-		sources=request.sources,
 	)

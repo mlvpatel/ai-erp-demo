@@ -43,12 +43,6 @@ variable "availability_zones" {
   }
 }
 
-variable "vpc_cidr" {
-  type        = string
-  description = "Private VPC CIDR."
-  default     = "10.40.0.0/16"
-}
-
 variable "public_subnet_cidrs" {
   type        = list(string)
   description = "Two public subnet CIDRs, ordered like availability_zones."
@@ -126,29 +120,6 @@ variable "log_retention_days" {
   validation {
     condition     = contains([30, 60, 90, 120, 150, 180, 365, 400, 545, 731], var.log_retention_days)
     error_message = "Use an AWS-supported approved retention value."
-  }
-}
-
-variable "db_instance_class" {
-  type        = string
-  description = "Cost-reviewed RDS instance class."
-  default     = "db.t4g.medium"
-}
-
-variable "redis_node_type" {
-  type        = string
-  description = "Cost-reviewed ElastiCache node type."
-  default     = "cache.t4g.small"
-}
-
-variable "waf_rate_limit" {
-  type        = number
-  description = "Five-minute per-IP WAF request threshold."
-  default     = 2000
-
-  validation {
-    condition     = var.waf_rate_limit >= 100 && var.waf_rate_limit <= 20000
-    error_message = "waf_rate_limit must be between 100 and 20000."
   }
 }
 

@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "lifecycle_doc": "docs/workflows/contract-lifecycle.md",
   "catalog": "contracts/catalog.json",
   "contracts_readme": "contracts/README.md",
@@ -11,15 +10,10 @@
   ],
   "kind_rules": {
     "openapi": {
-      "path_prefix": "contracts/openapi/",
-      "file_suffix_pattern": "-v{major}.yaml",
-      "version_style": "semver"
+      "path_prefix": "contracts/openapi/"
     },
     "business-event": {
-      "path_prefix": "contracts/events/",
-      "file_suffix_pattern": "-v{major}.yaml",
-      "version_style": "major",
-      "event_type_suffix_pattern": ".v{major}"
+      "path_prefix": "contracts/events/"
     }
   },
   "required_lifecycle_doc_phrases": [

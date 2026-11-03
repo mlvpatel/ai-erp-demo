@@ -3,6 +3,7 @@
 import hmac
 import logging
 import os
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -41,6 +42,22 @@ bearer = HTTPBearer(
 	auto_error=False,
 )
 _bearer_dependency = Depends(bearer)
+AUTH_RESPONSES: dict[int | str, dict[str, Any]] = {
+	status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
+	422: {"description": "Invalid or unsupported request payload."},
+}
+
+
+def _unavailable() -> HTTPException:
+	return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "approved model provider is unavailable")
+
+
+def _provider() -> str:
+	"""Return the configured provider; anything outside the approved pair fails closed as 503."""
+	provider = os.environ.get("AI_ERP_PROVIDER", "template")
+	if provider not in {"template", "openai"}:
+		raise _unavailable()
+	return provider
 
 
 def require_service_key(credentials: HTTPAuthorizationCredentials | None = _bearer_dependency):
@@ -65,23 +82,12 @@ def healthz():
 	},
 )
 def readyz():
-	provider = os.environ.get("AI_ERP_PROVIDER", "template")
-	if provider == "template":
-		return {"status": "ready"}
-	if provider == "openai":
+	if _provider() == "openai":
 		try:
 			OpenAIConfig.from_environment()
 		except OpenAIProviderError:
-			raise HTTPException(
-				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-				detail="approved model provider is unavailable",
-			) from None
-		return {"status": "ready"}
-	else:
-		raise HTTPException(
-			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-			detail="approved model provider is unavailable",
-		)
+			raise _unavailable() from None
+	return {"status": "ready"}
 
 
 @app.post(
@@ -90,10 +96,7 @@ def readyz():
 	operation_id="draftSchedulingExplanation",
 	response_model=SchedulingProposalResponse,
 	response_description="A draft-only explanation. It has no ERP side effect.",
-	responses={
-		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
-		422: {"description": "Invalid or unsupported request payload."},
-	},
+	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
 def draft_scheduling_explanation(request: SchedulingExplanationRequest):
@@ -106,10 +109,7 @@ def draft_scheduling_explanation(request: SchedulingExplanationRequest):
 	operation_id="draftExceptionRecovery",
 	response_model=ExceptionRecoveryProposalResponse,
 	response_description="A draft-only recovery proposal. It has no ERP side effect.",
-	responses={
-		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
-		422: {"description": "Invalid or unsupported request payload."},
-	},
+	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
 def draft_exception_recovery(request: ExceptionRecoveryRequest):
@@ -122,29 +122,16 @@ def draft_exception_recovery(request: ExceptionRecoveryRequest):
 	operation_id="draftRepairMemory",
 	response_model=RepairMemoryProposalResponse,
 	response_description="A draft-only repair-memory proposal. It has no ERP side effect.",
-	responses={
-		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
-		422: {"description": "Invalid or unsupported request payload."},
-	},
+	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
 def draft_repair_memory(request: RepairMemoryRequest):
-	provider = os.environ.get("AI_ERP_PROVIDER", "template")
-	if provider == "template":
+	if _provider() == "template":
 		return render_repair_memory_template(request)
-	if provider == "openai":
-		try:
-			return render_openai_repair_memory(request)
-		except OpenAIProviderError:
-			raise HTTPException(
-				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-				detail="approved model provider is unavailable",
-			) from None
-	else:
-		raise HTTPException(
-			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-			detail="approved model provider is unavailable",
-		)
+	try:
+		return render_openai_repair_memory(request)
+	except OpenAIProviderError:
+		raise _unavailable() from None
 
 
 @app.post(
@@ -154,40 +141,27 @@ def draft_repair_memory(request: RepairMemoryRequest):
 	response_model=ProposalResponse,
 	response_description="A draft-only proposal. It has no ERP side effect.",
 	responses={
-		status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service credential."},
-		422: {"description": "Invalid or unsupported request payload."},
-		status.HTTP_503_SERVICE_UNAVAILABLE: {
-			"description": "The selected approved model provider is unavailable."
-		},
+		**AUTH_RESPONSES,
+		status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "The selected approved model provider is unavailable."},
 	},
 	dependencies=[Depends(require_service_key)],
 )
 def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
-	provider = os.environ.get("AI_ERP_PROVIDER", "template")
-	if provider == "template":
+	if _provider() == "template":
 		return render_development_template(request)
-	if provider == "openai":
-		logger.info("ai_provider_attempt")
-		try:
-			result = render_openai(request)
-		except OpenAIProviderError as exc:
-			logger.error("ai_provider_failure", extra={"error_category": exc.category})
-			raise HTTPException(
-				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-				detail="approved model provider is unavailable",
-				) from None
-		logger.info(
-			"ai_provider_success",
-			extra={
-				"duration_ms": result.audit.duration_ms,
-				"input_tokens": result.audit.input_tokens,
-				"output_tokens": result.audit.output_tokens,
-				"redaction_count": result.audit.redaction_count,
-			},
-		)
-		return result
-	else:
-		raise HTTPException(
-			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-			detail="approved model provider is unavailable",
-		)
+	logger.info("ai_provider_attempt")
+	try:
+		result = render_openai(request)
+	except OpenAIProviderError as exc:
+		logger.error("ai_provider_failure", extra={"error_category": exc.category})
+		raise _unavailable() from None
+	logger.info(
+		"ai_provider_success",
+		extra={
+			"duration_ms": result.audit.duration_ms,
+			"input_tokens": result.audit.input_tokens,
+			"output_tokens": result.audit.output_tokens,
+			"redaction_count": result.audit.redaction_count,
+		},
+	)
+	return result

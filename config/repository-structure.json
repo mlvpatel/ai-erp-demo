@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable repository layout contract for AI ERP Demo. This keeps the repo ERPNext/Frappe-specific instead of drifting into a generic frontend/backend project.",
   "required_directories": [
     ".github/ISSUE_TEMPLATE",
     ".github/workflows",
@@ -24,9 +22,7 @@
     "docs/workflows",
     "infra/compose",
     "infra/aws/terraform",
-    "infra/kubernetes",
     "infra/observability",
-    "infra/security",
     "scripts",
     "services/ai_control_plane",
     "tests/contract",
@@ -42,6 +38,11 @@
     "docs/architecture/system-context-and-repository-map.md",
     "docs/architecture/system-boundaries.md",
     "docs/architecture/domain-data-model.md",
+    "docs/architecture/tech-stack-2026-07.md",
+    "docs/discovery/discovery-design-plan.md",
+    "docs/discovery/open-source-erp-scan-2026-07.md",
+    "docs/discovery/service-operations-interview-guide.md",
+    "docs/workflows/issue-triage.md",
     "config/industry-packs.json",
     "contracts/catalog.json"
   ],
@@ -73,15 +74,7 @@
     ".agents/skills/behuman/references/patterns.md",
     ".agents/skills/behuman/references/wordlists.md",
     ".agents/skills/behuman/references/mediawiki.md",
-    ".claude/skills/behuman/SKILL.md",
-    ".claude/skills/behuman/references/patterns.md",
-    ".claude/skills/behuman/references/wordlists.md",
-    ".claude/skills/behuman/references/mediawiki.md",
-    ".cursor/rules/behuman.mdc",
-    ".cursor/skills/behuman/SKILL.md",
-    ".cursor/skills/behuman/references/patterns.md",
-    ".cursor/skills/behuman/references/wordlists.md",
-    ".cursor/skills/behuman/references/mediawiki.md"
+    ".cursor/rules/behuman.mdc"
   ],
   "claude_allowed_children": [
     "skills"
@@ -127,16 +120,6 @@
       ]
     }
   ],
-  "reserved_doc_only_apps": [
-    "apps/ai_erp_distribution",
-    "apps/ai_erp_manufacturing",
-    "apps/ai_erp_connectors"
-  ],
-  "reserved_app_forbidden_markers": [
-    "pyproject.toml",
-    "hooks.py",
-    "modules.txt"
-  ],
   "bounded_roots": {
     "apps": "custom Frappe apps and reserved industry packs only",
     "services": "AI control plane and future non-ERP support services only after ADR",
@@ -144,8 +127,8 @@
     "docs": "product, architecture, discovery, security, runbooks, and workflows",
     "infra": "non-secret infrastructure configuration only",
     "tests": "contract, e2e, fixture, and performance tests",
-    ".agents": "shared agent entrypoints, memory, and skills",
-    ".claude": "Claude Code mirrored skills only; local settings stay gitignored",
+    ".agents": "shared agent entrypoints and skills",
+    ".claude": "Claude Code skills symlink only; local settings stay gitignored",
     ".cursor": "versioned Cursor agent skills and always-on rules only; no secrets or MCP credentials"
   }
 }

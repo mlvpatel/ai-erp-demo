@@ -238,17 +238,9 @@ def _finance_section(work_order):
 		"projected_margin_percent": flt(work_order.projected_margin_percent),
 		"profitability_basis": work_order.profitability_basis or "",
 		"stock_entries": stock_entries,
-		**_margin_finance_fields(work_order),
+		**classify_margin_risks_for_work_order(work_order),
 	}
 
-
-def _margin_finance_fields(work_order):
-	"""Attach category labels and evidence links without classifying twice."""
-	payload = classify_margin_risks_for_work_order(work_order)
-	return {
-		"margin_risks": payload["categories"],
-		"margin_risk_details": payload["details"],
-	}
 
 def _proposal_citation_stubs(proposals):
 	"""Return citation hashes without loading proposal draft content."""
@@ -431,7 +423,7 @@ def get_evidence_timeline(name):
 		timeline.append({
 			"stage": "Execution",
 			"label": _("Time Recorded"),
-			"timestamp": str(getattr(entry, "creation", None) or _timeline_day_timestamp(entry.work_date)),
+			"timestamp": str(entry.creation),
 			"actor": entry.technician,
 			"details": f"{entry.hours:g} hrs ({entry.time_type}) on {entry.work_date}",
 		})
@@ -526,16 +518,6 @@ def get_evidence_timeline(name):
 
 	timeline.sort(key=_timeline_sort_key)
 	return timeline
-
-
-def _timeline_day_timestamp(work_date):
-	"""Normalize date-only work_date values to a sortable datetime string."""
-	if not work_date:
-		return ""
-	value = get_datetime(work_date)
-	# Date-only fields sort at start-of-day so they stay before same-day datetimes
-	# only when they truly precede them; keep midnight for stable chronology.
-	return str(value)
 
 
 def _closeout_timeline_timestamp(work_order):

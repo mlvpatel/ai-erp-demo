@@ -33,8 +33,6 @@ to make the safety-critical signals explicit before real business data exists.
 
 ## What belongs in this repository
 
-- Safe example alert names and non-secret metric names in
-  `infra/observability/alert-rules.example.yml`.
 - Runbooks and workflow docs that explain what to monitor and how to respond.
 - Static checks that keep observability guidance aligned with incident,
   recovery, security, and release docs.

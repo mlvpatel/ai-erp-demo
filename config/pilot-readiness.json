@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "scope": "service_operations",
   "status": "DEMO_READY_PRODUCTION_PILOT_GATES_PENDING",
   "data_mode": "synthetic_only",

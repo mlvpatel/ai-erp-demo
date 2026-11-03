@@ -141,7 +141,7 @@ resource "aws_vpc_security_group_egress_rule" "ai_https" {
 
 resource "aws_vpc_security_group_egress_rule" "workload_dns_udp" {
   security_group_id = aws_security_group.workload.id
-  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  cidr_ipv4         = "${cidrhost(local.vpc_cidr, 2)}/32"
   from_port         = 53
   to_port           = 53
   ip_protocol       = "udp"
@@ -149,7 +149,7 @@ resource "aws_vpc_security_group_egress_rule" "workload_dns_udp" {
 
 resource "aws_vpc_security_group_egress_rule" "workload_dns_tcp" {
   security_group_id = aws_security_group.workload.id
-  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  cidr_ipv4         = "${cidrhost(local.vpc_cidr, 2)}/32"
   from_port         = 53
   to_port           = 53
   ip_protocol       = "tcp"
@@ -157,7 +157,7 @@ resource "aws_vpc_security_group_egress_rule" "workload_dns_tcp" {
 
 resource "aws_vpc_security_group_egress_rule" "ai_dns_udp" {
   security_group_id = aws_security_group.ai.id
-  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  cidr_ipv4         = "${cidrhost(local.vpc_cidr, 2)}/32"
   from_port         = 53
   to_port           = 53
   ip_protocol       = "udp"
@@ -165,7 +165,7 @@ resource "aws_vpc_security_group_egress_rule" "ai_dns_udp" {
 
 resource "aws_vpc_security_group_egress_rule" "ai_dns_tcp" {
   security_group_id = aws_security_group.ai.id
-  cidr_ipv4         = "${cidrhost(var.vpc_cidr, 2)}/32"
+  cidr_ipv4         = "${cidrhost(local.vpc_cidr, 2)}/32"
   from_port         = 53
   to_port           = 53
   ip_protocol       = "tcp"

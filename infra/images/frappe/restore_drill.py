@@ -27,11 +27,8 @@ class RestoreDrillError(RuntimeError):
 
 
 def sha256(path: Path) -> str:
-    value = hashlib.sha256()
     with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            value.update(block)
-    return value.hexdigest()
+        return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
 def parse_manifest_uri(uri: str, approved_bucket: str) -> tuple[str, str]:

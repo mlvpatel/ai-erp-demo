@@ -8,14 +8,9 @@ from frappe.model.document import Document
 
 def normalize_capability_labels(raw_value):
 	"""Split comma/newline labels into a stable lowercase set."""
-	if not raw_value:
-		return set()
-	labels = []
-	for chunk in str(raw_value).replace("\n", ",").split(","):
-		label = chunk.strip().lower()
-		if label:
-			labels.append(label)
-	return set(labels)
+	return {
+		chunk.strip().lower() for chunk in str(raw_value or "").replace("\n", ",").split(",") if chunk.strip()
+	}
 
 
 class ServiceTechnicianCapability(Document):

@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "workflow_doc": "docs/workflows/authorization-and-approvals.md",
   "service_workflow_doc": "docs/workflows/service-operations.md",
   "threat_model": "docs/security/threat-model.md",
@@ -156,7 +155,7 @@
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
           "required_snippets": [
             "def issue_parts",
-            "work_order._require_manager()",
+            "require_any_role(MANAGER_ROLES, \"Only a service manager can issue inventory for a work order.\")",
             "stock_entry.submit()",
             "from_stock_issue"
           ]
@@ -177,7 +176,7 @@
           "path": "apps/ai_erp_service/ai_erp_service/ai_erp_service/doctype/service_work_order/service_work_order.py",
           "required_snippets": [
             "def make_draft_sales_invoice",
-            "work_order._require_finance()",
+            "require_any_role(FINANCE_ROLES, \"Only an Accounts User or Accounts Manager can draft a Sales Invoice.\")",
             "frappe.has_permission(\"Sales Invoice\", ptype=\"create\", throw=True)",
             "invoice.update_stock = 0"
           ]

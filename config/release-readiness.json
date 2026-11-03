@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "status": "blocked-until-owner-and-publication-gates-pass",
   "strict_release_command": "scripts/check-open-source-ready.sh --release",
   "blockers": [

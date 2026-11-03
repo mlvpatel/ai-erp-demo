@@ -1,12 +1,10 @@
 """Negative and edge-case retrieval/abstention/leakage coverage for templates."""
 
-import hashlib
 import json
 import unittest
-from datetime import date, timedelta
 from pathlib import Path
-from uuid import uuid4
 
+from _payloads import envelope, offset_date, source
 from pydantic import ValidationError
 
 from ai_erp_control_plane.models import (
@@ -23,32 +21,10 @@ from ai_erp_control_plane.render import (
 )
 
 
-def _hash(value):
-	return hashlib.sha256(value.encode()).hexdigest()
-
-
-def _offset_date(days):
-	"""Keep fixture dates relative so they never drift into the past."""
-	return (date.today() + timedelta(days=days)).isoformat()
-
-
-def _history_source(name, value="history"):
-	return {
-		"doctype": "Service Work Order",
-		"name": name,
-		"field": "history",
-		"content_hash": _hash(value),
-	}
-
-
 class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 	def test_closeout_abstains_from_inventing_history_and_rejects_action_fields(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "technician@example.test",
-			"work_order": {
+		payload = envelope(
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-01",
 				"subject": "No visible history",
@@ -58,7 +34,7 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 				"time_entries": [
 					{
 						"technician": "technician@example.test",
-						"work_date": _offset_date(-1),
+						"work_date": offset_date(-1),
 						"time_type": "Work",
 						"hours": 1.0,
 					}
@@ -66,15 +42,8 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 				"parts": [],
 				"related_history": [],
 			},
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-01",
-					"field": "closeout_notes",
-					"content_hash": _hash("Checked mount only."),
-				}
-			],
-		}
+			sources=[source("SVC-WO-EDGE-01", "closeout_notes", "Checked mount only.")],
+		)
 		response = render_development_template(ServiceCloseoutSummaryRequest.model_validate(payload))
 		self.assertEqual(response.policy.decision, "draft_only")
 		self.assertNotIn("Prior related work", response.draft_content)
@@ -84,28 +53,17 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 			ServiceCloseoutSummaryRequest.model_validate({**payload, "post_invoice": True})
 
 	def test_repair_memory_rejects_uncited_history_fields_and_abstains_on_empty(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "technician@example.test",
-			"work_order": {
+		payload = envelope(
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-02",
 				"subject": "Pump vibration edge",
 				"status": "In Progress",
 				"description": "Recurring vibration.",
 			},
-			"related_history": [],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-02",
-					"field": "repair_context",
-					"content_hash": _hash("empty"),
-				}
-			],
-		}
+			related_history=[],
+			sources=[source("SVC-WO-EDGE-02", "repair_context", "empty")],
+		)
 		abstention = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 		self.assertIn("Abstention", abstention.draft_content)
 		self.assertIn("no repair suggestion is made", abstention.draft_content)
@@ -126,19 +84,16 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 			RepairMemoryRequest.model_validate(leaky)
 
 	def test_scheduling_explanation_cannot_smuggle_assignment_or_foreign_domains(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "dispatcher@example.test",
-			"work_order": {
+		payload = envelope(
+			"dispatcher@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-03",
 				"subject": "Edge scheduling",
 				"status": "Draft",
 				"service_priority": "Low",
 			},
-			"candidates": [
+			candidates=[
 				{
 					"technician": "tech.a@example.test",
 					"score": 0,
@@ -147,16 +102,9 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 					"reasons": ["open_workload:0"],
 				}
 			],
-			"excluded": [],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-03",
-					"field": "ranking",
-					"content_hash": _hash("ranking"),
-				}
-			],
-		}
+			excluded=[],
+			sources=[source("SVC-WO-EDGE-03", "ranking", "ranking")],
+		)
 		response = render_scheduling_template(SchedulingExplanationRequest.model_validate(payload))
 		self.assertIn("ranking rests on open workload alone", response.draft_content)
 		self.assertIn("cannot assign a technician", response.draft_content)
@@ -167,12 +115,9 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 			)
 
 	def test_exception_recovery_abstains_on_other_without_history(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "manager@example.test",
-			"work_order": {
+		payload = envelope(
+			"manager@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-04",
 				"subject": "Weak recovery evidence",
@@ -180,23 +125,16 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 				"cannot_close_reason": "Other",
 				"inspection_result": "",
 			},
-			"exception": {
+			exception={
 				"name": "SVC-EXC-EDGE-01",
 				"reason": "Other",
 				"status": "Open",
-				"due_date": _offset_date(2),
+				"due_date": offset_date(2),
 			},
-			"parts": [],
-			"related_history": [],
-			"sources": [
-				{
-					"doctype": "Service Closure Exception",
-					"name": "SVC-EXC-EDGE-01",
-					"field": "reason",
-					"content_hash": _hash("Other"),
-				}
-			],
-		}
+			parts=[],
+			related_history=[],
+			sources=[source("SVC-EXC-EDGE-01", "reason", "Other", "Service Closure Exception")],
+		)
 		response = render_recovery_template(ExceptionRecoveryRequest.model_validate(payload))
 		self.assertIn("Abstention", response.draft_content)
 		self.assertIn("no recovery recommendation is made", response.draft_content)
@@ -206,12 +144,9 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 			ExceptionRecoveryRequest.model_validate({**payload, "resolve_exception": True})
 
 	def test_exception_recovery_maps_parts_unavailable_without_auto_closing(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "manager@example.test",
-			"work_order": {
+		payload = envelope(
+			"manager@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-05",
 				"subject": "Parts hold recovery",
@@ -219,29 +154,19 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 				"cannot_close_reason": "Parts unavailable",
 				"inspection_result": "Needs Follow-up",
 			},
-			"exception": {
+			exception={
 				"name": "SVC-EXC-EDGE-02",
 				"reason": "Parts unavailable",
 				"status": "Open",
-				"due_date": _offset_date(3),
+				"due_date": offset_date(3),
 			},
-			"parts": [{"item": "FILTER-A", "qty": 2, "issued": False}],
-			"related_history": [],
-			"sources": [
-				{
-					"doctype": "Service Closure Exception",
-					"name": "SVC-EXC-EDGE-02",
-					"field": "reason",
-					"content_hash": _hash("Parts unavailable"),
-				},
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-05",
-					"field": "cannot_close",
-					"content_hash": _hash("parts"),
-				},
+			parts=[{"item": "FILTER-A", "qty": 2, "issued": False}],
+			related_history=[],
+			sources=[
+				source("SVC-EXC-EDGE-02", "reason", "Parts unavailable", "Service Closure Exception"),
+				source("SVC-WO-EDGE-05", "cannot_close", "parts"),
 			],
-		}
+		)
 		response = render_recovery_template(ExceptionRecoveryRequest.model_validate(payload))
 		self.assertIn("Recommended next steps", response.draft_content)
 		self.assertIn("Declared parts not yet issued", response.draft_content)
@@ -254,12 +179,9 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 			ExceptionRecoveryRequest.model_validate({**payload, "close_work_order": True})
 
 	def test_exception_recovery_drops_uncited_history_and_redacts_injection(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "manager@example.test",
-			"work_order": {
+		payload = envelope(
+			"manager@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-06",
 				"subject": "Injection-shaped recovery",
@@ -270,14 +192,14 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 				),
 				"inspection_result": "Failed",
 			},
-			"exception": {
+			exception={
 				"name": "SVC-EXC-EDGE-03",
 				"reason": "Other",
 				"status": "Open",
-				"due_date": _offset_date(1),
+				"due_date": offset_date(1),
 			},
-			"parts": [],
-			"related_history": [
+			parts=[],
+			related_history=[
 				{
 					"name": "SVC-WO-UNCITED-RECOVERY",
 					"subject": "Hidden prior recovery",
@@ -294,16 +216,11 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 					),
 				},
 			],
-			"sources": [
-				{
-					"doctype": "Service Closure Exception",
-					"name": "SVC-EXC-EDGE-03",
-					"field": "reason",
-					"content_hash": _hash("Other"),
-				},
-				_history_source("SVC-WO-CITED-RECOVERY"),
+			sources=[
+				source("SVC-EXC-EDGE-03", "reason", "Other", "Service Closure Exception"),
+				source("SVC-WO-CITED-RECOVERY"),
 			],
-		}
+		)
 		response = render_recovery_template(ExceptionRecoveryRequest.model_validate(payload))
 		self.assertNotIn("SVC-WO-UNCITED-RECOVERY", response.draft_content)
 		self.assertNotIn("SEAL-KIT", response.draft_content)
@@ -318,21 +235,18 @@ class TestRetrievalAbstentionAndLeakage(unittest.TestCase):
 
 
 def _repair_memory_payload(history, sources):
-	return {
-		"schema_version": 1,
-		"request_id": str(uuid4()),
-		"tenant_site": "demo.localhost",
-		"requested_by": "manager@example.test",
-		"work_order": {
+	return envelope(
+		"manager@example.test",
+		work_order={
 			"doctype": "Service Work Order",
 			"name": "SVC-WO-EDGE-10",
 			"subject": "Recurring seal failure",
 			"status": "In Progress",
 			"description": "Third report this quarter.",
 		},
-		"related_history": history,
-		"sources": sources,
-	}
+		related_history=history,
+		sources=sources,
+	)
 
 
 class TestRepairMemoryProvenance(unittest.TestCase):
@@ -348,17 +262,7 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 				"parts": [{"item": "SEAL-KIT", "qty": 1, "issued": True}],
 			}
 		]
-		payload = _repair_memory_payload(
-			history,
-			[
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-10",
-					"field": "repair_context",
-					"content_hash": _hash("context"),
-				}
-			],
-		)
+		payload = _repair_memory_payload(history, [source("SVC-WO-EDGE-10", "repair_context", "context")])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -383,7 +287,7 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 				"closeout_notes": "Hidden gasket swap.",
 			},
 		]
-		payload = _repair_memory_payload(history, [_history_source("SVC-WO-A")])
+		payload = _repair_memory_payload(history, [source("SVC-WO-A")])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -404,7 +308,7 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 				"parts": [],
 			}
 		]
-		payload = _repair_memory_payload(history, [_history_source("SVC-WO-WEAK")])
+		payload = _repair_memory_payload(history, [source("SVC-WO-WEAK")])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -426,7 +330,7 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 				),
 			}
 		]
-		payload = _repair_memory_payload(history, [_history_source("SVC-WO-A")])
+		payload = _repair_memory_payload(history, [source("SVC-WO-A")])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -448,11 +352,11 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 				"closeout_notes": (
 					"Site contact owner@example.test on +49 151 2345 6789; "
 					"portal password=not-a-real-value. Billed 1 250.00 on "
-					f"{_offset_date(-30)}."
+					f"{offset_date(-30)}."
 				),
 			}
 		]
-		payload = _repair_memory_payload(history, [_history_source("SVC-WO-A")])
+		payload = _repair_memory_payload(history, [source("SVC-WO-A")])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -461,7 +365,7 @@ class TestRepairMemoryProvenance(unittest.TestCase):
 		self.assertNotIn("not-a-real-value", response.draft_content)
 		self.assertIn("[REDACTED]", response.draft_content)
 		self.assertIn("1 250.00", response.draft_content)
-		self.assertIn(_offset_date(-30), response.draft_content)
+		self.assertIn(offset_date(-30), response.draft_content)
 
 
 def _load_repair_memory_corpus():
@@ -507,7 +411,7 @@ class TestRepairMemorySyntheticCorpus(unittest.TestCase):
 			"filter_only_parts",
 			"failed_inspection_only",
 		)
-		sources = [_history_source(row["name"]) for row in history]
+		sources = [source(row["name"]) for row in history]
 		payload = _repair_memory_payload(history, sources)
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
@@ -523,7 +427,7 @@ class TestRepairMemorySyntheticCorpus(unittest.TestCase):
 
 	def test_corpus_contact_and_injection_rows_are_sanitized(self):
 		history = self._history_rows("contact_and_credential_notes", "injection_shaped_notes")
-		sources = [_history_source(row["name"]) for row in history]
+		sources = [source(row["name"]) for row in history]
 		payload = _repair_memory_payload(history, sources)
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
@@ -539,7 +443,7 @@ class TestRepairMemorySyntheticCorpus(unittest.TestCase):
 
 	def test_weak_corpus_row_alone_abstains(self):
 		history = self._history_rows("weak_subject_only")
-		payload = _repair_memory_payload(history, [_history_source(history[0]["name"])])
+		payload = _repair_memory_payload(history, [source(history[0]["name"])])
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
 
@@ -549,7 +453,7 @@ class TestRepairMemorySyntheticCorpus(unittest.TestCase):
 
 	def test_mixed_actionable_and_weak_drops_weak_with_note(self):
 		history = self._history_rows("seal_replace_with_parts", "weak_subject_only")
-		sources = [_history_source(row["name"]) for row in history]
+		sources = [source(row["name"]) for row in history]
 		payload = _repair_memory_payload(history, sources)
 
 		response = render_repair_memory_template(RepairMemoryRequest.model_validate(payload))
@@ -562,12 +466,8 @@ class TestRepairMemorySyntheticCorpus(unittest.TestCase):
 
 class TestQuotedSourceTextBoundary(unittest.TestCase):
 	def test_closeout_notes_are_marked_as_quoted_source_lines(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "technician@example.test",
-			"work_order": {
+		payload = envelope(
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-11",
 				"subject": "Quoted note boundary",
@@ -579,15 +479,8 @@ class TestQuotedSourceTextBoundary(unittest.TestCase):
 					{"name": "SVC-WO-UNCITED", "subject": "Hidden prior work", "status": "Closed"}
 				],
 			},
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-11",
-					"field": "closeout_notes",
-					"content_hash": _hash("notes"),
-				}
-			],
-		}
+			sources=[source("SVC-WO-EDGE-11", "closeout_notes", "notes")],
+		)
 
 		response = render_development_template(ServiceCloseoutSummaryRequest.model_validate(payload))
 
@@ -600,18 +493,15 @@ class TestQuotedSourceTextBoundary(unittest.TestCase):
 		self.assertIn("1 prior record was omitted", response.draft_content)
 
 	def test_scheduling_ranking_keeps_technician_identifiers_readable(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "dispatcher@example.test",
-			"work_order": {
+		payload = envelope(
+			"dispatcher@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-12",
 				"subject": "Ranking readability",
 				"status": "Draft",
 			},
-			"candidates": [
+			candidates=[
 				{
 					"technician": "tech.a@example.test",
 					"score": 3,
@@ -620,16 +510,9 @@ class TestQuotedSourceTextBoundary(unittest.TestCase):
 					"reasons": ["open_workload:1"],
 				}
 			],
-			"excluded": [{"technician": "tech.b@example.test", "reason": "no_capability_match"}],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-EDGE-12",
-					"field": "ranking",
-					"content_hash": _hash("ranking"),
-				}
-			],
-		}
+			excluded=[{"technician": "tech.b@example.test", "reason": "no_capability_match"}],
+			sources=[source("SVC-WO-EDGE-12", "ranking", "ranking")],
+		)
 
 		response = render_scheduling_template(SchedulingExplanationRequest.model_validate(payload))
 
@@ -640,26 +523,23 @@ class TestQuotedSourceTextBoundary(unittest.TestCase):
 
 class TestExceptionRecoveryProvenance(unittest.TestCase):
 	def test_uncited_history_cannot_rescue_an_uncategorized_reason(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "manager@example.test",
-			"work_order": {
+		payload = envelope(
+			"manager@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-EDGE-13",
 				"subject": "Uncategorized closure blocker",
 				"status": "Cannot Close",
 				"cannot_close_reason": "Other",
 			},
-			"exception": {
+			exception={
 				"name": "SVC-EXC-EDGE-02",
 				"reason": "Other",
 				"status": "Open",
-				"due_date": _offset_date(4),
+				"due_date": offset_date(4),
 			},
-			"parts": [],
-			"related_history": [
+			parts=[],
+			related_history=[
 				{
 					"name": "SVC-WO-UNCITED",
 					"subject": "Unrelated site visit",
@@ -667,15 +547,8 @@ class TestExceptionRecoveryProvenance(unittest.TestCase):
 					"closeout_notes": "Replaced the controller.",
 				}
 			],
-			"sources": [
-				{
-					"doctype": "Service Closure Exception",
-					"name": "SVC-EXC-EDGE-02",
-					"field": "reason",
-					"content_hash": _hash("Other"),
-				}
-			],
-		}
+			sources=[source("SVC-EXC-EDGE-02", "reason", "Other", "Service Closure Exception")],
+		)
 
 		response = render_recovery_template(ExceptionRecoveryRequest.model_validate(payload))
 

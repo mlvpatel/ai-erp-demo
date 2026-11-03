@@ -2,10 +2,8 @@ import unittest
 from pathlib import Path
 
 import yaml
-from pydantic import ValidationError
 
 from ai_erp_control_plane.app import app
-from ai_erp_control_plane.models import ServiceCloseoutSummaryRequest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -139,6 +137,7 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 
 		request_schema = schemas["ServiceCloseoutSummaryRequest"]
 		self.assertFalse(request_schema["additionalProperties"])
+		self.assertNotIn("requested_action", request_schema["properties"])
 		self.assertCountEqual(
 			request_schema["required"],
 			[
@@ -213,34 +212,6 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 						self.contract["components"]["schemas"][schema_name]["properties"][fieldname][key],
 						expected,
 					)
-
-	def test_runtime_model_rejects_unsupported_action_shape(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": "00000000-0000-4000-8000-000000000001",
-			"tenant_site": "demo.localhost",
-			"requested_by": "technician@example.test",
-			"work_order": {
-				"doctype": "Service Work Order",
-				"name": "SVC-WO-00001",
-				"subject": "Inspect pump",
-				"status": "Closeout Submitted",
-				"time_entries": [],
-				"parts": [],
-			},
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-00001",
-					"field": "status",
-					"content_hash": "0" * 64,
-				}
-			],
-			"requested_action": "submit_sales_invoice",
-		}
-
-		with self.assertRaises(ValidationError):
-			ServiceCloseoutSummaryRequest.model_validate(payload)
 
 
 if __name__ == "__main__":

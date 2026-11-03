@@ -29,14 +29,11 @@ secrets belong in the deployment platform or a secrets manager.
   guardrail. It keeps backup/restore runbooks, incident handling, publication
   exclusions, support/security docs, and release checks aligned.
 - `observability-readiness.json`: machine-readable monitoring and alerting
-  guardrail. It keeps public observability guidance, safe example alerts,
-  telemetry data boundaries, incident runbooks, and release checks aligned.
+  guardrail. It keeps public observability guidance, telemetry data
+  boundaries, incident runbooks, and release checks aligned.
 - `performance-readiness.json`: machine-readable performance guardrail. It
   keeps load-profile examples, record-volume targets, safety invariants,
   workflow docs, and release checks aligned.
-- `first-public-issues.json`: launch-safe GitHub issue seed list. It keeps
-  early public issues small, license-gated, and away from ERP/AI safety
-  boundaries.
 - `mvp-acceptance.json`: machine-readable MVP acceptance map. It ties the
   acceptance metrics in `docs/product/mvp-scope.md` to evidence files, anchors,
   safety boundaries, and runnable verification commands.

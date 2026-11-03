@@ -136,7 +136,7 @@ def _ensure_customer(customer_name):
 	).insert().name
 
 
-def _ensure_item(item_code, item_name):
+def _ensure_item(item_code, item_name, stock_uom="Nos", is_stock_item=1):
 	if frappe.db.exists("Item", item_code):
 		return item_code
 	return frappe.get_doc(
@@ -145,8 +145,8 @@ def _ensure_item(item_code, item_name):
 			"item_code": item_code,
 			"item_name": item_name,
 			"item_group": "All Item Groups",
-			"stock_uom": "Nos",
-			"is_stock_item": 1,
+			"stock_uom": stock_uom,
+			"is_stock_item": is_stock_item,
 			"is_sales_item": 1,
 			"is_purchase_item": 1,
 		}

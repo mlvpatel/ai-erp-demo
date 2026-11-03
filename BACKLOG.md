@@ -20,8 +20,7 @@ and do not block that demo.
 These should avoid money, stock, permissions, payroll, compliance, and AI
 approval side effects.
 
-The machine-readable seed list is `config/first-public-issues.json`. Keep this
-section, the manifest, and `.github/labels.json` aligned before creating public
+Keep this section and `.github/labels.json` aligned before creating public
 GitHub issues.
 
 | Area | Issue idea | Acceptance check |

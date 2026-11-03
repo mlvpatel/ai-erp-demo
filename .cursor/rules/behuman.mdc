@@ -11,8 +11,7 @@ validation templates), follow the BEhuMan skill before delivering.
 
 Canonical skill (read and apply):
 
-- `.cursor/skills/behuman/SKILL.md`
-- Mirrored at `.agents/skills/behuman/SKILL.md`
+- `.agents/skills/behuman/SKILL.md` (`.cursor/skills/behuman` is a symlink to it)
 
 Load references when needed:
 
