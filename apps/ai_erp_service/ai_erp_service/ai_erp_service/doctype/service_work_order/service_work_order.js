@@ -141,40 +141,11 @@ const MARGIN_RISK_LABELS = {
 	repeat_visit_risk: "Repeat visit risk",
 };
 
-const MARGIN_STATUS_OPTIONS = [
-	"",
-	"Draft",
-	"Scheduled",
-	"In Progress",
-	"Closeout Submitted",
-	"Cannot Close",
-	"Closed",
-	"Invoice Ready",
-	"Cancelled",
-];
-
 let margin_leakage_request = null;
 let margin_leakage_dialog = null;
 
 function margin_risk_label(category) {
 	return __(MARGIN_RISK_LABELS[category] || category);
-}
-
-function margin_risk_option_label(category) {
-	// Keep Select options in source English so Frappe translates once at render.
-	return MARGIN_RISK_LABELS[category] || category;
-}
-
-function resolve_margin_risk_category(label, categories) {
-	if (!label) {
-		return "";
-	}
-	return (
-		categories.find((category) => {
-			const raw = margin_risk_option_label(category);
-			return raw === label || __(raw) === label;
-		}) || ""
-	);
 }
 
 function format_margin_risk_evidence(detail) {
@@ -377,7 +348,12 @@ function render_margin_leakage_summary(summary, selected) {
 		</div>
 	`;
 
-	const category_options = categories.map(margin_risk_option_label).join("\n");
+	// Select translates source-English labels and returns the raw category value.
+	const category_options = categories.map((value) => ({
+		value,
+		label: MARGIN_RISK_LABELS[value] || value,
+	}));
+	const status_options = frappe.meta.get_docfield("Service Work Order", "status").options;
 	if (margin_leakage_dialog) {
 		margin_leakage_dialog.hide();
 		margin_leakage_dialog = null;
@@ -390,14 +366,14 @@ function render_margin_leakage_summary(summary, selected) {
 				fieldtype: "Select",
 				fieldname: "risk_category",
 				label: __("Risk category filter"),
-				options: `\n${category_options}`,
-				default: selected_category ? margin_risk_option_label(selected_category) : "",
+				options: ["", ...category_options],
+				default: selected_category || "",
 			},
 			{
 				fieldtype: "Select",
 				fieldname: "status",
 				label: __("Status filter"),
-				options: MARGIN_STATUS_OPTIONS.join("\n"),
+				options: `\n${status_options}`,
 				default: selected_status,
 			},
 			{
@@ -416,12 +392,10 @@ function render_margin_leakage_summary(summary, selected) {
 		],
 		primary_action_label: __("Apply Filter"),
 		primary_action(values) {
-			const label = (values && values.risk_category) || "";
-			const next_category = resolve_margin_risk_category(label, categories);
 			dialog.hide();
 			margin_leakage_dialog = null;
 			show_margin_leakage_summary({
-				risk_category: next_category,
+				risk_category: (values && values.risk_category) || "",
 				status: (values && values.status) || "",
 				from_date: (values && values.from_date) || "",
 				to_date: (values && values.to_date) || "",
