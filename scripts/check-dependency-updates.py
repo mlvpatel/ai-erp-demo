@@ -7,20 +7,12 @@ import re
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "dependency-updates.json"
 LABELS_PATH = REPO_ROOT / ".github" / "labels.json"
 ENV_EXAMPLE = REPO_ROOT / "development" / ".env.example"
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def label_names(failures: list[str]) -> set[str]:

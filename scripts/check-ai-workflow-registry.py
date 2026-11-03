@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
 
 
 REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
@@ -27,14 +27,6 @@ def parse_python(path: Path, failures: list[str]) -> ast.Module | None:
     except SyntaxError as exc:
         failures.append(f"invalid Python in {rel(path)}: {exc}")
         return None
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:

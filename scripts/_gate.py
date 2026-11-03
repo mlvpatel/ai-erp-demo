@@ -49,3 +49,11 @@ def read_text(path: Path, failures: list[str]) -> str:
     except UnicodeDecodeError as exc:
         failures.append(f"expected UTF-8 text file: {rel(path)}: {exc}")
     return ""
+
+
+def normalize_space(value: str) -> str:
+    return " ".join(value.split())
+
+
+def contains_snippet(haystack: str, needle: str) -> bool:
+    return normalize_space(needle) in normalize_space(haystack)

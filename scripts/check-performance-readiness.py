@@ -6,18 +6,10 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json, load_json_object, read_text
+from _gate import REPO_ROOT, contains_snippet, load_json, load_json_object, normalize_space, read_text
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "performance-readiness.json"
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def contains_snippet_casefold(haystack: str, needle: str) -> bool:

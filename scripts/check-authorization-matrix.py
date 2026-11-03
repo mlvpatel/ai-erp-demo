@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, read_text, rel
 
 
 MATRIX_PATH = REPO_ROOT / "config" / "authorization-matrix.json"
@@ -23,14 +23,6 @@ def load_json_value(path: Path, failures: list[str]) -> Any:
     except json.JSONDecodeError as exc:
         failures.append(f"invalid JSON in {rel(path)}: {exc}")
     return None
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def string_list(value: Any, field: str, failures: list[str]) -> list[str]:

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable
 
-from _gate import REPO_ROOT, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "publication-secret-scan.json"
@@ -26,14 +26,6 @@ ASSIGNMENT_PATTERN = re.compile(
     """,
     re.VERBOSE,
 )
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def as_string_list(value: Any, field: str, failures: list[str]) -> list[str]:

@@ -7,21 +7,13 @@ import re
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, load_json, read_text
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text
 
 
 CONTRACT_PATH = REPO_ROOT / "config" / "ci-workflow.json"
 METADATA_PATH = REPO_ROOT / ".github" / "repository-metadata.json"
 
 JOB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def extract_job_blocks(workflow_text: str) -> dict[str, str]:

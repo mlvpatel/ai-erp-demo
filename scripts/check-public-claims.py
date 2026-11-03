@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-from _gate import REPO_ROOT
+from _gate import REPO_ROOT, normalize_space
 
 
 README = REPO_ROOT / "README.md"
@@ -28,13 +28,9 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def normalized(text: str) -> str:
-    return " ".join(text.split())
-
-
 def require_contains(failures: list[str], path: Path, needle: str) -> None:
-    text = normalized(read(path))
-    if normalized(needle) not in text:
+    text = normalize_space(read(path))
+    if normalize_space(needle) not in text:
         failures.append(f"{path.relative_to(REPO_ROOT)} must contain: {needle!r}")
 
 

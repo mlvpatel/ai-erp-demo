@@ -12,7 +12,7 @@ from typing import Any
 
 # --strict counts local artifacts, so importing _gate must not write one.
 sys.dont_write_bytecode = True
-from _gate import REPO_ROOT, load_json, read_text, rel
+from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "release-readiness.json"
@@ -25,14 +25,6 @@ VALID_CATEGORIES = {"owner-decision", "local-state", "external-verification"}
 VALID_STATUSES = {"blocked", "prepared", "manual"}
 METADATA_PLACEHOLDER_PATTERN = re.compile(r"(\[year\]|\[fullname\]|opensource@ai-erp\.example)")
 PUBLISHABLE_SUFFIXES = {".md", ".py", ".toml", ".txt"}
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
