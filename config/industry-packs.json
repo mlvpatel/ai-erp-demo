@@ -4,7 +4,6 @@
   "packs": [
     {
       "id": "field_service",
-      "order": 1,
       "title": "Field service",
       "status": "implemented",
       "app_path": "apps/ai_erp_service",
@@ -38,7 +37,6 @@
     },
     {
       "id": "distribution",
-      "order": 2,
       "title": "Distribution",
       "status": "configured_demo",
       "app_path": "apps/ai_erp_distribution",
@@ -77,7 +75,6 @@
     },
     {
       "id": "light_manufacturing",
-      "order": 3,
       "title": "Light manufacturing",
       "status": "configured_demo",
       "app_path": "apps/ai_erp_manufacturing",
@@ -115,7 +112,6 @@
     },
     {
       "id": "professional_services",
-      "order": 4,
       "title": "Professional services",
       "status": "planned",
       "app_path": null,
@@ -146,7 +142,6 @@
     },
     {
       "id": "maintenance_assets",
-      "order": 5,
       "title": "Maintenance and assets",
       "status": "planned",
       "app_path": null,

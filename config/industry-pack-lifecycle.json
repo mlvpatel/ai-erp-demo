@@ -4,18 +4,6 @@
   "pack_manifest": "config/industry-packs.json",
   "roadmap_doc": "docs/product/industry-pack-roadmap.md",
   "design_template": "docs/product/industry-pack-design-template.md",
-  "status_flow": [
-    "planned",
-    "reserved",
-    "configured_demo",
-    "implemented"
-  ],
-  "allowed_entry_gates": [
-    "not_started",
-    "discovery_brief_ready",
-    "configured_demo_ready",
-    "passed_for_mvp"
-  ],
   "status_rules": {
     "planned": {
       "app_path": "must_be_null",

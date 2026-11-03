@@ -13,7 +13,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "industry-pack-lifecycle.json"
 REQUIRED_PACK_FIELDS = {
     "id",
-    "order",
     "title",
     "status",
     "app_path",
@@ -94,19 +93,12 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         elif not (REPO_ROOT / value).is_file():
             fail(failures, f"{field} path is missing: {value}")
 
-    status_flow = string_list(manifest.get("status_flow"), "status_flow", failures)
-    if status_flow != ["planned", "reserved", "configured_demo", "implemented"]:
-        fail(failures, "status_flow must be planned, reserved, configured_demo, implemented")
-
-    allowed_entry_gates = set(string_list(manifest.get("allowed_entry_gates"), "allowed_entry_gates", failures))
-    required_entry_gates = {"not_started", "discovery_brief_ready", "configured_demo_ready", "passed_for_mvp"}
-    if not required_entry_gates.issubset(allowed_entry_gates):
-        fail(failures, "allowed_entry_gates must include not_started, discovery_brief_ready, configured_demo_ready, passed_for_mvp")
-
     rules = manifest.get("status_rules")
     if not isinstance(rules, dict):
         fail(failures, "status_rules must be an object")
         return
+    if list(rules) != ["planned", "reserved", "configured_demo", "implemented"]:
+        fail(failures, "status_rules must list planned, reserved, configured_demo, implemented in that order")
     for status in ("planned", "reserved", "configured_demo", "implemented"):
         rule = rules.get(status)
         if not isinstance(rule, dict):
@@ -337,14 +329,14 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
         fail(failures, f"{pack_manifest_path}: packs must be a non-empty list")
         return
 
-    rules = manifest.get("status_rules", {})
-    allowed_statuses = set(string_list(manifest.get("status_flow"), "status_flow", failures))
-    allowed_entry_gates = set(string_list(manifest.get("allowed_entry_gates"), "allowed_entry_gates", failures))
+    rules = manifest.get("status_rules")
+    if not isinstance(rules, dict):
+        return
+    allowed_statuses = set(rules)
 
     implemented_count = 0
     reserved_or_planned_count = 0
     seen_ids: set[str] = set()
-    orders: list[Any] = []
     for index, pack in enumerate(packs, 1):
         if not isinstance(pack, dict):
             fail(failures, f"{pack_manifest_path}: packs[{index}] must be an object")
@@ -356,7 +348,6 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
         elif pack_id in seen_ids:
             fail(failures, f"{pack_id}: duplicate pack id")
         seen_ids.add(pack_id)
-        orders.append(pack.get("order"))
         missing = sorted(REQUIRED_PACK_FIELDS - set(pack))
         if missing:
             fail(failures, f"{pack_id}: missing required fields: {', '.join(missing)}")
@@ -376,9 +367,6 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
             continue
 
         entry_gate = pack.get("entry_gate")
-        if entry_gate not in allowed_entry_gates:
-            fail(failures, f"{pack_id}: unsupported entry_gate {entry_gate!r}")
-
         rule = rules.get(status)
         if isinstance(rule, dict):
             status_entry_gates = set(string_list(rule.get("allowed_entry_gates"), f"status_rules.{status}.allowed_entry_gates", failures))
@@ -399,8 +387,6 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
             implemented_count += 1
             validate_implemented_pack(pack_id, pack, rule, failures)
 
-    if not all(isinstance(order, int) and order > 0 for order in orders) or orders != sorted(set(orders)):
-        fail(failures, f"{pack_manifest_path}: pack order values must be unique ascending positive integers")
     if implemented_count < 1:
         fail(failures, "industry lifecycle requires at least one implemented pack")
     if reserved_or_planned_count < 1:
