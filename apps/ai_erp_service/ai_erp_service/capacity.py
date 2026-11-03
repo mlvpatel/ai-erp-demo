@@ -21,6 +21,8 @@ from ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order
 	make_draft_sales_invoice,
 )
 from ai_erp_service.performance import (
+	_grant_company_defaults,
+	_make_user,
 	_profile_order,
 	_run_list_scenario,
 	_run_profitability_report_scenario,
@@ -244,36 +246,8 @@ def _make_users(baseline):
 		_make_user(f"capacity.concurrent.manager.{index}@example.test", ["Service Manager", "Stock User"])
 		for index in range(1, CONCURRENT_USERS + 1)
 	]
-	for user in [manager, finance, *concurrent]:
-		frappe.get_doc(
-			{
-				"doctype": "User Permission",
-				"user": user,
-				"allow": "Company",
-				"for_value": baseline["company"],
-				"is_default": 1,
-				"apply_to_all_doctypes": 1,
-			}
-		).insert(ignore_permissions=True)
-		frappe.defaults.set_user_default("Company", baseline["company"], user=user)
-		frappe.defaults.set_user_default("Selling Price List", baseline["price_list"], user=user)
-		frappe.defaults.set_user_default("Currency", baseline["currency"], user=user)
-		frappe.clear_cache(user=user)
+	_grant_company_defaults([manager, finance, *concurrent], baseline)
 	return {"technician": technician, "manager": manager, "finance": finance, "concurrent_managers": concurrent}
-
-
-def _make_user(email, roles):
-	return frappe.get_doc(
-		{
-			"doctype": "User",
-			"email": email,
-			"first_name": "Synthetic Capacity",
-			"enabled": 1,
-			"send_welcome_email": 0,
-			"user_type": "System User",
-			"roles": [{"role": role} for role in roles],
-		}
-	).insert(ignore_permissions=True).name
 
 
 def _make_customers(profile, prefix, baseline):
@@ -605,28 +579,23 @@ def _issue_over_http(work_order, credential, site_name):
 
 def _record_counts(context):
 	prefix = context["prefix"]
-	time_rows = frappe.db.sql(
-		"""
-		select count(*)
-		from `tabService Work Order Time` child
-		inner join `tabService Work Order` work_order on work_order.name = child.parent
-		where child.parenttype = 'Service Work Order'
-		  and child.parentfield = 'time_entries'
-		  and work_order.subject like %s
-		""",
-		(f"{prefix}%",),
-	)[0][0]
-	part_rows = frappe.db.sql(
-		"""
-		select count(*)
-		from `tabService Work Order Part` child
-		inner join `tabService Work Order` work_order on work_order.name = child.parent
-		where child.parenttype = 'Service Work Order'
-		  and child.parentfield = 'parts'
-		  and work_order.subject like %s
-		""",
-		(f"{prefix}%",),
-	)[0][0]
+
+	def child_rows(table, parentfield):
+		# table is always one of the two literal child tables below, never input.
+		return frappe.db.sql(
+			f"""
+			select count(*)
+			from `{table}` child
+			inner join `tabService Work Order` work_order on work_order.name = child.parent
+			where child.parenttype = 'Service Work Order'
+			  and child.parentfield = %s
+			  and work_order.subject like %s
+			""",
+			(parentfield, f"{prefix}%"),
+		)[0][0]
+
+	time_rows = child_rows("tabService Work Order Time", "time_entries")
+	part_rows = child_rows("tabService Work Order Part", "parts")
 	return {
 		"customers": frappe.db.count("Customer", {"customer_name": ["like", f"{prefix}%"]}),
 		"service_locations": frappe.db.count("Service Location", {"location_name": ["like", f"{prefix}%"]}),

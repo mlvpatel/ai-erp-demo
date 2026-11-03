@@ -33,8 +33,7 @@ This checks:
 - developer helper smoke output,
 - local generated artifact counting,
 - local Markdown links,
-- contract catalog consistency,
-- contract lifecycle/versioning consistency,
+- contract catalog, lifecycle, and versioning consistency,
 - integration and connector safety consistency,
 - operations and recovery readiness consistency,
 - observability readiness consistency,
@@ -46,7 +45,6 @@ This checks:
 - GitHub repository metadata consistency,
 - GitHub Actions workflow consistency,
 - GitHub label manifest consistency,
-- first public issue manifest consistency,
 - MVP acceptance evidence consistency,
 - authorization and approval matrix consistency,
 - transaction safety invariant consistency,
@@ -58,7 +56,6 @@ This checks:
 - release policy and versioning consistency,
 - owner-decision template consistency,
 - license metadata reconciliation consistency,
-- industry-pack manifest consistency,
 - industry-pack lifecycle consistency,
 - credential-free AWS production-IaC invariants,
 - synthetic service-pilot evidence and pending-gate consistency,
@@ -88,7 +85,7 @@ Run when changing `services/ai_control_plane/`, `contracts/openapi/`, or the
 Frappe code that calls the control plane:
 
 ```sh
-python -m pip install ./services/ai_control_plane
+python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s services/ai_control_plane/tests -v
 python -m unittest discover -s tests/contract -v
 ```
@@ -97,30 +94,6 @@ The local Python interpreter must satisfy the repository requirement in
 `services/ai_control_plane/pyproject.toml`. If the host Python is older, use the
 Docker-backed `scripts/dev.sh control-plane-test` and
 `scripts/dev.sh contract-test` helpers instead.
-
-In the Docker dev stack, the equivalent contract-test path is:
-
-```sh
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m pip install ./services/ai_control_plane
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m unittest discover -s services/ai_control_plane/tests -v
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m pip install ./services/ai_control_plane
-
-docker compose --env-file development/.env \
-  -f infra/compose/docker-compose.dev.yml exec \
-  --workdir /workspace frappe \
-  python -m unittest discover -s tests/contract -v
-```
 
 ## ERP service workflow gate
 

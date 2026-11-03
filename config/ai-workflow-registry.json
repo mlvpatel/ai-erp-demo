@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable registry of approved AI-assisted ERP workflows. It prevents new AI routes or proposal types from bypassing data-boundary, contract, documentation, and test requirements.",
   "lifecycle_doc": "docs/workflows/ai-workflow-lifecycle.md",
   "review_checklist": "docs/security/ai-workflow-review.md",
   "threat_model": "docs/security/threat-model.md",
@@ -47,7 +45,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_service_closeout_summary"
+        "function": "request_proposal"
       },
       "docs": [
         "apps/ai_erp_service/README.md",
@@ -89,7 +87,16 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0009-scheduling-explanation-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-scheduling.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "candidates",
+        "excluded",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
@@ -113,7 +120,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_scheduling_explanation"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0009-scheduling-explanation-proposal-type.md",
@@ -151,7 +158,17 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0010-exception-recovery-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-exception-recovery.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "exception",
+        "parts",
+        "related_history",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
@@ -175,7 +192,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_exception_recovery"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0010-exception-recovery-proposal-type.md",
@@ -213,7 +230,15 @@
         "allowed_action": "none"
       },
       "adr": "docs/adr/0011-repair-memory-proposal-type.md",
-      "data_boundary_manifest": "config/ai-data-boundary-repair-memory.json",
+      "allowed_request_fields": [
+        "schema_version",
+        "request_id",
+        "tenant_site",
+        "requested_by",
+        "work_order",
+        "related_history",
+        "sources"
+      ],
       "openapi_contract": "contracts/openapi/ai-control-plane-v1.yaml",
       "control_plane_handler": {
         "path": "services/ai_control_plane/src/ai_erp_control_plane/app.py",
@@ -237,7 +262,7 @@
       },
       "proposal_storage": {
         "path": "apps/ai_erp_core/ai_erp_core/proposals.py",
-        "function": "request_repair_memory"
+        "function": "request_proposal"
       },
       "docs": [
         "docs/adr/0011-repair-memory-proposal-type.md",

@@ -8,7 +8,7 @@ and never posts ERP state.
 from uuid import uuid4
 
 import frappe
-from ai_erp_core.proposals import request_repair_memory as store_repair_memory
+from ai_erp_core.proposals import request_proposal
 from frappe import _
 from frappe.utils import flt
 
@@ -33,7 +33,7 @@ def request_repair_memory_draft(name):
 		)
 
 	payload = _repair_memory_payload(work_order)
-	proposal = store_repair_memory(work_order.doctype, work_order.name, payload)
+	proposal = request_proposal("Repair Memory", work_order.doctype, work_order.name, payload)
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
 
 

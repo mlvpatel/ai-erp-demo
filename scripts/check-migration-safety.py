@@ -3,82 +3,28 @@
 
 from __future__ import annotations
 
-import json
-import sys
 from pathlib import Path
 from typing import Any
 
+from _gate import (
+    REPO_ROOT,
+    contains_snippet,
+    joined_doc_phrases,
+    load_json,
+    load_json_object,
+    read_text,
+    rel,
+    report,
+    required_path,
+    string_list,
+)
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "migration-safety.json"
-
-
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
-def load_json(path: Path, failures: list[str]) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
-    except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
-    return None
-
-
-def read_text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
-        return ""
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
-
-
-def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
-    if not isinstance(value, list) or not value:
-        fail(failures, f"{field} must be a non-empty list")
-        return []
-    result: list[str] = []
-    for index, item in enumerate(value, 1):
-        if not isinstance(item, str) or not item.strip():
-            fail(failures, f"{field}[{index}] must be a non-empty string")
-            continue
-        result.append(item)
-    return result
-
-
-def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
-    value = manifest.get(field)
-    if not isinstance(value, str) or not value.strip():
-        fail(failures, f"{field} must be a non-empty string")
-        return None
-    if not (REPO_ROOT / value).is_file():
-        fail(failures, f"{field} path is missing: {value}")
-    return value
+DOC_FIELDS = ("workflow_doc", "quality_gates_doc", "dependency_workflow_doc", "local_demo_runbook")
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "migration-safety.json schema_version must be 1")
-    if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
-        fail(failures, "description must be a non-empty string")
-
     for field in (
         "workflow_doc",
         "quality_gates_doc",
@@ -102,29 +48,29 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
-            fail(failures, f"{field} must be a non-empty list")
+            failures.append(f"{field} must be a non-empty list")
 
 
 def validate_apps(manifest: dict[str, Any], failures: list[str]) -> None:
     for index, app in enumerate(manifest.get("apps", []), 1):
         if not isinstance(app, dict):
-            fail(failures, f"apps[{index}] must be an object")
+            failures.append(f"apps[{index}] must be an object")
             continue
         app_name = app.get("name")
         if not isinstance(app_name, str) or not app_name:
-            fail(failures, f"apps[{index}].name must be a non-empty string")
+            failures.append(f"apps[{index}].name must be a non-empty string")
             app_name = f"apps[{index}]"
 
         hooks_path = app.get("hooks")
         patches_path = app.get("patches")
         if not isinstance(hooks_path, str) or not isinstance(patches_path, str):
-            fail(failures, f"{app_name}: hooks and patches must be paths")
+            failures.append(f"{app_name}: hooks and patches must be paths")
             continue
 
         hooks_text = read_text(REPO_ROOT / hooks_path, failures)
         for snippet in string_list(app.get("required_hook_snippets"), f"{app_name}.required_hook_snippets", failures):
             if not contains_snippet(hooks_text, snippet):
-                fail(failures, f"{app_name}: hooks missing snippet: {snippet}")
+                failures.append(f"{app_name}: hooks missing snippet: {snippet}")
 
         validate_patches(
             app_name,
@@ -133,18 +79,18 @@ def validate_apps(manifest: dict[str, Any], failures: list[str]) -> None:
             failures,
         )
         for doctype_path in string_list(app.get("doctypes"), f"{app_name}.doctypes", failures):
-            value = load_json(REPO_ROOT / doctype_path, failures)
+            value = load_json_object(REPO_ROOT / doctype_path, failures)
             if not isinstance(value, dict):
                 continue
             if value.get("doctype") != "DocType":
-                fail(failures, f"{doctype_path}: expected doctype marker 'DocType'")
+                failures.append(f"{doctype_path}: expected doctype marker 'DocType'")
             if not isinstance(value.get("name"), str) or not value["name"]:
-                fail(failures, f"{doctype_path}: DocType JSON must have a name")
+                failures.append(f"{doctype_path}: DocType JSON must have a name")
 
 
 def validate_patches(app_name: str, path: Path, approved: Any, failures: list[str]) -> None:
     if not isinstance(approved, list) or any(not isinstance(item, str) or not item for item in approved):
-        fail(failures, f"{app_name}: approved_patches must be a list of dotted patch paths")
+        failures.append(f"{app_name}: approved_patches must be a list of dotted patch paths")
         approved = []
     approved_set = set(approved)
     active: set[str] = set()
@@ -156,9 +102,9 @@ def validate_patches(app_name: str, path: Path, approved: Any, failures: list[st
             continue
         active.add(stripped)
         if stripped not in approved_set:
-            fail(failures, f"{app_name}: unapproved patches.txt entry on line {line_number}: {stripped}")
+            failures.append(f"{app_name}: unapproved patches.txt entry on line {line_number}: {stripped}")
     for missing in sorted(approved_set - active):
-        fail(failures, f"{app_name}: approved patch is not active in patches.txt: {missing}")
+        failures.append(f"{app_name}: approved patch is not active in patches.txt: {missing}")
 
 
 def validate_dev_helper(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -168,13 +114,13 @@ def validate_dev_helper(manifest: dict[str, Any], failures: list[str]) -> None:
     text = read_text(REPO_ROOT / path_value, failures)
     for snippet in string_list(manifest.get("dev_helper_required_snippets"), "dev_helper_required_snippets", failures):
         if not contains_snippet(text, snippet):
-            fail(failures, f"{path_value} missing migration snippet: {snippet}")
+            failures.append(f"{path_value} missing migration snippet: {snippet}")
 
     position = -1
     for snippet in string_list(manifest.get("demo_check_order"), "demo_check_order", failures):
         next_position = text.find(snippet, position + 1)
         if next_position == -1:
-            fail(failures, f"{path_value} missing demo-check ordered snippet: {snippet}")
+            failures.append(f"{path_value} missing demo-check ordered snippet: {snippet}")
             return
         position = next_position
 
@@ -186,19 +132,19 @@ def validate_bootstrap(manifest: dict[str, Any], failures: list[str]) -> None:
     text = read_text(REPO_ROOT / path_value, failures)
     for snippet in string_list(manifest.get("bootstrap_required_snippets"), "bootstrap_required_snippets", failures):
         if not contains_snippet(text, snippet):
-            fail(failures, f"{path_value} missing bootstrap snippet: {snippet}")
+            failures.append(f"{path_value} missing bootstrap snippet: {snippet}")
 
 
 def validate_fresh_clone_steps(manifest: dict[str, Any], failures: list[str]) -> None:
     path_value = manifest.get("fresh_clone_demo")
     if not isinstance(path_value, str):
         return
-    value = load_json(REPO_ROOT / path_value, failures)
+    value = load_json_object(REPO_ROOT / path_value, failures)
     if not isinstance(value, dict):
         return
     steps = value.get("steps")
     if not isinstance(steps, list):
-        fail(failures, f"{path_value}: steps must be a list")
+        failures.append(f"{path_value}: steps must be a list")
         return
     step_ids = {
         step.get("id")
@@ -211,23 +157,7 @@ def validate_fresh_clone_steps(manifest: dict[str, Any], failures: list[str]) ->
         failures,
     ):
         if step_id not in step_ids:
-            fail(failures, f"{path_value}: missing migration/demo step id {step_id}")
-
-
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            manifest.get("workflow_doc"),
-            manifest.get("quality_gates_doc"),
-            manifest.get("dependency_workflow_doc"),
-            manifest.get("local_demo_runbook"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            fail(failures, f"migration safety docs missing phrase: {phrase}")
+            failures.append(f"{path_value}: missing migration/demo step id {step_id}")
 
 
 def iter_text_files(root: Path) -> list[Path]:
@@ -249,7 +179,7 @@ def validate_no_direct_schema_ddl(manifest: dict[str, Any], failures: list[str])
     for path_value in string_list(manifest.get("scan_paths"), "scan_paths", failures):
         root = REPO_ROOT / path_value
         if not root.exists():
-            fail(failures, f"schema SQL scan path is missing: {path_value}")
+            failures.append(f"schema SQL scan path is missing: {path_value}")
             continue
         for file_path in iter_text_files(root):
             try:
@@ -259,13 +189,12 @@ def validate_no_direct_schema_ddl(manifest: dict[str, Any], failures: list[str])
             upper_text = text.upper()
             for term in terms:
                 if term.upper() in upper_text:
-                    fail(failures, f"{rel(file_path)} contains forbidden schema DDL: {term}")
+                    failures.append(f"{rel(file_path)} contains forbidden schema DDL: {term}")
 
 
 def main() -> int:
     failures: list[str] = []
-    value = load_json(MANIFEST_PATH, failures)
-    manifest = value if isinstance(value, dict) else {}
+    manifest = load_json(MANIFEST_PATH, failures)
 
     if manifest:
         validate_shape(manifest, failures)
@@ -273,17 +202,10 @@ def main() -> int:
         validate_dev_helper(manifest, failures)
         validate_bootstrap(manifest, failures)
         validate_fresh_clone_steps(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "migration safety", failures)
         validate_no_direct_schema_ddl(manifest, failures)
 
-    if failures:
-        print("Migration safety check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Migration safety check passed.")
-    return 0
+    return report("Migration safety check", failures)
 
 
 if __name__ == "__main__":

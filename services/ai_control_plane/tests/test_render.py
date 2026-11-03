@@ -1,8 +1,7 @@
-import hashlib
 import unittest
-from datetime import date, datetime, timedelta
-from uuid import uuid4
+from datetime import datetime, timedelta
 
+from _payloads import envelope, offset_date, source
 from pydantic import ValidationError
 
 from ai_erp_control_plane.models import (
@@ -19,36 +18,14 @@ from ai_erp_control_plane.render import (
 )
 
 
-def _hash(value):
-	return hashlib.sha256(value.encode()).hexdigest()
-
-
-def _offset_date(days):
-	"""Keep fixture dates relative so they never drift into the past."""
-	return (date.today() + timedelta(days=days)).isoformat()
-
-
 def _offset_datetime(days):
 	stamp = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0) + timedelta(days=days)
 	return stamp.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _source_for(name, field, value):
-	return {
-		"doctype": "Service Work Order",
-		"name": name,
-		"field": field,
-		"content_hash": _hash(value),
-	}
-
-
 def _valid_request_payload():
-	return {
-		"schema_version": 1,
-		"request_id": str(uuid4()),
-		"tenant_site": "demo.localhost",
-		"requested_by": "technician@example.test",
-		"work_order": {
+	return envelope(
+		work_order={
 			"doctype": "Service Work Order",
 			"name": "SVC-WO-00001",
 			"subject": "Inspect pump",
@@ -58,22 +35,15 @@ def _valid_request_payload():
 			"time_entries": [
 				{
 					"technician": "technician@example.test",
-					"work_date": _offset_date(-2),
+					"work_date": offset_date(-2),
 					"time_type": "Work",
 					"hours": 1.5,
 				}
 			],
 			"parts": [],
 		},
-		"sources": [
-			{
-				"doctype": "Service Work Order",
-				"name": "SVC-WO-00001",
-				"field": "closeout_notes",
-				"content_hash": _hash("Tightened the mount."),
-			}
-		],
-	}
+		sources=[source("SVC-WO-00001", "closeout_notes", "Tightened the mount.")],
+	)
 
 
 class TestDevelopmentTemplate(unittest.TestCase):
@@ -98,14 +68,7 @@ class TestDevelopmentTemplate(unittest.TestCase):
 			"closeout_notes": "Replaced the seal.",
 		}
 		payload["work_order"]["related_history"] = [history_entry]
-		payload["sources"].append(
-			{
-				"doctype": "Service Work Order",
-				"name": "SVC-WO-00000",
-				"field": "history",
-				"content_hash": _hash("Replaced the seal."),
-			}
-		)
+		payload["sources"].append(source("SVC-WO-00000", value="Replaced the seal."))
 		request = ServiceCloseoutSummaryRequest.model_validate(payload)
 
 		response = render_development_template(request)
@@ -125,12 +88,9 @@ class TestDevelopmentTemplate(unittest.TestCase):
 			ServiceCloseoutSummaryRequest.model_validate(bounded)
 
 	def test_scheduling_explanation_is_deterministic_cited_and_cannot_assign(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "dispatcher@example.test",
-			"work_order": {
+		payload = envelope(
+			"dispatcher@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-00002",
 				"subject": "Quarterly pump service",
@@ -138,7 +98,7 @@ class TestDevelopmentTemplate(unittest.TestCase):
 				"service_priority": "High",
 				"sla_due_at": _offset_datetime(2),
 			},
-			"candidates": [
+			candidates=[
 				{
 					"technician": "tech.a@example.test",
 					"score": 2,
@@ -154,16 +114,9 @@ class TestDevelopmentTemplate(unittest.TestCase):
 					"reasons": ["open_workload:1", "completed_here:0"],
 				},
 			],
-			"excluded": [{"technician": "tech.c@example.test", "reason": "overlapping_scheduled_work"}],
-			"sources": [
-				{
-					"doctype": "Service Work Order",
-					"name": "SVC-WO-00002",
-					"field": "scheduling",
-					"content_hash": _hash("ranking"),
-				}
-			],
-		}
+			excluded=[{"technician": "tech.c@example.test", "reason": "overlapping_scheduled_work"}],
+			sources=[source("SVC-WO-00002", "scheduling", "ranking")],
+		)
 		request = SchedulingExplanationRequest.model_validate(payload)
 
 		response = render_scheduling_template(request)
@@ -186,12 +139,9 @@ class TestDevelopmentTemplate(unittest.TestCase):
 			SchedulingExplanationRequest.model_validate({**payload, "assign_to": "tech.a@example.test"})
 
 	def test_exception_recovery_maps_reasons_and_abstains_on_weak_evidence(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "manager@example.test",
-			"work_order": {
+		payload = envelope(
+			"manager@example.test",
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-00003",
 				"subject": "Compressor will not restart",
@@ -199,14 +149,14 @@ class TestDevelopmentTemplate(unittest.TestCase):
 				"cannot_close_reason": "Parts unavailable",
 				"inspection_result": "Failed",
 			},
-			"exception": {
+			exception={
 				"name": "SVC-EXC-00001",
 				"reason": "Parts unavailable",
 				"status": "Open",
-				"due_date": _offset_date(3),
+				"due_date": offset_date(3),
 			},
-			"parts": [{"item": "COMP-VALVE", "qty": 1, "issued": False}],
-			"related_history": [
+			parts=[{"item": "COMP-VALVE", "qty": 1, "issued": False}],
+			related_history=[
 				{
 					"name": "SVC-WO-00001",
 					"subject": "Prior compressor repair",
@@ -214,16 +164,11 @@ class TestDevelopmentTemplate(unittest.TestCase):
 					"closeout_notes": "Replaced valve and reset controller.",
 				}
 			],
-			"sources": [
-				{
-					"doctype": "Service Closure Exception",
-					"name": "SVC-EXC-00001",
-					"field": "reason",
-					"content_hash": _hash("Parts unavailable"),
-				},
-				_source_for("SVC-WO-00001", "history", "Replaced valve and reset controller."),
+			sources=[
+				source("SVC-EXC-00001", "reason", "Parts unavailable", "Service Closure Exception"),
+				source("SVC-WO-00001", value="Replaced valve and reset controller."),
 			],
-		}
+		)
 		request = ExceptionRecoveryRequest.model_validate(payload)
 
 		response = render_recovery_template(request)
@@ -249,19 +194,15 @@ class TestDevelopmentTemplate(unittest.TestCase):
 			ExceptionRecoveryRequest.model_validate({**payload, "close_exception": True})
 
 	def test_repair_memory_reuses_only_cited_history_and_abstains_without_it(self):
-		payload = {
-			"schema_version": 1,
-			"request_id": str(uuid4()),
-			"tenant_site": "demo.localhost",
-			"requested_by": "technician@example.test",
-			"work_order": {
+		payload = envelope(
+			work_order={
 				"doctype": "Service Work Order",
 				"name": "SVC-WO-00004",
 				"subject": "Pump vibrates at startup",
 				"status": "In Progress",
 				"description": "Recurring vibration report.",
 			},
-			"related_history": [
+			related_history=[
 				{
 					"name": "SVC-WO-00001",
 					"subject": "Prior pump repair",
@@ -278,11 +219,8 @@ class TestDevelopmentTemplate(unittest.TestCase):
 					"parts": [{"item": "MOUNT-KIT", "qty": 1, "issued": True}],
 				},
 			],
-			"sources": [
-				_source_for("SVC-WO-00001", "history", "prior"),
-				_source_for("SVC-WO-00002", "history", "second prior"),
-			],
-		}
+			sources=[source("SVC-WO-00001", value="prior"), source("SVC-WO-00002", value="second prior")],
+		)
 		request = RepairMemoryRequest.model_validate(payload)
 
 		response = render_repair_memory_template(request)
@@ -297,7 +235,7 @@ class TestDevelopmentTemplate(unittest.TestCase):
 		self.assertNotIn("Evidence note", response.draft_content)
 
 		partly_cited = dict(payload)
-		partly_cited["sources"] = [_source_for("SVC-WO-00001", "history", "prior")]
+		partly_cited["sources"] = [source("SVC-WO-00001", value="prior")]
 		partial = render_repair_memory_template(RepairMemoryRequest.model_validate(partly_cited))
 		self.assertIn("SVC-WO-00001", partial.draft_content)
 		self.assertNotIn("SVC-WO-00002", partial.draft_content)

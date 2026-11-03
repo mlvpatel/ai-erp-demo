@@ -4,15 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
-import sys
-from pathlib import Path
 from typing import Any
 
+from _gate import REPO_ROOT, load_json_object, read_text, report
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
 MANIFEST_PATH = REPO_ROOT / "config" / "license-metadata.json"
 OWNER_DECISIONS_PATH = REPO_ROOT / "config" / "owner-decisions.local.json"
 LICENSE_RUNBOOK = REPO_ROOT / "docs" / "runbooks" / "license-decision.md"
@@ -21,50 +19,8 @@ HOOK_EMAIL_PATTERN = re.compile(r'^app_email\s*=\s*"([^"]+)"', re.MULTILINE)
 HOOK_LICENSE_PATTERN = re.compile(r'^app_license\s*=\s*"([^"]+)"', re.MULTILINE)
 
 
-def rel(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
-def fail(failures: list[str], message: str) -> None:
-    failures.append(message)
-
-
-def load_json(path: Path, failures: list[str]) -> dict[str, Any] | None:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        fail(failures, f"missing JSON file: {rel(path)}")
-        return None
-    except json.JSONDecodeError as exc:
-        fail(failures, f"invalid JSON in {rel(path)}: {exc}")
-        return None
-    if not isinstance(value, dict):
-        fail(failures, f"{rel(path)} must contain a JSON object")
-        return None
-    return value
-
-
-def text(path: Path, failures: list[str]) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        fail(failures, f"missing file: {rel(path)}")
-        return ""
-
-
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, check=False)
-
-
-def normalize_space(value: str) -> str:
-    return " ".join(value.split())
-
-
-def contains_snippet(haystack: str, needle: str) -> bool:
-    return normalize_space(needle) in normalize_space(haystack)
 
 
 def manifest_paths(manifest: dict[str, Any]) -> set[str]:
@@ -99,114 +55,90 @@ def current_placeholder_locations(paths: set[str]) -> list[str]:
 
 
 def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "license-metadata.json schema_version must be 1")
     status = manifest.get("status")
-    if status not in {"pending-owner-decision", "selected"}:
-        fail(failures, "license-metadata.json status must be pending-owner-decision or selected")
-    if manifest.get("owner_decision_file") != "config/owner-decisions.local.json":
-        fail(failures, "owner_decision_file must be config/owner-decisions.local.json")
+    if status != "selected":
+        failures.append("license-metadata.json status must be selected")
 
     placeholders = manifest.get("placeholder_patterns")
     if not isinstance(placeholders, list) or not placeholders:
-        fail(failures, "placeholder_patterns must be a non-empty list")
+        failures.append("placeholder_patterns must be a non-empty list")
     else:
         for required in ("[year]", "[fullname]", "opensource@ai-erp.example"):
             if required not in placeholders:
-                fail(failures, f"placeholder_patterns must include {required!r}")
+                failures.append(f"placeholder_patterns must include {required!r}")
 
     policies = manifest.get("policies")
     if not isinstance(policies, dict) or not policies:
-        fail(failures, "policies must be a non-empty object")
+        failures.append("policies must be a non-empty object")
     else:
         for policy, data in policies.items():
             if not isinstance(data, dict):
-                fail(failures, f"{policy}: policy metadata must be an object")
+                failures.append(f"{policy}: policy metadata must be an object")
                 continue
             if not isinstance(data.get("display"), str) or not data["display"].strip():
-                fail(failures, f"{policy}: display must be non-empty")
+                failures.append(f"{policy}: display must be non-empty")
             if not isinstance(data.get("frappe_app_license"), str) or not data["frappe_app_license"].strip():
-                fail(failures, f"{policy}: frappe_app_license must be non-empty")
+                failures.append(f"{policy}: frappe_app_license must be non-empty")
             hint = data.get("root_license_hint")
             if hint is not None and not isinstance(hint, str):
-                fail(failures, f"{policy}: root_license_hint must be string or null")
+                failures.append(f"{policy}: root_license_hint must be string or null")
 
     if status == "selected":
         selected_policy = manifest.get("selected_policy")
         if not isinstance(selected_policy, str) or not isinstance(policies, dict) or selected_policy not in policies:
-            fail(failures, "selected_policy must name a policy from license-metadata.json")
+            failures.append("selected_policy must name a policy from license-metadata.json")
         for field in ("copyright_year", "copyright_holder", "public_contact_email"):
             value = manifest.get(field)
             if not isinstance(value, str) or not value.strip():
-                fail(failures, f"selected license metadata requires non-empty {field}")
+                failures.append(f"selected license metadata requires non-empty {field}")
 
     if not isinstance(manifest.get("root_targets"), list) or "LICENSE" not in manifest.get("root_targets", []):
-        fail(failures, "root_targets must include LICENSE")
+        failures.append("root_targets must include LICENSE")
 
     apps = manifest.get("frappe_apps")
     if not isinstance(apps, list) or not apps:
-        fail(failures, "frappe_apps must be a non-empty list")
+        failures.append("frappe_apps must be a non-empty list")
     else:
         for index, app in enumerate(apps, 1):
             if not isinstance(app, dict):
-                fail(failures, f"frappe_apps[{index}] must be an object")
+                failures.append(f"frappe_apps[{index}] must be an object")
                 continue
             for field in ("name", "hook_path", "pyproject_path", "license_path", "readme_path"):
                 if not isinstance(app.get(field), str) or not app[field].strip():
-                    fail(failures, f"frappe_apps[{index}].{field} must be a non-empty string")
+                    failures.append(f"frappe_apps[{index}].{field} must be a non-empty string")
 
     services = manifest.get("python_services")
     if not isinstance(services, list):
-        fail(failures, "python_services must be a list")
+        failures.append("python_services must be a list")
     else:
         for index, service in enumerate(services, 1):
             if not isinstance(service, dict):
-                fail(failures, f"python_services[{index}] must be an object")
+                failures.append(f"python_services[{index}] must be an object")
                 continue
             for field in ("name", "pyproject_path"):
                 if not isinstance(service.get(field), str) or not service[field].strip():
-                    fail(failures, f"python_services[{index}].{field} must be a non-empty string")
+                    failures.append(f"python_services[{index}].{field} must be a non-empty string")
 
 
 def validate_target_files(manifest: dict[str, Any], failures: list[str]) -> None:
     paths = manifest_paths(manifest)
-    runbook = text(LICENSE_RUNBOOK, failures)
+    runbook = read_text(LICENSE_RUNBOOK, failures)
     for value in sorted(paths):
         path = REPO_ROOT / value
         if value == "LICENSE":
             continue
         if not path.is_file():
-            fail(failures, f"license metadata target missing: {value}")
+            failures.append(f"license metadata target missing: {value}")
         if value not in runbook:
-            fail(failures, f"license decision runbook must mention metadata target: {value}")
-
-
-def validate_pending_state(manifest: dict[str, Any], failures: list[str]) -> None:
-    paths = manifest_paths(manifest)
-    findings = current_placeholder_locations(paths)
-    expected_fragments = {
-        "apps/ai_erp_core/pyproject.toml:",
-        "apps/ai_erp_core/license.txt:",
-        "apps/ai_erp_core/ai_erp_core/hooks.py:",
-        "apps/ai_erp_service/pyproject.toml:",
-        "apps/ai_erp_service/license.txt:",
-        "apps/ai_erp_service/ai_erp_service/hooks.py:",
-    }
-    missing = [fragment for fragment in sorted(expected_fragments) if not any(fragment in item for item in findings)]
-    if missing and not (REPO_ROOT / "LICENSE").is_file():
-        fail(
-            failures,
-            "pending license state should keep known placeholder evidence until owner reconciliation: "
-            + ", ".join(missing),
-        )
+            failures.append(f"license decision runbook must mention metadata target: {value}")
 
 
 def load_owner_decisions(failures: list[str]) -> dict[str, Any] | None:
     result = run(["python3", "scripts/check-owner-decisions.py", "--strict"])
     if result.returncode != 0:
-        fail(failures, "owner decisions are required for strict license metadata check:\n" + result.stderr.strip())
+        failures.append("owner decisions are required for strict license metadata check:\n" + result.stderr.strip())
         return None
-    return load_json(OWNER_DECISIONS_PATH, failures)
+    return load_json_object(OWNER_DECISIONS_PATH, failures)
 
 
 def value_from_regex(pattern: re.Pattern[str], source: str) -> str | None:
@@ -222,21 +154,21 @@ def validate_reconciled_state(
     policy_name = owner.get("license_policy")
     policies = manifest.get("policies", {})
     if not isinstance(policy_name, str) or policy_name not in policies:
-        fail(failures, "owner license_policy must exist in config/license-metadata.json policies")
+        failures.append("owner license_policy must exist in config/license-metadata.json policies")
         return
     policy = policies[policy_name]
 
     root_license = REPO_ROOT / "LICENSE"
     if not root_license.is_file():
-        fail(failures, "strict license metadata requires root LICENSE")
+        failures.append("strict license metadata requires root LICENSE")
     else:
         hint = policy.get("root_license_hint")
         if isinstance(hint, str) and hint not in root_license.read_text(encoding="utf-8"):
-            fail(failures, f"root LICENSE does not contain expected policy hint: {hint}")
+            failures.append(f"root LICENSE does not contain expected policy hint: {hint}")
 
     placeholders = current_placeholder_locations(manifest_paths(manifest))
     if placeholders:
-        fail(failures, "license/contact placeholders remain:\n" + "\n".join(placeholders))
+        failures.append("license/contact placeholders remain:\n" + "\n".join(placeholders))
 
     public_email = owner.get("public_contact_email")
     copyright_line = f"Copyright (c) {owner.get('copyright_year')} {owner.get('copyright_holder')}"
@@ -247,36 +179,36 @@ def validate_reconciled_state(
         if not isinstance(app, dict):
             continue
         hook_path = REPO_ROOT / app["hook_path"]
-        hook_text = text(hook_path, failures)
+        hook_text = read_text(hook_path, failures)
         hook_email = value_from_regex(HOOK_EMAIL_PATTERN, hook_text)
         hook_license = value_from_regex(HOOK_LICENSE_PATTERN, hook_text)
         if hook_email != public_email:
-            fail(failures, f"{app['hook_path']}: app_email must match owner public_contact_email")
+            failures.append(f"{app['hook_path']}: app_email must match owner public_contact_email")
         if expected_hook_license and hook_license != expected_hook_license:
-            fail(failures, f"{app['hook_path']}: app_license must be {expected_hook_license!r}")
+            failures.append(f"{app['hook_path']}: app_license must be {expected_hook_license!r}")
 
-        pyproject_text = text(REPO_ROOT / app["pyproject_path"], failures)
+        pyproject_text = read_text(REPO_ROOT / app["pyproject_path"], failures)
         if isinstance(public_email, str) and public_email not in pyproject_text:
-            fail(failures, f"{app['pyproject_path']}: public contact email missing")
+            failures.append(f"{app['pyproject_path']}: public contact email missing")
         if isinstance(display, str) and display not in pyproject_text:
-            fail(failures, f"{app['pyproject_path']}: selected license display missing")
+            failures.append(f"{app['pyproject_path']}: selected license display missing")
 
-        license_text = text(REPO_ROOT / app["license_path"], failures)
+        license_text = read_text(REPO_ROOT / app["license_path"], failures)
         if copyright_line not in license_text:
-            fail(failures, f"{app['license_path']}: copyright line does not match owner decisions")
+            failures.append(f"{app['license_path']}: copyright line does not match owner decisions")
 
-        readme_text = text(REPO_ROOT / app["readme_path"], failures)
+        readme_text = read_text(REPO_ROOT / app["readme_path"], failures)
         if isinstance(display, str) and display not in readme_text:
-            fail(failures, f"{app['readme_path']}: license section must mention {display}")
+            failures.append(f"{app['readme_path']}: license section must mention {display}")
 
     for service in manifest.get("python_services", []):
         if not isinstance(service, dict):
             continue
-        pyproject_text = text(REPO_ROOT / service["pyproject_path"], failures)
+        pyproject_text = read_text(REPO_ROOT / service["pyproject_path"], failures)
         if isinstance(public_email, str) and public_email not in pyproject_text:
-            fail(failures, f"{service['pyproject_path']}: public contact email missing")
+            failures.append(f"{service['pyproject_path']}: public contact email missing")
         if isinstance(display, str) and display not in pyproject_text:
-            fail(failures, f"{service['pyproject_path']}: selected license display missing")
+            failures.append(f"{service['pyproject_path']}: selected license display missing")
 
 
 def public_selected_metadata(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -305,8 +237,7 @@ def validate_strict_state(manifest: dict[str, Any], failures: list[str]) -> None
             ("public_contact_email", "public_contact_email"),
         ):
             if manifest.get(public_field) != owner.get(owner_field):
-                fail(
-                    failures,
+                failures.append(
                     f"public {public_field} must match owner decision {owner_field}",
                 )
 
@@ -323,31 +254,22 @@ def main() -> int:
     args = parser.parse_args()
 
     failures: list[str] = []
-    manifest = load_json(MANIFEST_PATH, failures)
+    manifest = load_json_object(MANIFEST_PATH, failures)
     if manifest is not None:
         validate_manifest_shape(manifest, failures)
         validate_target_files(manifest, failures)
         if args.strict:
             validate_strict_state(manifest, failures)
-        elif manifest.get("status") == "selected":
-            validate_selected_state(manifest, failures)
         else:
-            validate_pending_state(manifest, failures)
-
-    if failures:
-        label = "Strict license metadata check failed" if args.strict else "License metadata check failed"
-        print(label + ":", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
+            validate_selected_state(manifest, failures)
 
     if args.strict:
-        print("Strict license metadata check passed.")
-    elif manifest is not None and manifest.get("status") == "selected":
-        print("License metadata check passed; AGPL-3.0-only is selected and reconciled.")
-    else:
-        print("License metadata check passed; owner license/contact reconciliation is still pending.")
-    return 0
+        return report("Strict license metadata check", failures)
+    return report(
+        "License metadata check",
+        failures,
+        "License metadata check passed; AGPL-3.0-only is selected and reconciled.",
+    )
 
 
 if __name__ == "__main__":

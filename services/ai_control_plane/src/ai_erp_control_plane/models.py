@@ -40,11 +40,14 @@ class RelatedWorkSummary(StrictModel):
 	closeout_notes: str = Field(default="", max_length=4000)
 
 
-class ServiceWorkOrder(StrictModel):
+class _WorkOrderRef(StrictModel):
 	doctype: Literal["Service Work Order"]
 	name: str = Field(min_length=1, max_length=256)
 	subject: str = Field(min_length=1, max_length=256)
 	status: str = Field(min_length=1, max_length=128)
+
+
+class ServiceWorkOrder(_WorkOrderRef):
 	description: str = Field(default="", max_length=4000)
 	closeout_notes: str = Field(default="", max_length=4000)
 	time_entries: list[TimeEntry] = Field(max_length=100)
@@ -52,11 +55,15 @@ class ServiceWorkOrder(StrictModel):
 	related_history: list[RelatedWorkSummary] = Field(default_factory=list, max_length=5)
 
 
-class ServiceCloseoutSummaryRequest(StrictModel):
+class _ProposalRequest(StrictModel):
+	# Subclasses declare sources themselves so it stays the last field, as the contract publishes it.
 	schema_version: Literal[1]
 	request_id: UUID
 	tenant_site: str = Field(min_length=1, max_length=253)
 	requested_by: str = Field(min_length=1, max_length=256)
+
+
+class ServiceCloseoutSummaryRequest(_ProposalRequest):
 	work_order: ServiceWorkOrder
 	sources: list[SourceReference] = Field(min_length=1, max_length=50)
 
@@ -83,12 +90,17 @@ class ProviderAudit(StrictModel):
 	redaction_count: int = Field(ge=0)
 
 
-class ProposalResponse(StrictModel):
+class _DraftResponse(StrictModel):
+	# Subclasses narrow proposal_type to their constant; declaring it here keeps the published field order.
 	schema_version: Literal[1]
 	request_id: UUID
-	proposal_type: Literal["service_closeout_summary"]
+	proposal_type: str
 	policy: Policy
 	model: ModelMetadata
+
+
+class ProposalResponse(_DraftResponse):
+	proposal_type: Literal["service_closeout_summary"]
 	audit: ProviderAudit | None = None
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
@@ -113,34 +125,22 @@ class SchedulingExclusion(StrictModel):
 	reason: str = Field(min_length=1, max_length=128)
 
 
-class SchedulingWorkOrderSummary(StrictModel):
-	doctype: Literal["Service Work Order"]
-	name: str = Field(min_length=1, max_length=256)
-	subject: str = Field(min_length=1, max_length=256)
-	status: str = Field(min_length=1, max_length=128)
+class SchedulingWorkOrderSummary(_WorkOrderRef):
 	service_priority: str = Field(default="", max_length=128)
 	sla_due_at: str = Field(default="", max_length=64)
 	required_skill: str = Field(default="", max_length=128)
 	service_territory: str = Field(default="", max_length=128)
 
 
-class SchedulingExplanationRequest(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
-	tenant_site: str = Field(min_length=1, max_length=253)
-	requested_by: str = Field(min_length=1, max_length=256)
+class SchedulingExplanationRequest(_ProposalRequest):
 	work_order: SchedulingWorkOrderSummary
 	candidates: list[SchedulingCandidate] = Field(max_length=5)
 	excluded: list[SchedulingExclusion] = Field(default_factory=list, max_length=50)
 	sources: list[SourceReference] = Field(min_length=1, max_length=50)
 
 
-class SchedulingProposalResponse(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
+class SchedulingProposalResponse(_DraftResponse):
 	proposal_type: Literal["scheduling_explanation"]
-	policy: Policy
-	model: ModelMetadata
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
 
@@ -158,20 +158,12 @@ class ClosureExceptionSummary(StrictModel):
 	due_date: str = Field(default="", max_length=64)
 
 
-class RecoveryWorkOrderSummary(StrictModel):
-	doctype: Literal["Service Work Order"]
-	name: str = Field(min_length=1, max_length=256)
-	subject: str = Field(min_length=1, max_length=256)
-	status: str = Field(min_length=1, max_length=128)
+class RecoveryWorkOrderSummary(_WorkOrderRef):
 	cannot_close_reason: str = Field(default="", max_length=128)
 	inspection_result: str = Field(default="", max_length=128)
 
 
-class ExceptionRecoveryRequest(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
-	tenant_site: str = Field(min_length=1, max_length=253)
-	requested_by: str = Field(min_length=1, max_length=256)
+class ExceptionRecoveryRequest(_ProposalRequest):
 	work_order: RecoveryWorkOrderSummary
 	exception: ClosureExceptionSummary
 	parts: list[RecoveryPart] = Field(default_factory=list, max_length=200)
@@ -179,49 +171,28 @@ class ExceptionRecoveryRequest(StrictModel):
 	sources: list[SourceReference] = Field(min_length=1, max_length=50)
 
 
-class ExceptionRecoveryProposalResponse(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
+class ExceptionRecoveryProposalResponse(_DraftResponse):
 	proposal_type: Literal["exception_recovery"]
-	policy: Policy
-	model: ModelMetadata
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)
 
 
-class RepairHistoryEntry(StrictModel):
-	name: str = Field(min_length=1, max_length=256)
-	subject: str = Field(min_length=1, max_length=256)
-	status: str = Field(min_length=1, max_length=128)
-	inspection_result: str = Field(default="", max_length=128)
-	closeout_notes: str = Field(default="", max_length=4000)
+class RepairHistoryEntry(RelatedWorkSummary):
 	parts: list[RecoveryPart] = Field(default_factory=list, max_length=200)
 
 
-class RepairMemoryWorkOrderSummary(StrictModel):
-	doctype: Literal["Service Work Order"]
-	name: str = Field(min_length=1, max_length=256)
-	subject: str = Field(min_length=1, max_length=256)
-	status: str = Field(min_length=1, max_length=128)
+class RepairMemoryWorkOrderSummary(_WorkOrderRef):
 	description: str = Field(default="", max_length=4000)
 
 
-class RepairMemoryRequest(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
-	tenant_site: str = Field(min_length=1, max_length=253)
-	requested_by: str = Field(min_length=1, max_length=256)
+class RepairMemoryRequest(_ProposalRequest):
 	work_order: RepairMemoryWorkOrderSummary
 	related_history: list[RepairHistoryEntry] = Field(default_factory=list, max_length=5)
 	sources: list[SourceReference] = Field(min_length=1, max_length=50)
 
 
-class RepairMemoryProposalResponse(StrictModel):
-	schema_version: Literal[1]
-	request_id: UUID
+class RepairMemoryProposalResponse(_DraftResponse):
 	proposal_type: Literal["repair_memory"]
-	policy: Policy
-	model: ModelMetadata
 	audit: ProviderAudit | None = None
 	draft_content: str = Field(min_length=1, max_length=8000)
 	sources: list[SourceReference] = Field(min_length=1)

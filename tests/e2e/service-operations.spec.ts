@@ -40,10 +40,6 @@ async function login(client: APIRequestContext, user: string) {
   expect(response.ok()).toBeTruthy();
 }
 
-async function loginPage(page: Page, user: string) {
-  await login(page.request, user);
-}
-
 async function rolePage(browser: Browser, user: string, viewport = { width: 1440, height: 900 }) {
   const context = await browser.newContext({
     baseURL,
@@ -51,7 +47,7 @@ async function rolePage(browser: Browser, user: string, viewport = { width: 1440
     viewport,
   });
   const page = await context.newPage();
-  await loginPage(page, user);
+  await login(page.request, user);
   return { context, page };
 }
 
@@ -142,6 +138,54 @@ async function saveDoc(client: APIRequestContext, doc: Record<string, any>) {
   const response = await call(client, "frappe.client.save", { doc: JSON.stringify(doc) });
   expect(response.ok()).toBeTruthy();
   return (await response.json()).message as Record<string, any>;
+}
+
+// Fire the same whitelisted call ten times across the sessions; every call must succeed.
+async function fanOut(sessions: APIRequestContext[], method: string, args: Record<string, string>) {
+  const responses = await Promise.all(
+    Array.from({ length: 10 }, (_, index) => call(sessions[index % sessions.length], method, args)),
+  );
+  const payloads = await Promise.all(responses.map(async (response) => await response.json()));
+  const failures = responses.flatMap((response, index) =>
+    response.ok()
+      ? []
+      : [
+          {
+            status: response.status(),
+            exception: payloads[index].exception || "unknown",
+            type: payloads[index].exc_type || "unknown",
+          },
+        ],
+  );
+  expect(failures, JSON.stringify(failures)).toEqual([]);
+  return payloads.map((payload) => payload.message);
+}
+
+async function insertScheduledWorkOrder(
+  client: APIRequestContext,
+  subject: string,
+  extra: Record<string, string | number> = {},
+) {
+  const insert = await call(client, "frappe.client.insert", {
+    doc: JSON.stringify({
+      doctype: "Service Work Order",
+      subject,
+      customer: "AI ERP Demo Customer",
+      service_location: "SVC-LOC-.00001",
+      status: "Draft",
+      ...extra,
+    }),
+  });
+  expect(insert.ok()).toBeTruthy();
+  const doc = (await insert.json()).message as Record<string, any>;
+  doc.assigned_technician = technician;
+  doc.scheduled_start = `${offsetDate(1)} 09:00:00`;
+  doc.scheduled_end = `${offsetDate(1)} 11:00:00`;
+  doc.closure_owner = manager;
+  doc.closure_due_date = offsetDate(7);
+  doc.status = "Scheduled";
+  await saveDoc(client, doc);
+  return doc.name as string;
 }
 
 async function matchingWorkOrders(client: APIRequestContext) {
@@ -240,7 +284,7 @@ async function addChildViaForm(
 }
 
 test("technician and dispatcher receive different permission-scoped queues", async ({ page }) => {
-  await loginPage(page, technician);
+  await login(page.request, technician);
   await page.goto("/app/service-work-order");
   await expect(page).not.toHaveTitle(/Login/);
   await expect.poll(() => page.evaluate(() => Boolean((window as any).frappe?.get_route))).toBeTruthy();
@@ -350,20 +394,7 @@ test("role-driven UI journey preserves stock idempotency and finance separation"
     await setSelectField(technicianPage, "status", "In Progress");
     await saveForm(technicianPage);
     await setTextField(technicianPage, "closeout_notes", "Synthetic browser closeout completed.");
-    await field(technicianPage, "closeout_evidence").getByRole("button", { name: "Attach" }).click();
-    const uploadDialog = technicianPage.locator(".modal:visible").filter({
-      has: technicianPage.getByRole("heading", { name: "Upload" }),
-    });
-    await expect(uploadDialog).toBeVisible();
-    const fileChooserPromise = technicianPage.waitForEvent("filechooser");
-    await uploadDialog.getByRole("button", { name: "My Device" }).click();
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(path.resolve(__dirname, "../fixtures/synthetic-closeout-evidence.txt"));
-    await uploadDialog.getByRole("button", { name: "Upload", exact: true }).click();
-    await expect(uploadDialog).toBeHidden();
-    await expect
-      .poll(() => technicianPage.evaluate(() => (window as any).cur_frm?.doc?.closeout_evidence || ""))
-      .toContain("synthetic-closeout-evidence.txt");
+    await uploadCloseoutEvidence(technicianPage);
     await setSelectField(technicianPage, "status", "Closeout Submitted");
     await saveForm(technicianPage);
     await openForm(technicianPage, "service-work-order", workOrderName);
@@ -388,27 +419,7 @@ test("role-driven UI journey preserves stock idempotency and finance separation"
 
     const issueMethod =
       "ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.issue_parts";
-    const issueResponses = await Promise.all(
-      Array.from({ length: 10 }, (_, index) =>
-        call(concurrentManagerSessions[index % concurrentManagerSessions.length], issueMethod, {
-          name: workOrderName,
-        }),
-      ),
-    );
-    const issuePayloads = await Promise.all(issueResponses.map(async (response) => await response.json()));
-    const issueFailures = issueResponses.flatMap((response, index) =>
-      response.ok()
-        ? []
-        : [
-            {
-              status: response.status(),
-              exception: issuePayloads[index].exception || "unknown",
-              type: issuePayloads[index].exc_type || "unknown",
-            },
-          ],
-    );
-    expect(issueFailures, JSON.stringify(issueFailures)).toEqual([]);
-    const issueResults = issuePayloads.map((payload) => payload.message);
+    const issueResults = await fanOut(concurrentManagerSessions, issueMethod, { name: workOrderName });
 
     workOrder = await getDoc(managerSession, "Service Work Order", workOrderName);
     const linkedEntries = new Set(
@@ -422,15 +433,12 @@ test("role-driven UI journey preserves stock idempotency and finance separation"
       ),
     ).toBeTruthy();
 
-    const stockParameters = new URLSearchParams({
-      doctype: "Stock Entry",
-      fields: JSON.stringify(["name", "docstatus"]),
-      filters: JSON.stringify([["remarks", "=", `Issued from Service Work Order ${workOrderName}`]]),
-      limit_page_length: "20",
-    });
-    const stockResponse = await managerSession.get(`/api/method/frappe.client.get_list?${stockParameters}`);
-    expect(stockResponse.ok()).toBeTruthy();
-    const stockEntries = (await stockResponse.json()).message as Array<Record<string, any>>;
+    const stockEntries = await getList(
+      managerSession,
+      "Stock Entry",
+      ["name", "docstatus"],
+      [["remarks", "=", `Issued from Service Work Order ${workOrderName}`]],
+    );
     expect(stockEntries).toEqual([{ name: stockEntryName, docstatus: 1 }]);
 
     await openForm(managerBrowser.page, "service-work-order", workOrderName);
@@ -481,27 +489,9 @@ test("concurrent AI draft requests converge on one cited proposal", async () => 
     const workOrderName = target!.name;
 
     const draftMethod = "ai_erp_service.ai_drafts.request_closeout_summary";
-    const responses = await Promise.all(
-      Array.from({ length: 10 }, (_, index) =>
-        call(concurrentManagerSessions[index % concurrentManagerSessions.length], draftMethod, {
-          name: workOrderName,
-        }),
-      ),
-    );
-    const payloads = await Promise.all(responses.map(async (response) => await response.json()));
-    const failures = responses.flatMap((response, index) =>
-      response.ok()
-        ? []
-        : [
-            {
-              status: response.status(),
-              exception: payloads[index].exception || "unknown",
-            },
-          ],
-    );
-    expect(failures, JSON.stringify(failures)).toEqual([]);
+    const messages = await fanOut(concurrentManagerSessions, draftMethod, { name: workOrderName });
 
-    const proposalNames = new Set(payloads.map((payload) => payload.message.name as string));
+    const proposalNames = new Set(messages.map((message) => message.name as string));
     expect(proposalNames.size).toBe(1);
     const proposalName = [...proposalNames][0];
 
@@ -752,26 +742,7 @@ test("technician mobile journey guides validation and cannot-close without finan
     expect(warehouse).toBeTruthy();
 
     const closeoutSubject = `AI ERP E2E Mobile Closeout ${Date.now()}`;
-    const closeoutInsert = await call(managerSession, "frappe.client.insert", {
-      doc: JSON.stringify({
-        doctype: "Service Work Order",
-        subject: closeoutSubject,
-        customer: "AI ERP Demo Customer",
-        service_location: "SVC-LOC-.00001",
-        status: "Draft",
-        inspection_required: 1,
-      }),
-    });
-    expect(closeoutInsert.ok()).toBeTruthy();
-    const closeoutDoc = (await closeoutInsert.json()).message as Record<string, any>;
-    closeoutDoc.assigned_technician = technician;
-    closeoutDoc.scheduled_start = `${offsetDate(1)} 09:00:00`;
-    closeoutDoc.scheduled_end = `${offsetDate(1)} 11:00:00`;
-    closeoutDoc.closure_owner = manager;
-    closeoutDoc.closure_due_date = offsetDate(7);
-    closeoutDoc.status = "Scheduled";
-    await saveDoc(managerSession, closeoutDoc);
-    const closeoutName = closeoutDoc.name as string;
+    const closeoutName = await insertScheduledWorkOrder(managerSession, closeoutSubject, { inspection_required: 1 });
 
     const page = technicianBrowser.page;
     await page.goto("/app/service-work-order");
@@ -930,25 +901,7 @@ test("technician mobile journey guides validation and cannot-close without finan
     await expect(page.getByRole("button", { name: "Evidence Packet", exact: true })).toHaveCount(0);
 
     const cannotCloseSubject = `AI ERP E2E Mobile CannotClose ${Date.now()}`;
-    const cannotCloseInsert = await call(managerSession, "frappe.client.insert", {
-      doc: JSON.stringify({
-        doctype: "Service Work Order",
-        subject: cannotCloseSubject,
-        customer: "AI ERP Demo Customer",
-        service_location: "SVC-LOC-.00001",
-        status: "Draft",
-      }),
-    });
-    expect(cannotCloseInsert.ok()).toBeTruthy();
-    const cannotCloseDoc = (await cannotCloseInsert.json()).message as Record<string, any>;
-    cannotCloseDoc.assigned_technician = technician;
-    cannotCloseDoc.scheduled_start = `${offsetDate(1)} 09:00:00`;
-    cannotCloseDoc.scheduled_end = `${offsetDate(1)} 11:00:00`;
-    cannotCloseDoc.closure_owner = manager;
-    cannotCloseDoc.closure_due_date = offsetDate(7);
-    cannotCloseDoc.status = "Scheduled";
-    await saveDoc(managerSession, cannotCloseDoc);
-    const cannotCloseName = cannotCloseDoc.name as string;
+    const cannotCloseName = await insertScheduledWorkOrder(managerSession, cannotCloseSubject);
 
     await openForm(page, "service-work-order", cannotCloseName);
     await setSelectField(page, "status", "In Progress");
@@ -1089,7 +1042,7 @@ test("configured industry demos expose draft shortages without posting", async (
 });
 
 test("manager can open the permission-scoped profitability report", async ({ page }) => {
-  await loginPage(page, manager);
+  await login(page.request, manager);
   await page.goto("/app/query-report/Service%20Profitability");
   await expect(page).not.toHaveTitle(/Login/);
   await expect.poll(() => page.evaluate(() => (window as any).frappe?.get_route?.()[0])).toBe("query-report");

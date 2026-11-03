@@ -126,8 +126,8 @@ issue work-order parts, draft an invoice, or approve an AI proposal.
   with a focused migration and integration-test run when intentionally
   upgrading the ERP base. Follow `docs/workflows/upstream-upgrade-readiness.md`
   before merging the change.
-- Run `scripts/check-reproducibility.sh` before publishing a development-config
-  change.
+- Run `python3 scripts/check-upstream-upgrade-readiness.py` before publishing a
+  development-config change.
 - Generate and install custom apps only after the base site health check passes.
 - Keep custom apps linked from `/workspace/apps/`; do not copy them into the
   ignored Bench checkout.

@@ -12,8 +12,6 @@ import requests
 from frappe import _
 from frappe.utils import now_datetime
 
-CONTROL_PLANE_PATH = "/v1/proposals/service-closeout-summary"
-PROPOSAL_TYPE = "service_closeout_summary"
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 MAX_CONCURRENT_REQUESTS = 2
 MAX_REQUESTS_PER_HOUR = 30
@@ -31,57 +29,17 @@ def content_hash(value):
 	return hashlib.sha256(value.encode()).hexdigest()
 
 
-def request_service_closeout_summary(reference_doctype, reference_name, request_payload):
-	"""Request one allow-listed closeout draft and persist its auditable proposal record."""
-	return _request_proposal(
-		reference_doctype,
-		reference_name,
-		request_payload,
-		route=CONTROL_PLANE_PATH,
-		wire_proposal_type=PROPOSAL_TYPE,
-		ledger_proposal_type="Service Closeout Summary",
-	)
+PROPOSAL_ROUTES = {
+	"Service Closeout Summary": ("/v1/proposals/service-closeout-summary", "service_closeout_summary"),
+	"Scheduling Explanation": ("/v1/proposals/scheduling-explanation", "scheduling_explanation"),
+	"Exception Recovery": ("/v1/proposals/exception-recovery", "exception_recovery"),
+	"Repair Memory": ("/v1/proposals/repair-memory", "repair_memory"),
+}
 
 
-def request_scheduling_explanation(reference_doctype, reference_name, request_payload):
-	"""Request one draft scheduling explanation and persist its auditable proposal record."""
-	return _request_proposal(
-		reference_doctype,
-		reference_name,
-		request_payload,
-		route="/v1/proposals/scheduling-explanation",
-		wire_proposal_type="scheduling_explanation",
-		ledger_proposal_type="Scheduling Explanation",
-	)
-
-
-def request_exception_recovery(reference_doctype, reference_name, request_payload):
-	"""Request one draft exception-recovery proposal and persist its auditable record."""
-	return _request_proposal(
-		reference_doctype,
-		reference_name,
-		request_payload,
-		route="/v1/proposals/exception-recovery",
-		wire_proposal_type="exception_recovery",
-		ledger_proposal_type="Exception Recovery",
-	)
-
-
-def request_repair_memory(reference_doctype, reference_name, request_payload):
-	"""Request one draft repair-memory proposal and persist its auditable record."""
-	return _request_proposal(
-		reference_doctype,
-		reference_name,
-		request_payload,
-		route="/v1/proposals/repair-memory",
-		wire_proposal_type="repair_memory",
-		ledger_proposal_type="Repair Memory",
-	)
-
-
-def _request_proposal(
-	reference_doctype, reference_name, request_payload, route, wire_proposal_type, ledger_proposal_type
-):
+def request_proposal(ledger_proposal_type, reference_doctype, reference_name, request_payload):
+	"""Request one allow-listed draft proposal and persist its auditable record."""
+	route, wire_proposal_type = PROPOSAL_ROUTES[ledger_proposal_type]
 	request_id = request_payload["request_id"]
 	if existing := frappe.db.exists("AI Proposal", {"control_plane_request_id": request_id}):
 		return frappe.get_doc("AI Proposal", existing)
@@ -214,7 +172,7 @@ def _release_concurrent_slot(key):
 		frappe.log_error(title="AI proposal concurrency slot release failed")
 
 
-def _post_to_control_plane(request_payload, route=CONTROL_PLANE_PATH):
+def _post_to_control_plane(request_payload, route):
 	base_url = os.environ.get("AI_CONTROL_PLANE_URL", "").rstrip("/")
 	service_key = os.environ.get("AI_CONTROL_PLANE_SHARED_SECRET", "")
 	if not base_url or not service_key:
@@ -237,7 +195,7 @@ def _post_to_control_plane(request_payload, route=CONTROL_PLANE_PATH):
 		frappe.throw(_("The AI control plane returned an invalid response. No proposal was created."))
 
 
-def _validate_response(response, request_payload, expected_proposal_type=PROPOSAL_TYPE):
+def _validate_response(response, request_payload, expected_proposal_type):
 	if not isinstance(response, dict):
 		frappe.throw(_("The AI control plane response must be an object."))
 	if response.get("schema_version") != 1 or response.get("request_id") != request_payload["request_id"]:

@@ -3,6 +3,7 @@
 import os
 
 import frappe
+from ai_erp_core.configured_demo import _ensure_customer, _ensure_item
 from ai_erp_core.configured_demo import seed as seed_configured_demo
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 from frappe.utils import add_to_date, flt, now_datetime, today
@@ -94,7 +95,7 @@ def seed_service_demo():
 	warehouse = _default_warehouse()
 	company = frappe.db.get_value("Warehouse", warehouse, "company")
 
-	customer = _ensure_customer()
+	customer = _ensure_customer(DEMO_CUSTOMER)
 	technician = _ensure_user(
 		DEMO_TECHNICIAN,
 		first_name="Service",
@@ -144,8 +145,8 @@ def seed_service_demo():
 		roles=("AI Proposal Approver",),
 	)
 	uom = _ensure_fractional_hour_uom()
-	part_item = _ensure_part_item()
-	labor_item = _ensure_labor_item(uom)
+	part_item = _ensure_item(DEMO_PART_ITEM, "AI ERP Demo Replacement Part")
+	labor_item = _ensure_item(DEMO_LABOR_ITEM, "AI ERP Demo Service Labor", stock_uom=uom, is_stock_item=0)
 	stock_entry = _ensure_initial_stock(part_item, warehouse, company)
 	location = _ensure_location(customer, warehouse)
 	request = _ensure_request(customer, location)
@@ -290,7 +291,6 @@ def _ensure_e2e_other_work_order(seed):
 			"status": "Draft",
 		}
 	).insert()
-	document.assigned_technician = DEMO_MANAGER
 	document.scheduled_start = start
 	document.scheduled_end = add_to_date(start, hours=1)
 	document.assigned_technician = None
@@ -298,7 +298,6 @@ def _ensure_e2e_other_work_order(seed):
 	document.service_territory = "North"
 	document.service_priority = "High"
 	document.sla_due_at = add_to_date(start, days=1)
-	document.status = "Draft"
 	document.save()
 	return document.name
 
@@ -346,38 +345,17 @@ def _make_e2e_full_workflow_order(seed):
 
 def _make_e2e_proposal_concurrency_order(seed):
 	"""Create a closeout-submitted record so concurrent draft requests stay replayable."""
-	start = now_datetime()
-	document = frappe.get_doc(
-		{
-			"doctype": "Service Work Order",
-			"subject": f"{E2E_PROPOSAL_CONCURRENCY_PREFIX} {frappe.generate_hash(length=8)}",
-			"customer": seed["customer"],
-			"service_location": seed["service_location"],
-			"description": "Synthetic concurrency fixture; no customer data.",
-			"status": "Draft",
-		}
-	).insert()
-	document.assigned_technician = DEMO_TECHNICIAN
-	document.scheduled_start = start
-	document.scheduled_end = add_to_date(start, hours=1)
-	document.status = "Scheduled"
-	document.save()
-	document.status = "In Progress"
-	document.save()
-	document.append(
-		"time_entries",
-		{
-			"technician": DEMO_TECHNICIAN,
-			"work_date": now_datetime().date(),
-			"time_type": "Work",
-			"hours": 1,
-		},
-	)
-	document.closeout_notes = "Synthetic concurrency fixture closeout."
-	document.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
-	document.status = "Closeout Submitted"
-	document.save()
-	return document.name
+	return _make_rich_work_order(
+		f"{E2E_PROPOSAL_CONCURRENCY_PREFIX} {frappe.generate_hash(length=8)}",
+		seed["customer"],
+		seed["service_location"],
+		DEMO_TECHNICIAN,
+		"Closeout Submitted",
+		now_datetime(),
+		hours=1,
+		description="Synthetic concurrency fixture; no customer data.",
+		closeout_notes="Synthetic concurrency fixture closeout.",
+	).name
 
 
 def _make_e2e_repair_memory_pair(seed):
@@ -400,56 +378,27 @@ def _make_e2e_repair_memory_pair(seed):
 		.insert()
 		.name
 	)
-	history = frappe.get_doc(
-		{
-			"doctype": "Service Work Order",
-			"subject": f"{E2E_REPAIR_MEMORY_HISTORY_PREFIX} {frappe.generate_hash(length=8)}",
-			"customer": seed["customer"],
-			"service_location": location,
-			"description": "Synthetic repair-memory history; no customer data.",
-			"status": "Draft",
-		}
-	).insert()
-	history.assigned_technician = DEMO_TECHNICIAN
-	history.scheduled_start = add_to_date(start, days=-7)
-	history.scheduled_end = add_to_date(start, days=-7, hours=2)
-	history.status = "Scheduled"
-	history.save()
-	history.status = "In Progress"
-	history.save()
-	history.append(
-		"time_entries",
-		{
-			"technician": DEMO_TECHNICIAN,
-			"work_date": now_datetime().date(),
-			"time_type": "Work",
-			"hours": 1,
-		},
-	)
-	# Notes alone are actionable repair facts; skip parts so close does not
+	# Notes alone are actionable repair facts; no parts, so close does not
 	# require a Material Issue in the e2e seed path.
-	history.closeout_notes = "Synthetic prior fix: replaced demo part and verified seal."
-	history.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
-	history.status = "Closeout Submitted"
-	history.save()
-	history.status = "Closed"
-	history.save()
-
-	current = frappe.get_doc(
-		{
-			"doctype": "Service Work Order",
-			"subject": f"{E2E_REPAIR_MEMORY_CURRENT_PREFIX} {frappe.generate_hash(length=8)}",
-			"customer": seed["customer"],
-			"service_location": location,
-			"description": "Synthetic repair-memory current visit; no customer data.",
-			"status": "Draft",
-		}
-	).insert()
-	current.assigned_technician = DEMO_TECHNICIAN
-	current.scheduled_start = start
-	current.scheduled_end = add_to_date(start, hours=2)
-	current.status = "Scheduled"
-	current.save()
+	history = _make_rich_work_order(
+		f"{E2E_REPAIR_MEMORY_HISTORY_PREFIX} {frappe.generate_hash(length=8)}",
+		seed["customer"],
+		location,
+		DEMO_TECHNICIAN,
+		"Closed",
+		add_to_date(start, days=-7),
+		description="Synthetic repair-memory history; no customer data.",
+		closeout_notes="Synthetic prior fix: replaced demo part and verified seal.",
+	)
+	current = _make_rich_work_order(
+		f"{E2E_REPAIR_MEMORY_CURRENT_PREFIX} {frappe.generate_hash(length=8)}",
+		seed["customer"],
+		location,
+		DEMO_TECHNICIAN,
+		"Scheduled",
+		start,
+		description="Synthetic repair-memory current visit; no customer data.",
+	)
 	return history.name, current.name
 
 
@@ -485,21 +434,6 @@ def _default_warehouse():
 	if not warehouse:
 		frappe.throw("No non-group Warehouse exists. Complete ERPNext setup before seeding the demo.")
 	return warehouse
-
-
-def _ensure_customer():
-	customer = frappe.db.get_value("Customer", {"customer_name": DEMO_CUSTOMER}, "name")
-	if customer:
-		return customer
-
-	doc = frappe.get_doc(
-		{
-			"doctype": "Customer",
-			"customer_name": DEMO_CUSTOMER,
-			"customer_type": "Company",
-		}
-	).insert()
-	return doc.name
 
 
 def _ensure_location(customer, warehouse):
@@ -578,42 +512,6 @@ def _ensure_fractional_hour_uom():
 	elif frappe.db.get_value("UOM", DEMO_UOM, "must_be_whole_number"):
 		frappe.db.set_value("UOM", DEMO_UOM, "must_be_whole_number", 0)
 	return DEMO_UOM
-
-
-def _ensure_part_item():
-	if frappe.db.exists("Item", DEMO_PART_ITEM):
-		return DEMO_PART_ITEM
-
-	frappe.get_doc(
-		{
-			"doctype": "Item",
-			"item_code": DEMO_PART_ITEM,
-			"item_name": "AI ERP Demo Replacement Part",
-			"item_group": "All Item Groups",
-			"stock_uom": "Nos",
-			"is_stock_item": 1,
-			"is_sales_item": 1,
-		}
-	).insert()
-	return DEMO_PART_ITEM
-
-
-def _ensure_labor_item(uom):
-	if frappe.db.exists("Item", DEMO_LABOR_ITEM):
-		return DEMO_LABOR_ITEM
-
-	frappe.get_doc(
-		{
-			"doctype": "Item",
-			"item_code": DEMO_LABOR_ITEM,
-			"item_name": "AI ERP Demo Service Labor",
-			"item_group": "All Item Groups",
-			"stock_uom": uom,
-			"is_stock_item": 0,
-			"is_sales_item": 1,
-		}
-	).insert()
-	return DEMO_LABOR_ITEM
 
 
 def _ensure_initial_stock(item_code, warehouse, company):
@@ -770,52 +668,91 @@ def seed_rich_demo():
 				continue
 			technician = technicians[(customer_index + order_index) % len(technicians)]
 			_make_rich_work_order(
-				subject, customer, location, technician, status, base, start, order_index
+				subject,
+				customer,
+				location,
+				technician,
+				status,
+				add_to_date(start, days=order_index - 3),
+				priority=("Low", "Medium", "High")[order_index % 3],
+				time_hours=1 + (order_index % 3),
+				part_seed=base if order_index % 2 == 0 else None,
 			)
 			created["work_orders"] += 1
 		if customer_index % 4 == 0:
 			blocked_subject = f"{RICH_SUBJECT_PREFIX} {customer_index:02d}-blocked Parts delay"
 			if not frappe.db.exists("Service Work Order", {"subject": blocked_subject}):
-				_make_rich_cannot_close(
-					blocked_subject, customer, location, technicians[0], base, start
+				_make_rich_work_order(
+					blocked_subject,
+					customer,
+					location,
+					technicians[0],
+					"Cannot Close",
+					start,
+					priority="High",
 				)
 				created["cannot_close"] += 1
 	frappe.db.commit()
 	return {"synthetic_only": True, **created}
 
 
-def _make_rich_work_order(subject, customer, location, technician, status, base, start, offset):
+def _make_rich_work_order(
+	subject,
+	customer,
+	location,
+	technician,
+	status,
+	start,
+	*,
+	hours=2,
+	priority=None,
+	description="Synthetic rich demo record; no customer data.",
+	time_hours=1,
+	closeout_notes="Synthetic closeout: repair completed and verified.",
+	part_seed=None,
+):
+	"""Insert a Draft work order and save each status step up to ``status``.
+
+	Cannot Close sets its owner and due date before scheduling and stops after In
+	Progress. part_seed adds one declared part when the walk stops at In Progress.
+	"""
 	document = frappe.get_doc(
 		{
 			"doctype": "Service Work Order",
 			"subject": subject,
 			"customer": customer,
 			"service_location": location,
-			"service_priority": ("Low", "Medium", "High")[offset % 3],
-			"description": "Synthetic rich demo record; no customer data.",
+			"service_priority": priority,
+			"description": description,
 			"status": "Draft",
 		}
 	).insert()
-	if status == "Draft":
-		return document
 	document.assigned_technician = technician
-	document.scheduled_start = add_to_date(start, days=offset - 3)
-	document.scheduled_end = add_to_date(start, days=offset - 3, hours=2)
+	document.scheduled_start = start
+	document.scheduled_end = add_to_date(start, hours=hours)
+	if status == "Cannot Close":
+		document.closure_owner = DEMO_MANAGER
+		document.closure_due_date = today()
 	document.status = "Scheduled"
 	document.save()
 	if status == "Scheduled":
 		return document
 	document.status = "In Progress"
 	document.save()
+	if status == "Cannot Close":
+		document.cannot_close_reason = "Parts unavailable"
+		document.status = "Cannot Close"
+		document.save()
+		return document
 	if status == "In Progress":
-		if offset % 2 == 0:
+		if part_seed:
 			document.append(
 				"parts",
 				{
-					"item": base["part_item"],
+					"item": part_seed["part_item"],
 					"qty": 1,
 					"bill_rate": 25,
-					"source_warehouse": base["warehouse"],
+					"source_warehouse": part_seed["warehouse"],
 				},
 			)
 			document.save()
@@ -826,10 +763,10 @@ def _make_rich_work_order(subject, customer, location, technician, status, base,
 			"technician": technician,
 			"work_date": now_datetime().date(),
 			"time_type": "Work",
-			"hours": 1 + (offset % 3),
+			"hours": time_hours,
 		},
 	)
-	document.closeout_notes = "Synthetic closeout: repair completed and verified."
+	document.closeout_notes = closeout_notes
 	document.closeout_evidence = "/private/files/synthetic-closeout-evidence.txt"
 	document.status = "Closeout Submitted"
 	document.save()
@@ -840,32 +777,5 @@ def _make_rich_work_order(subject, customer, location, technician, status, base,
 	if status == "Closed":
 		return document
 	document.status = "Invoice Ready"
-	document.save()
-	return document
-
-
-def _make_rich_cannot_close(subject, customer, location, technician, base, start):
-	document = frappe.get_doc(
-		{
-			"doctype": "Service Work Order",
-			"subject": subject,
-			"customer": customer,
-			"service_location": location,
-			"service_priority": "High",
-			"description": "Synthetic rich demo record; no customer data.",
-			"status": "Draft",
-		}
-	).insert()
-	document.assigned_technician = technician
-	document.scheduled_start = start
-	document.scheduled_end = add_to_date(start, hours=2)
-	document.closure_owner = DEMO_MANAGER
-	document.closure_due_date = today()
-	document.status = "Scheduled"
-	document.save()
-	document.status = "In Progress"
-	document.save()
-	document.cannot_close_reason = "Parts unavailable"
-	document.status = "Cannot Close"
 	document.save()
 	return document

@@ -15,7 +15,7 @@ Related: [`demo-version-loop.md`](demo-version-loop.md),
 | ERP core | ERPNext on Frappe, `version-16` branch, commit-pinned | `development/.env.example` (`FRAPPE_COMMIT`, `ERPNEXT_COMMIT`) |
 | Local demo image tag | `frappe/erpnext:v16.26.2` for compose demo builds | `infra/compose/docker-compose.demo.yml` |
 | Custom apps | `ai_erp_core`, `ai_erp_service` (distribution / manufacturing are configured demos only) | `apps/` |
-| AI control plane | FastAPI service, Python `>=3.14`, httpx, PyYAML, uvicorn | `services/ai_control_plane/pyproject.toml` |
+| AI control plane | FastAPI service, Python `>=3.14`, httpx, uvicorn | `services/ai_control_plane/pyproject.toml` |
 | Default AI provider | Deterministic `template` (zero cost) | `development/.env.example` (`AI_ERP_PROVIDER=template`) |
 | Hosted provider path | OpenAI adapter with redaction, budgets, `store=false`; live eval gated | ADR-0006, `docs/runbooks/openai-live-evaluation.md` |
 | Contracts | OpenAPI 3.1 control-plane + versioned service events | `contracts/openapi/`, `contracts/events/` |

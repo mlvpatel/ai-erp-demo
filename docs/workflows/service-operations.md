@@ -165,9 +165,8 @@ with an owned exception, and denial of finance, assignment, and manager-only
 actions. Keyboard focus and accessible names are checked on status, inspection,
 and cannot-close reason.
 
-Offline IndexedDB draft helpers in `public/js/mobile_helpers.js` stay unloaded
-(`OFFLINE_DRAFTS_ENABLED = false`, not registered in `app_include_js`) until
-field UAT asks for them. Online attachment failure or validation rejection
+Offline IndexedDB drafts are not built, and no offline helper script is
+registered in `app_include_js`, until field UAT asks for them. Online attachment failure or validation rejection
 leaves the work order open with no stock or invoice side effect.
 
 ## Billing controls

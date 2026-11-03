@@ -17,10 +17,9 @@ contracts, and AI proposals that the base ERP cannot express cleanly.
 
 ## Candidate packs
 
-The same sequence is tracked in `config/industry-packs.json` and validated by
-`scripts/check-industry-pack-manifest.py`. Status transitions are governed by
-`docs/workflows/industry-pack-lifecycle.md` and validated by
-`scripts/check-industry-pack-lifecycle.py`. Update the table, manifest, and
+The same sequence is tracked in `config/industry-packs.json`. Status
+transitions are governed by `docs/workflows/industry-pack-lifecycle.md`, and
+`scripts/check-industry-pack-lifecycle.py` validates both. Update the table, manifest, and
 lifecycle evidence when a pack changes status.
 
 | Order | Pack | Why it fits | First proof workflow | Reuse first |

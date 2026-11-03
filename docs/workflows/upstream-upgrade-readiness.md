@@ -42,7 +42,7 @@ Before editing pins:
 Run the validation in this order:
 
 ```sh
-scripts/check-reproducibility.sh
+python3 scripts/check-upstream-upgrade-readiness.py
 docker compose --env-file development/.env \
   -f infra/compose/docker-compose.dev.yml config --quiet
 scripts/dev.sh migrate
@@ -51,7 +51,6 @@ scripts/dev.sh demo-check
 scripts/dev.sh control-plane-test
 scripts/dev.sh contract-test
 scripts/dev.sh service-test
-python3 scripts/check-upstream-upgrade-readiness.py
 scripts/run-quality-gates.sh
 ```
 

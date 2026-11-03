@@ -5,8 +5,7 @@ issues into actionable work. The goal is to keep the project welcoming without
 letting a small issue bypass ERP, tenant, or AI safety boundaries.
 
 The label source of truth is `.github/labels.json`; keep this workflow,
-`BACKLOG.md`, `config/first-public-issues.json`, and issue-template frontmatter
-aligned with that manifest.
+`BACKLOG.md`, and issue-template frontmatter aligned with that manifest.
 
 ## Triage order
 
@@ -59,11 +58,11 @@ maintainer review path.
 Before creating the first public issues, run:
 
 ```sh
-python3 scripts/check-first-public-issues.py
+python3 scripts/check-github-labels.py
 ```
 
-This validates that launch issues stay license-gated, use existing labels and
-templates, link evidence, and avoid ERP/AI safety boundaries.
+This validates that the labels used by issue templates, `BACKLOG.md`, and this
+workflow exist in `.github/labels.json`.
 
 ## Maintainer decision checklist
 

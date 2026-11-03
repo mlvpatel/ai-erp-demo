@@ -9,6 +9,7 @@ from pathlib import Path
 from time import perf_counter, sleep
 
 import frappe
+from ai_erp_core.proposals import _is_disposable_capacity_site
 from frappe.desk.search import search_link
 from frappe.utils import add_to_date, now_datetime, today
 
@@ -265,21 +266,7 @@ def _seed_context(profile, scale, preflight):
 	technician = _make_user(f"perf.tech.{run_key}@example.test", ["Service Technician", "AI Proposal Requester"])
 	manager = _make_user(f"perf.manager.{run_key}@example.test", ["Service Manager"])
 	finance = _make_user(f"perf.finance.{run_key}@example.test", ["Accounts User"])
-	for user in (manager, finance):
-		frappe.get_doc(
-			{
-				"doctype": "User Permission",
-				"user": user,
-				"allow": "Company",
-				"for_value": preflight["company"],
-				"is_default": 1,
-				"apply_to_all_doctypes": 1,
-			}
-		).insert(ignore_permissions=True)
-		frappe.defaults.set_user_default("Company", preflight["company"], user=user)
-		frappe.defaults.set_user_default("Selling Price List", preflight["price_list"], user=user)
-		frappe.defaults.set_user_default("Currency", preflight["currency"], user=user)
-		frappe.clear_cache(user=user)
+	_grant_company_defaults((manager, finance), preflight)
 	customer = frappe.get_doc(
 		{
 			"doctype": "Customer",
@@ -345,6 +332,25 @@ def _make_user(email, roles):
 	return user.name
 
 
+def _grant_company_defaults(users, baseline):
+	"""Pin each synthetic user to the baseline company, price list, and currency."""
+	for user in users:
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": user,
+				"allow": "Company",
+				"for_value": baseline["company"],
+				"is_default": 1,
+				"apply_to_all_doctypes": 1,
+			}
+		).insert(ignore_permissions=True)
+		frappe.defaults.set_user_default("Company", baseline["company"], user=user)
+		frappe.defaults.set_user_default("Selling Price List", baseline["price_list"], user=user)
+		frappe.defaults.set_user_default("Currency", baseline["currency"], user=user)
+		frappe.clear_cache(user=user)
+
+
 def _make_scheduled_work_order(prefix, index, customer, location, technician):
 	frappe.set_user("Administrator")
 	work_order = frappe.get_doc(
@@ -386,26 +392,7 @@ def _run_list_scenario(context, profile, samples):
 	_require(technician_visible == set(context["technician_work_orders"]), "technician isolation failed")
 	_require(manager_visible == set(context["list_work_orders"]), "manager visibility failed")
 
-	technician_measurements = _measure(lambda: query(context["technician"]), samples)
-	manager_measurements = _measure(lambda: query(context["manager"]), samples)
-	technician_p95 = nearest_rank_p95(technician_measurements)
-	manager_p95 = nearest_rank_p95(manager_measurements)
-	return {
-		"scenario": scenario_id,
-		"status": "PASS" if max(technician_p95, manager_p95) <= target else "FAIL",
-		"target_seconds": target,
-		"roles": {
-			"Service Technician": {
-				"p95_seconds": round(technician_p95, 6),
-				"sample_count": len(technician_measurements),
-			},
-			"Service Manager": {
-				"p95_seconds": round(manager_p95, 6),
-				"sample_count": len(manager_measurements),
-			},
-		},
-		"safety_invariants": "PASS",
-	}
+	return _role_p95_result(scenario_id, target, query, context, samples)
 
 
 def _run_invoice_scenario(context, profile, samples):
@@ -455,20 +442,7 @@ def _run_search_scenario(context, profile, samples):
 	_require(technician_visible == set(context["technician_work_orders"]), "link search leaked technician scope")
 	_require(manager_visible == set(context["list_work_orders"]), "link search omitted manager scope")
 
-	technician_measurements = _measure(lambda: query(context["technician"]), samples)
-	manager_measurements = _measure(lambda: query(context["manager"]), samples)
-	technician_p95 = nearest_rank_p95(technician_measurements)
-	manager_p95 = nearest_rank_p95(manager_measurements)
-	return {
-		"scenario": scenario_id,
-		"status": "PASS" if max(technician_p95, manager_p95) <= target else "FAIL",
-		"target_seconds": target,
-		"roles": {
-			"Service Technician": {"p95_seconds": round(technician_p95, 6), "sample_count": samples},
-			"Service Manager": {"p95_seconds": round(manager_p95, 6), "sample_count": samples},
-		},
-		"safety_invariants": "PASS",
-	}
+	return _role_p95_result(scenario_id, target, query, context, samples)
 
 
 def _run_profitability_report_scenario(context, profile, samples):
@@ -490,12 +464,7 @@ def _run_profitability_report_scenario(context, profile, samples):
 def synthetic_queue_probe():
 	"""Side-effect-free worker probe used only by an approved synthetic harness."""
 	local_smoke = str(frappe.local.site).endswith(".localhost")
-	capacity_acknowledgement = "I_ACKNOWLEDGE_DISPOSABLE_SYNTHETIC_CAPACITY"
-	capacity_run = str(frappe.local.site).startswith("capacity-run-") and (
-		os.environ.get("AI_ERP_FULL_CAPACITY_ALLOW") == capacity_acknowledgement
-		or frappe.conf.get("ai_erp_full_capacity_allow") == capacity_acknowledgement
-	)
-	if not (local_smoke or capacity_run):
+	if not (local_smoke or _is_disposable_capacity_site()):
 		raise PerformanceSmokeError("synthetic queue probe is restricted to an approved performance harness")
 	return "ok"
 
@@ -620,6 +589,22 @@ def _measure(operation, samples):
 		if index >= WARMUP_SAMPLES:
 			measurements.append(elapsed)
 	return measurements
+
+
+def _role_p95_result(scenario_id, target, query, context, samples):
+	"""Measure one query as the technician, then the manager, and gate on the slower p95."""
+	technician_p95 = nearest_rank_p95(_measure(lambda: query(context["technician"]), samples))
+	manager_p95 = nearest_rank_p95(_measure(lambda: query(context["manager"]), samples))
+	return {
+		"scenario": scenario_id,
+		"status": "PASS" if max(technician_p95, manager_p95) <= target else "FAIL",
+		"target_seconds": target,
+		"roles": {
+			"Service Technician": {"p95_seconds": round(technician_p95, 6), "sample_count": samples},
+			"Service Manager": {"p95_seconds": round(manager_p95, 6), "sample_count": samples},
+		},
+		"safety_invariants": "PASS",
+	}
 
 
 def _target(profile, scenario_id):

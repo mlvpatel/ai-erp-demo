@@ -15,35 +15,25 @@ frappe.ui.form.on("Service Work Order", {
 		const has_unissued_parts = (frm.doc.parts || []).some((row) => !row.stock_entry);
 
 		if (["Scheduled", "In Progress"].includes(frm.doc.status)) {
-			frm.add_custom_button(__("Draft Repair Memory"), async () => {
-				const response = await frappe.call({
-					method: "ai_erp_service.repair_memory.request_repair_memory_draft",
-					args: { name: frm.doc.name },
-					freeze: true,
-					freeze_message: __("Collecting cited prior work..."),
-				});
-				frappe.show_alert({
-					message: __("Repair memory draft created for human review."),
-					indicator: "green",
-				});
-				frappe.set_route("Form", "AI Proposal", response.message.name);
-			});
+			frm.add_custom_button(__("Draft Repair Memory"), () =>
+				call_and_open(
+					frm,
+					"ai_erp_service.repair_memory.request_repair_memory_draft",
+					__("Collecting cited prior work..."),
+					__("Repair memory draft created for human review."),
+				),
+			);
 		}
 
 		if (["Closeout Submitted", "Closed"].includes(frm.doc.status)) {
-			frm.add_custom_button(__("Draft AI Closeout Summary"), async () => {
-				const response = await frappe.call({
-					method: "ai_erp_service.ai_drafts.request_closeout_summary",
-					args: { name: frm.doc.name },
-					freeze: true,
-					freeze_message: __("Creating a cited draft..."),
-				});
-				frappe.show_alert({
-					message: __("Draft created for human review."),
-					indicator: "green",
-				});
-				frappe.set_route("Form", "AI Proposal", response.message.name);
-			});
+			frm.add_custom_button(__("Draft AI Closeout Summary"), () =>
+				call_and_open(
+					frm,
+					"ai_erp_service.ai_drafts.request_closeout_summary",
+					__("Creating a cited draft..."),
+					__("Draft created for human review."),
+				),
+			);
 		}
 
 		if (
@@ -71,20 +61,15 @@ frappe.ui.form.on("Service Work Order", {
 		}
 
 		if (is_finance && frm.doc.status === "Invoice Ready" && !frm.doc.sales_invoice) {
-			frm.add_custom_button(__("Draft Sales Invoice"), async () => {
-				const response = await frappe.call({
-					method:
-						"ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.make_draft_sales_invoice",
-					args: { name: frm.doc.name },
-					freeze: true,
-					freeze_message: __("Drafting Sales Invoice..."),
-				});
-				frappe.show_alert({
-					message: __("Draft Sales Invoice created."),
-					indicator: "green",
-				});
-				frappe.set_route("Form", "Sales Invoice", response.message);
-			});
+			frm.add_custom_button(__("Draft Sales Invoice"), () =>
+				call_and_open(
+					frm,
+					"ai_erp_service.ai_erp_service.doctype.service_work_order.service_work_order.make_draft_sales_invoice",
+					__("Drafting Sales Invoice..."),
+					__("Draft Sales Invoice created."),
+					"Sales Invoice",
+				),
+			);
 		}
 
 		if (frm.doc.sales_invoice) {
@@ -129,6 +114,21 @@ frappe.ui.form.on("Service Work Order", {
 	},
 });
 
+// Run a work-order action, close the calling dialog if any, then open the record it returns.
+async function call_and_open(frm, method, freeze_message, toast, doctype = "AI Proposal", dialog) {
+	const { message } = await frappe.call({
+		method,
+		args: { name: frm.doc.name },
+		freeze: true,
+		freeze_message,
+	});
+	if (dialog) {
+		dialog.hide();
+	}
+	frappe.show_alert({ message: toast, indicator: "green" });
+	frappe.set_route("Form", doctype, message.name || message);
+}
+
 const MARGIN_RISK_LABELS = {
 	missing_billable_time: "Missing billable time",
 	zero_rate_labor: "Discount / zero-rate labor",
@@ -141,40 +141,11 @@ const MARGIN_RISK_LABELS = {
 	repeat_visit_risk: "Repeat visit risk",
 };
 
-const MARGIN_STATUS_OPTIONS = [
-	"",
-	"Draft",
-	"Scheduled",
-	"In Progress",
-	"Closeout Submitted",
-	"Cannot Close",
-	"Closed",
-	"Invoice Ready",
-	"Cancelled",
-];
-
 let margin_leakage_request = null;
 let margin_leakage_dialog = null;
 
 function margin_risk_label(category) {
 	return __(MARGIN_RISK_LABELS[category] || category);
-}
-
-function margin_risk_option_label(category) {
-	// Keep Select options in source English so Frappe translates once at render.
-	return MARGIN_RISK_LABELS[category] || category;
-}
-
-function resolve_margin_risk_category(label, categories) {
-	if (!label) {
-		return "";
-	}
-	return (
-		categories.find((category) => {
-			const raw = margin_risk_option_label(category);
-			return raw === label || __(raw) === label;
-		}) || ""
-	);
 }
 
 function format_margin_risk_evidence(detail) {
@@ -377,7 +348,12 @@ function render_margin_leakage_summary(summary, selected) {
 		</div>
 	`;
 
-	const category_options = categories.map(margin_risk_option_label).join("\n");
+	// Select translates source-English labels and returns the raw category value.
+	const category_options = categories.map((value) => ({
+		value,
+		label: MARGIN_RISK_LABELS[value] || value,
+	}));
+	const status_options = frappe.meta.get_docfield("Service Work Order", "status").options;
 	if (margin_leakage_dialog) {
 		margin_leakage_dialog.hide();
 		margin_leakage_dialog = null;
@@ -390,14 +366,14 @@ function render_margin_leakage_summary(summary, selected) {
 				fieldtype: "Select",
 				fieldname: "risk_category",
 				label: __("Risk category filter"),
-				options: `\n${category_options}`,
-				default: selected_category ? margin_risk_option_label(selected_category) : "",
+				options: ["", ...category_options],
+				default: selected_category || "",
 			},
 			{
 				fieldtype: "Select",
 				fieldname: "status",
 				label: __("Status filter"),
-				options: MARGIN_STATUS_OPTIONS.join("\n"),
+				options: `\n${status_options}`,
 				default: selected_status,
 			},
 			{
@@ -416,12 +392,10 @@ function render_margin_leakage_summary(summary, selected) {
 		],
 		primary_action_label: __("Apply Filter"),
 		primary_action(values) {
-			const label = (values && values.risk_category) || "";
-			const next_category = resolve_margin_risk_category(label, categories);
 			dialog.hide();
 			margin_leakage_dialog = null;
 			show_margin_leakage_summary({
-				risk_category: next_category,
+				risk_category: (values && values.risk_category) || "",
 				status: (values && values.status) || "",
 				from_date: (values && values.from_date) || "",
 				to_date: (values && values.to_date) || "",
@@ -507,20 +481,15 @@ function show_technician_suggestions(frm, suggestions) {
 		title: __("Technician Suggestions"),
 		size: "large",
 		primary_action_label: __("Explain Schedule"),
-		primary_action: async () => {
-			const response = await frappe.call({
-				method: "ai_erp_service.scheduling.request_scheduling_explanation",
-				args: { name: frm.doc.name },
-				freeze: true,
-				freeze_message: __("Drafting cited schedule explanation..."),
-			});
-			dialog.hide();
-			frappe.show_alert({
-				message: __("Scheduling explanation draft created for human review."),
-				indicator: "green",
-			});
-			frappe.set_route("Form", "AI Proposal", response.message.name);
-		},
+		primary_action: () =>
+			call_and_open(
+				frm,
+				"ai_erp_service.scheduling.request_scheduling_explanation",
+				__("Drafting cited schedule explanation..."),
+				__("Scheduling explanation draft created for human review."),
+				"AI Proposal",
+				dialog,
+			),
 	});
 	dialog.$body.html(`
 		<table class="table table-bordered">
@@ -624,20 +593,15 @@ function show_recovery_draft_confirm(frm) {
 	const dialog = new frappe.ui.Dialog({
 		title: __("Draft Recovery Steps"),
 		primary_action_label: __("Create Draft"),
-		primary_action: async () => {
-			const response = await frappe.call({
-				method: "ai_erp_service.recovery.request_recovery_draft",
-				args: { name: frm.doc.name },
-				freeze: true,
-				freeze_message: __("Drafting cited recovery steps..."),
-			});
-			dialog.hide();
-			frappe.show_alert({
-				message: __("Recovery draft created for human review."),
-				indicator: "green",
-			});
-			frappe.set_route("Form", "AI Proposal", response.message.name);
-		},
+		primary_action: () =>
+			call_and_open(
+				frm,
+				"ai_erp_service.recovery.request_recovery_draft",
+				__("Drafting cited recovery steps..."),
+				__("Recovery draft created for human review."),
+				"AI Proposal",
+				dialog,
+			),
 	});
 	dialog.$body.html(`
 		<div class="recovery-owned-exception" role="region" aria-label="${__("Owned exception")}">

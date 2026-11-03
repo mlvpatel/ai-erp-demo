@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import frappe
-from ai_erp_core.proposals import content_hash, request_service_closeout_summary
+from ai_erp_core.proposals import content_hash, request_proposal
 from frappe import _
 from frappe.utils import flt
 
@@ -24,7 +24,7 @@ def request_closeout_summary(name):
 		frappe.throw(_("Only the assigned technician or a service manager can request this draft."), frappe.PermissionError)
 
 	payload = _closeout_summary_payload(work_order)
-	proposal = request_service_closeout_summary(work_order.doctype, work_order.name, payload)
+	proposal = request_proposal("Service Closeout Summary", work_order.doctype, work_order.name, payload)
 	return {"name": proposal.name, "draft_content": proposal.draft_content}
 
 

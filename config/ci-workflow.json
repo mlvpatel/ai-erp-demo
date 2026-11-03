@@ -1,13 +1,5 @@
 {
-  "schema_version": 1,
   "workflow": ".github/workflows/ci.yml",
-  "required_triggers": {
-    "push_branch": "main",
-    "pull_request": true
-  },
-  "required_permissions": {
-    "contents": "read"
-  },
   "jobs": [
     {
       "id": "control-plane",
@@ -28,7 +20,7 @@
         "uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
         "uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
         "python-version: '3.14'",
-        "python -m pip install ./services/ai_control_plane",
+        "python -m pip install './services/ai_control_plane[test]'",
         "python -m unittest discover -s tests/contract -v"
       ]
     },

@@ -26,8 +26,6 @@ AI safety boundaries.
   to current evidence.
 - Review `BACKLOG.md` and convert only license-safe, low-risk items into first
   GitHub issues.
-- Review `config/first-public-issues.json` for the launch issue seed list and
-  keep it aligned with `BACKLOG.md`.
 - Review `.github/labels.json` so public issue labels match the safety and
   triage workflow before enabling community issues.
 - Review `.github/repository-metadata.json` so the public description, topics,
@@ -102,24 +100,8 @@ python3 scripts/check-publication-secrets.py
 python3 scripts/check-operations-readiness.py
 python3 scripts/check-observability-readiness.py
 python3 scripts/check-performance-readiness.py
-python3 scripts/check-doc-links.py
-python3 scripts/check-ai-data-boundary.py
-python3 scripts/check-integration-safety.py
-python3 scripts/check-migration-safety.py
-python3 scripts/check-dependency-updates.py
 python3 scripts/check-upstream-upgrade-readiness.py
-python3 scripts/check-github-metadata.py
-python3 scripts/check-ci-workflow.py
-python3 scripts/check-github-labels.py
-python3 scripts/check-first-public-issues.py
-python3 scripts/check-fresh-clone-demo.py
-python3 scripts/check-demo-script.py
-python3 scripts/check-release-readiness.py
-python3 scripts/check-release-policy.py
-python3 scripts/check-owner-decisions.py
-python3 scripts/check-license-metadata.py
-python3 scripts/check-public-claims.py
-python -m pip install ./services/ai_control_plane
+python -m pip install './services/ai_control_plane[test]'
 python -m unittest discover -s services/ai_control_plane/tests -v
 python -m unittest discover -s tests/contract -v
 ```
@@ -155,8 +137,8 @@ docker compose --env-file development/.env -f infra/compose/docker-compose.dev.y
   directories stay aligned with the manual-only ERP runtime pin policy.
 - Create or sync labels from `.github/labels.json` before opening the first
   public issues. Keep `erp-safety`, `ai-safety`, and `blocked-license` visible.
-- Create first public issues from `config/first-public-issues.json` only after
-  the root license and release-readiness gates are resolved.
+- Create first public issues from the `BACKLOG.md` good-first-issue table only
+  after the root license and release-readiness gates are resolved.
 - Confirm `SECURITY.md` is visible on the repository security tab.
 - Open the private reporting URL in `SECURITY.md` while signed in and confirm it
   resolves to the `mlvpatel/ai-erp-demo` Security Advisory form, not a

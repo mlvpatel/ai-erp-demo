@@ -9,13 +9,12 @@ deterministic, and useful in offline CI.
 from __future__ import annotations
 
 import re
-import sys
 import urllib.parse
 from pathlib import Path
 from typing import Iterable
 
+from _gate import REPO_ROOT, rel, report
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 
 INLINE_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]\n]+\]\(([^)\n]+)\)")
 SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
@@ -81,13 +80,6 @@ def resolve_target(source: Path, target: str) -> Path:
     return source.parent / target
 
 
-def display_path(path: Path) -> str:
-    try:
-        return str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        return str(path)
-
-
 def iter_links(source: Path) -> Iterable[tuple[int, str, str]]:
     in_fenced_block = False
     lines = source.read_text(encoding="utf-8").splitlines()
@@ -114,17 +106,10 @@ def main() -> int:
                 source_rel = source.relative_to(REPO_ROOT)
                 failures.append(
                     f"{source_rel}:{line_number}: missing local link target "
-                    f"{raw_target!r} -> {display_path(target_path)}"
+                    f"{raw_target!r} -> {rel(target_path)}"
                 )
 
-    if failures:
-        print("Markdown local link check failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"FAIL: {failure}", file=sys.stderr)
-        return 1
-
-    print("Markdown local link check passed.")
-    return 0
+    return report("Markdown local link check", failures)
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ def annotate_margin_risks(rows):
 
 
 def classify_margin_risks_for_work_order(work_order):
-	"""Return categories and evidence details for one work order document."""
+	"""Return evidence-ready margin_risks and margin_risk_details for one work order document."""
 	row = frappe._dict(
 		{
 			"name": work_order.name,
@@ -76,8 +76,8 @@ def classify_margin_risks_for_work_order(work_order):
 	)
 	annotate_margin_risks([row])
 	return {
-		"categories": [item["category"] for item in row.margin_risk_details],
-		"details": list(row.margin_risk_details),
+		"margin_risks": [item["category"] for item in row.margin_risk_details],
+		"margin_risk_details": list(row.margin_risk_details),
 	}
 
 
