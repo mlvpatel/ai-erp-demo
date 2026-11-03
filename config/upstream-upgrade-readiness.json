@@ -8,7 +8,6 @@
   "development_readme": "development/README.md",
   "env_example": "development/.env.example",
   "bootstrap_script": "scripts/bootstrap-frappe-dev.sh",
-  "reproducibility_script": "scripts/check-reproducibility.sh",
   "github_publication_runbook": "docs/runbooks/github-publication.md",
   "traceability_doc": "docs/product/requirements-traceability.md",
   "required_env_pins": [
@@ -20,7 +19,6 @@
     "FRAPPE_BENCH_IMAGE"
   ],
   "required_validation_commands": [
-    "scripts/check-reproducibility.sh",
     "docker compose --env-file development/.env",
     "scripts/dev.sh migrate",
     "scripts/dev.sh seed-demo",

@@ -91,7 +91,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         "development_readme",
         "env_example",
         "bootstrap_script",
-        "reproducibility_script",
         "github_publication_runbook",
         "traceability_doc",
     ):
@@ -125,6 +124,11 @@ def validate_env_pins(manifest: dict[str, Any], failures: list[str]) -> None:
     for image_pin in ("MARIADB_IMAGE", "REDIS_IMAGE", "FRAPPE_BENCH_IMAGE"):
         if not re.search(rf"^{image_pin}=\S+@sha256:[0-9a-f]{{64}}$", env_text, flags=re.MULTILINE):
             fail(failures, f"{path_value} {image_pin} must be digest-pinned")
+
+    compose_path = "infra/compose/docker-compose.dev.yml"
+    for name, body in ((path_value, env_text), (compose_path, read_text(REPO_ROOT / compose_path, failures))):
+        if re.search(r":latest|frappe/bench:|mariadb:[0-9]|redis:[0-9]", body):
+            fail(failures, f"{name}: use digest-pinned images, not tags")
 
 
 def validate_bootstrap(manifest: dict[str, Any], failures: list[str]) -> None:

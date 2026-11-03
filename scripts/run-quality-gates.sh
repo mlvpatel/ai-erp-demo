@@ -18,9 +18,6 @@ scripts/check-publication-source.sh
 echo "==> Publication secret and sensitive-data scan"
 "$python_bin" scripts/check-publication-secrets.py
 
-echo "==> Reproducible development pins"
-scripts/check-reproducibility.sh
-
 echo "==> Dependency update policy"
 "$python_bin" scripts/check-dependency-updates.py
 
@@ -28,7 +25,7 @@ echo "==> Upstream upgrade readiness"
 "$python_bin" scripts/check-upstream-upgrade-readiness.py
 
 echo "==> Shell syntax"
-bash -n scripts/bootstrap-frappe-dev.sh scripts/check-open-source-ready.sh scripts/check-publication-source.sh scripts/check-reproducibility.sh scripts/local-artifacts.sh "$0"
+bash -n scripts/bootstrap-frappe-dev.sh scripts/check-open-source-ready.sh scripts/check-publication-source.sh scripts/local-artifacts.sh "$0"
 
 echo "==> Developer helper smoke"
 scripts/dev.sh help >/dev/null
