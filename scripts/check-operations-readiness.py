@@ -88,7 +88,8 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
 
 def validate_local_artifacts(manifest: dict[str, Any], failures: list[str]) -> None:
     """local_artifact_patterns must be in .gitignore, export-ignored, and excluded by the
-    publication-source find; local_ignore_patterns only need the first two."""
+    publication-source find; local_ignore_patterns only need the first two. A `!name`
+    entry re-includes a file, so .gitattributes must mark it `name -export-ignore`."""
     shared = string_list(manifest.get("local_artifact_patterns"), "local_artifact_patterns", failures)
     ignore_only = string_list(manifest.get("local_ignore_patterns"), "local_ignore_patterns", failures)
     gitignore_text = read_text(GITIGNORE, failures)
@@ -98,8 +99,9 @@ def validate_local_artifacts(manifest: dict[str, Any], failures: list[str]) -> N
     for pattern in shared + ignore_only:
         if pattern not in gitignore:
             fail(failures, f".gitignore missing local/recovery artifact pattern: {pattern}")
-        if not re.search(rf"^{re.escape(pattern)}\s+export-ignore(?:\s|$)", gitattributes, flags=re.MULTILINE):
-            fail(failures, f".gitattributes must export-ignore local/recovery artifact pattern: {pattern}")
+        attribute = f"{re.escape(pattern[1:])}\\s+-export-ignore" if pattern.startswith("!") else f"{re.escape(pattern)}\\s+export-ignore"
+        if not re.search(rf"^{attribute}(?:\s|$)", gitattributes, flags=re.MULTILINE):
+            fail(failures, f".gitattributes missing export rule for local/recovery artifact pattern: {pattern}")
     for pattern in shared:
         clause = f"-name '{pattern}'" if "*" in pattern else f"-path './{pattern.rstrip('/')}'"
         if clause not in source_script:

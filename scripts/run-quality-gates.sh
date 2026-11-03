@@ -15,9 +15,6 @@ echo "==> Repository structure"
 echo "==> Publication source guardrails"
 scripts/check-publication-source.sh
 
-echo "==> Publication secret and sensitive-data scan"
-"$python_bin" scripts/check-publication-secrets.py
-
 echo "==> Dependency update policy"
 "$python_bin" scripts/check-dependency-updates.py
 

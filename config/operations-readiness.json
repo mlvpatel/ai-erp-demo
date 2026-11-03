@@ -10,6 +10,8 @@
     "development/.env",
     ".env",
     "config/owner-decisions.local.json",
+    "*.pem",
+    "*.key",
     "*.sql",
     "*.sql.gz",
     "*.dump",
@@ -24,6 +26,7 @@
   ],
   "local_ignore_patterns": [
     ".env.*",
+    "!.env.example",
     "__pycache__/",
     "*.py[cod]"
   ],

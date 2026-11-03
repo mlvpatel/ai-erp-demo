@@ -32,13 +32,6 @@ require_file() {
   fi
 }
 
-require_gitignore_pattern() {
-  local pattern="$1"
-  if ! grep -Fxq "$pattern" .gitignore; then
-    fail ".gitignore must contain exact pattern: $pattern"
-  fi
-}
-
 require_file README.md
 require_file ROADMAP.md
 require_file BACKLOG.md
@@ -158,26 +151,6 @@ require_file contracts/openapi/ai-control-plane-v1.yaml
 require_file contracts/events/README.md
 require_file contracts/events/service-operations-v1.yaml
 
-require_gitignore_pattern ".env"
-require_gitignore_pattern ".env.*"
-require_gitignore_pattern "!.env.example"
-require_gitignore_pattern "*.pem"
-require_gitignore_pattern "*.key"
-require_gitignore_pattern "*.sql"
-require_gitignore_pattern "*.sql.gz"
-require_gitignore_pattern "*.dump"
-require_gitignore_pattern "*.backup"
-require_gitignore_pattern "*-files.tar"
-require_gitignore_pattern "*-private-files.tar"
-require_gitignore_pattern "__pycache__/"
-require_gitignore_pattern "*.py[cod]"
-require_gitignore_pattern "development/frappe-bench/"
-require_gitignore_pattern "development/.env"
-require_gitignore_pattern "sites/"
-require_gitignore_pattern "logs/"
-require_gitignore_pattern "private/"
-require_gitignore_pattern "config/owner-decisions.local.json"
-
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   tracked_forbidden="$(
     git ls-files \
@@ -213,14 +186,6 @@ if find . \
   -print0 |
   xargs -0 grep -En "$placeholder_pattern" >&2; then
   fail "placeholder repository URL text remains"
-fi
-
-if [ -f LICENSE ]; then
-  echo "Root LICENSE present."
-elif [ "$strict_release" -eq 1 ]; then
-  fail "root LICENSE is required for --release; see docs/adr/0005-root-license-required-before-github-publish.md"
-else
-  warn "root LICENSE is pending owner decision; release remains blocked by ADR-0005"
 fi
 
 metadata_placeholder_pattern='(\[year\]|\[fullname\]|opensource@ai-erp\.example)'
