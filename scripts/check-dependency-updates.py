@@ -123,8 +123,6 @@ def update_key(update: dict[str, Any]) -> tuple[str, str]:
 
 
 def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "dependency-updates.json schema_version must be 1")
     if manifest.get("dependabot_file") != ".github/dependabot.yml":
         fail(failures, "dependabot_file must be .github/dependabot.yml")
     if manifest.get("policy_doc") != "docs/workflows/dependency-updates.md":

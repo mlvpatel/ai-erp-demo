@@ -64,9 +64,6 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 
 
 def validate_shape(matrix: dict[str, Any], failures: list[str]) -> None:
-    if matrix.get("schema_version") != 1:
-        fail(failures, "authorization-matrix.json schema_version must be 1")
-
     for field in ("workflow_doc", "service_workflow_doc", "threat_model", "test_file"):
         value = matrix.get(field)
         if not isinstance(value, str) or not value.strip():

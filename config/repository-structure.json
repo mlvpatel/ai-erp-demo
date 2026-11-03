@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable repository layout contract for AI ERP Demo. This keeps the repo ERPNext/Frappe-specific instead of drifting into a generic frontend/backend project.",
   "required_directories": [
     ".github/ISSUE_TEMPLATE",
     ".github/workflows",

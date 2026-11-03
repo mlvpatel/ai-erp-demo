@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "demo_version": "2026.07.30-demo",
   "claim_boundary": "This identifier labels the local synthetic field-service demo product. It is not a production release tag, SemVer public release, or readiness claim.",
   "product_shape": "Version-based private demo of a governed AI-assisted field-service ERP on ERPNext/Frappe, with a draft-only AI control plane.",

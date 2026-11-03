@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable registry of approved AI-assisted ERP workflows. It prevents new AI routes or proposal types from bypassing data-boundary, contract, documentation, and test requirements.",
   "lifecycle_doc": "docs/workflows/ai-workflow-lifecycle.md",
   "review_checklist": "docs/security/ai-workflow-review.md",
   "threat_model": "docs/security/threat-model.md",

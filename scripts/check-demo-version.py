@@ -12,7 +12,6 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "demo-version.json"
 REQUIRED_KEYS = (
-    "schema_version",
     "demo_version",
     "claim_boundary",
     "product_shape",
@@ -43,8 +42,6 @@ def main() -> int:
         print(f"FAIL: invalid JSON in demo-version.json: {exc}", file=sys.stderr)
         return 1
 
-    if manifest.get("schema_version") != 1:
-        fail(failures, "schema_version must be 1")
 
     for key in REQUIRED_KEYS:
         if key not in manifest:

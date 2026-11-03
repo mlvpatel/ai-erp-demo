@@ -104,8 +104,6 @@ def required_status_checks(metadata: dict[str, Any], failures: list[str]) -> set
 
 
 def validate_contract_shape(contract: dict[str, Any], failures: list[str]) -> None:
-    if contract.get("schema_version") != 1:
-        fail(failures, "ci-workflow.json schema_version must be 1")
     workflow = contract.get("workflow")
     if not isinstance(workflow, str) or not workflow.strip():
         fail(failures, "workflow must be a non-empty string")

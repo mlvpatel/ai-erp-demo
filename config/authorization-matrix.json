@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "workflow_doc": "docs/workflows/authorization-and-approvals.md",
   "service_workflow_doc": "docs/workflows/service-operations.md",
   "threat_model": "docs/security/threat-model.md",

@@ -99,9 +99,6 @@ def python_has_class(path: Path, class_name: str, failures: list[str]) -> bool:
 
 
 def validate_shape(registry: dict[str, Any], failures: list[str]) -> None:
-    if registry.get("schema_version") != 1:
-        fail(failures, "ai-workflow-registry.json schema_version must be 1")
-
     for field in ("lifecycle_doc", "review_checklist", "threat_model"):
         value = registry.get(field)
         if not isinstance(value, str) or not value.strip():

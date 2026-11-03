@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "lifecycle_doc": "docs/workflows/industry-pack-lifecycle.md",
   "pack_manifest": "config/industry-packs.json",
   "roadmap_doc": "docs/product/industry-pack-roadmap.md",

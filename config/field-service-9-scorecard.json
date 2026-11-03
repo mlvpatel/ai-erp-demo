@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "source_docs": [
     "docs/product/field-service-9-target.md",
     "docs/discovery/design-partner-validation-template.md",

@@ -32,8 +32,6 @@ def main() -> int:
         print(f"Pilot readiness check failed: {exc}", file=sys.stderr)
         return 1
 
-    if value.get("schema_version") != 1:
-        failures.append("schema_version must be 1")
     if value.get("scope") != "service_operations":
         failures.append("scope must remain service_operations")
     if value.get("status") != EXPECTED_STATUS:

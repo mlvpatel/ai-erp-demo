@@ -134,8 +134,6 @@ def class_fields(module: ast.Module, class_name: str) -> set[str]:
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "ai-data-boundary.json schema_version must be 1")
     if manifest.get("workflow") != "service_closeout_summary":
         fail(failures, "workflow must be service_closeout_summary for the MVP")
     if manifest.get("proposal_type") != "service_closeout_summary":

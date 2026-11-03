@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "policy_doc": "docs/workflows/release-process.md",
   "changelog": "CHANGELOG.md",
   "publication_runbook": "docs/runbooks/github-publication.md",

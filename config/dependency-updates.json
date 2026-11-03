@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "dependabot_file": ".github/dependabot.yml",
   "policy_doc": "docs/workflows/dependency-updates.md",
   "required_update_entries": [

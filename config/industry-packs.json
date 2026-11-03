@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable status map for AI ERP Demo industry packs. The manifest prevents broad industry claims from drifting away from implementation and discovery evidence.",
   "packs": [
     {
       "id": "field_service",

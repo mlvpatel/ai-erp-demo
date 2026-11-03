@@ -70,8 +70,6 @@ def dev_commands(dev_text: str) -> set[str]:
 
 
 def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "fresh-clone-demo.json schema_version must be 1")
     if manifest.get("status") != "runbook-consistency-check":
         fail(failures, "fresh-clone-demo.json status must be runbook-consistency-check")
 

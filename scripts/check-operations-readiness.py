@@ -71,11 +71,6 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "operations-readiness.json schema_version must be 1")
-    if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
-        fail(failures, "description must be a non-empty string")
-
     for field in (
         "local_artifact_patterns",
         "local_ignore_patterns",

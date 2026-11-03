@@ -1,5 +1,4 @@
 {
-  "schema_version": 1,
   "source_doc": "docs/product/mvp-scope.md",
   "acceptance_section": "Acceptance metrics",
   "status_definitions": {

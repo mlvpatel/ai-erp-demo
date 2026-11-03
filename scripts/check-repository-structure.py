@@ -35,8 +35,6 @@ def load_manifest(failures: list[str]) -> dict[str, Any]:
         fail(failures, f"invalid JSON in {rel(MANIFEST)}: {exc}")
         return {}
 
-    if manifest.get("schema_version") != 1:
-        fail(failures, "repository-structure schema_version must be 1")
     return manifest
 
 

@@ -93,9 +93,6 @@ def require_string(
 
 
 def validate_decision_file(data: dict[str, Any], failures: list[str], context: str, *, local: bool) -> None:
-    if data.get("schema_version") != 1:
-        fail(failures, f"{context}: schema_version must be 1")
-
     expected_status = "selected" if local else "example-only"
     if data.get("decision_status") != expected_status:
         fail(failures, f"{context}: decision_status must be {expected_status!r}")

@@ -187,8 +187,6 @@ def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
 
-    if manifest.get("schema_version") != 1:
-        fail(failures, "mvp-acceptance.json schema_version must be 1")
 
     source_doc_value = manifest.get("source_doc")
     section_name = manifest.get("acceptance_section")

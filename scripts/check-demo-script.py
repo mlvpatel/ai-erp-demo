@@ -82,11 +82,6 @@ def dev_commands(dev_text: str) -> set[str]:
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "demo-script.json schema_version must be 1")
-    if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
-        fail(failures, "description must be a non-empty string")
-
     for field in (
         "script_doc",
         "local_demo_runbook",

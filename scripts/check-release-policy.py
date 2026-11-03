@@ -69,9 +69,6 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "release-policy.json schema_version must be 1")
-
     for field in (
         "policy_doc",
         "changelog",

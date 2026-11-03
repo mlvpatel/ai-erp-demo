@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable tenant/site isolation guardrail. It keeps the one-Frappe-site-per-tenant decision aligned with AI payloads, contracts, event envelopes, and safety docs.",
   "adr": "docs/adr/0002-tenant-isolation-by-frappe-site.md",
   "workflow_doc": "docs/workflows/tenant-isolation.md",
   "threat_model": "docs/security/threat-model.md",

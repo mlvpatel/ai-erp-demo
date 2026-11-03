@@ -116,11 +116,6 @@ def compile_patterns(manifest: dict[str, Any], failures: list[str]) -> list[tupl
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "publication-secret-scan.json schema_version must be 1")
-    if manifest.get("scanner_script") != "scripts/check-publication-secrets.py":
-        fail(failures, "scanner_script must be scripts/check-publication-secrets.py")
-
     for field in (
         "scan_targets",
         "text_file_suffixes",

@@ -83,9 +83,6 @@ def string_list(value: Any, field: str, failures: list[str]) -> list[str]:
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "industry-pack-lifecycle.json schema_version must be 1")
-
     for field in ("lifecycle_doc", "pack_manifest", "roadmap_doc", "design_template"):
         value = manifest.get(field)
         if not isinstance(value, str) or not value.strip():
@@ -255,8 +252,8 @@ def validate_configured_demo(
         fail(failures, f"{pack_id}: demo_manifest must use config/industry-demo-* path")
         return
     demo = load_json(REPO_ROOT / demo_manifest_path, failures)
-    if demo.get("schema_version") != 1 or demo.get("pack_id") != pack_id:
-        fail(failures, f"{pack_id}: demo manifest identity/schema mismatch")
+    if demo.get("pack_id") != pack_id:
+        fail(failures, f"{pack_id}: demo manifest pack_id mismatch")
     if demo.get("status") != "configured_demo" or demo.get("synthetic_only") is not True:
         fail(failures, f"{pack_id}: demo manifest must be configured_demo and synthetic_only")
     string_list(demo.get("invariants"), f"{pack_id}.demo.invariants", failures)

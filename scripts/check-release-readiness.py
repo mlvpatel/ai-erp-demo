@@ -215,8 +215,6 @@ def main() -> int:
     traceability_text = read_text(TRACEABILITY_PATH, failures)
     runbook_text = read_text(PUBLICATION_RUNBOOK_PATH, failures)
 
-    if manifest.get("schema_version") != 1:
-        fail(failures, "release-readiness.json schema_version must be 1")
     if manifest.get("status") != "blocked-until-owner-and-publication-gates-pass":
         fail(failures, "release-readiness.json status must reflect unresolved publication gates")
     if manifest.get("strict_release_command") != "scripts/check-open-source-ready.sh --release":

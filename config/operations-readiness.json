@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable operations and recovery readiness contract for the AI ERP Demo.",
   "local_artifact_patterns": [
     "sites/",
     "logs/",

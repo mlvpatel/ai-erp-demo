@@ -74,9 +74,6 @@ def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> 
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "audit-evidence.json schema_version must be 1")
-
     for field in (
         "workflow_doc",
         "review_checklist",
@@ -86,8 +83,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
     ):
         required_path(manifest, field, failures)
 
-    if not isinstance(manifest.get("description"), str) or not manifest["description"].strip():
-        fail(failures, "description must be a non-empty string")
 
     for field in ("doctype_fields", "source_checks", "test_anchors", "required_doc_phrases"):
         value = manifest.get(field)

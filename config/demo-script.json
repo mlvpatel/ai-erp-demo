@@ -1,6 +1,4 @@
 {
-  "schema_version": 1,
-  "description": "Machine-readable public demo script contract. It keeps the README/demo walkthrough story aligned with actual MVP claims, local demo commands, screenshot safety rules, and first-public issue planning.",
   "script_doc": "docs/runbooks/demo-script.md",
   "local_demo_runbook": "docs/runbooks/local-demo.md",
   "readme": "README.md",

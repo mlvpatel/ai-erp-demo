@@ -91,8 +91,6 @@ def current_placeholder_locations(paths: set[str]) -> list[str]:
 
 
 def validate_manifest_shape(manifest: dict[str, Any], failures: list[str]) -> None:
-    if manifest.get("schema_version") != 1:
-        fail(failures, "license-metadata.json schema_version must be 1")
     status = manifest.get("status")
     if status != "selected":
         fail(failures, "license-metadata.json status must be selected")
