@@ -85,7 +85,6 @@ require_file scripts/check-release-readiness.py
 require_file scripts/check-release-policy.py
 require_file scripts/check-owner-decisions.py
 require_file scripts/check-license-metadata.py
-require_file scripts/check-industry-pack-manifest.py
 require_file scripts/check-industry-pack-lifecycle.py
 require_file scripts/check-public-claims.py
 require_file scripts/check-repository-structure.py

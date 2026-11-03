@@ -119,9 +119,6 @@ echo "==> Owner decision template"
 echo "==> License metadata"
 "$python_bin" scripts/check-license-metadata.py
 
-echo "==> Industry pack manifest"
-"$python_bin" scripts/check-industry-pack-manifest.py
-
 echo "==> Industry pack lifecycle"
 "$python_bin" scripts/check-industry-pack-lifecycle.py
 

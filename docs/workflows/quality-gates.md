@@ -57,7 +57,6 @@ This checks:
 - release policy and versioning consistency,
 - owner-decision template consistency,
 - license metadata reconciliation consistency,
-- industry-pack manifest consistency,
 - industry-pack lifecycle consistency,
 - credential-free AWS production-IaC invariants,
 - synthetic service-pilot evidence and pending-gate consistency,

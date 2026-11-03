@@ -11,6 +11,21 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "industry-pack-lifecycle.json"
+REQUIRED_PACK_FIELDS = {
+    "id",
+    "order",
+    "title",
+    "status",
+    "app_path",
+    "docs",
+    "entry_gate",
+    "first_proof_workflow",
+    "erpnext_reuse",
+    "ai_allowed",
+    "ai_forbidden",
+    "verification",
+}
+REQUIRED_AI_FORBIDDEN_TERMS = ("financial", "inventory", "payroll", "permission", "compliance")
 
 
 def rel(path: Path) -> str:
@@ -289,8 +304,8 @@ def validate_configured_demo(pack_id: str, pack: dict[str, Any], rule: dict[str,
 
 def validate_implemented_pack(pack_id: str, pack: dict[str, Any], rule: dict[str, Any], failures: list[str]) -> None:
     app_path_value = pack.get("app_path")
-    if not isinstance(app_path_value, str) or not (REPO_ROOT / app_path_value).is_dir():
-        fail(failures, f"{pack_id}: implemented packs must set an existing app_path")
+    if not isinstance(app_path_value, str) or not (REPO_ROOT / app_path_value / "README.md").is_file():
+        fail(failures, f"{pack_id}: implemented packs must set an existing app_path with README.md")
 
     verification = pack.get("verification")
     prefix = rule.get("required_verification_prefix")
@@ -328,11 +343,33 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
 
     implemented_count = 0
     reserved_or_planned_count = 0
+    seen_ids: set[str] = set()
+    orders: list[Any] = []
     for index, pack in enumerate(packs, 1):
         if not isinstance(pack, dict):
             fail(failures, f"{pack_manifest_path}: packs[{index}] must be an object")
             continue
-        pack_id = pack.get("id") if isinstance(pack.get("id"), str) else f"packs[{index}]"
+        pack_id = pack.get("id")
+        if not isinstance(pack_id, str) or not pack_id.strip():
+            fail(failures, f"{pack_manifest_path}: packs[{index}].id must be a non-empty string")
+            pack_id = f"packs[{index}]"
+        elif pack_id in seen_ids:
+            fail(failures, f"{pack_id}: duplicate pack id")
+        seen_ids.add(pack_id)
+        orders.append(pack.get("order"))
+        missing = sorted(REQUIRED_PACK_FIELDS - set(pack))
+        if missing:
+            fail(failures, f"{pack_id}: missing required fields: {', '.join(missing)}")
+        for field in ("title", "first_proof_workflow"):
+            if not isinstance(pack.get(field), str) or not pack[field].strip():
+                fail(failures, f"{pack_id}: {field} must be a non-empty string")
+        for field in ("erpnext_reuse", "ai_allowed", "verification"):
+            string_list(pack.get(field), f"{pack_id}.{field}", failures)
+        forbidden_text = " ".join(string_list(pack.get("ai_forbidden"), f"{pack_id}.ai_forbidden", failures)).lower()
+        for term in REQUIRED_AI_FORBIDDEN_TERMS:
+            if term not in forbidden_text:
+                fail(failures, f"{pack_id}: ai_forbidden must mention {term}")
+
         status = pack.get("status")
         if status not in allowed_statuses:
             fail(failures, f"{pack_id}: unsupported lifecycle status {status!r}")
@@ -362,6 +399,8 @@ def validate_pack_statuses(manifest: dict[str, Any], failures: list[str]) -> Non
             implemented_count += 1
             validate_implemented_pack(pack_id, pack, rule, failures)
 
+    if not all(isinstance(order, int) and order > 0 for order in orders) or orders != sorted(set(orders)):
+        fail(failures, f"{pack_manifest_path}: pack order values must be unique ascending positive integers")
     if implemented_count < 1:
         fail(failures, "industry lifecycle requires at least one implemented pack")
     if reserved_or_planned_count < 1:
