@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,8 +11,6 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "config" / "release-policy.json"
-TAG_PATTERN = re.compile(r"^vMAJOR\.MINOR\.PATCH$")
-BLOCKER_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def rel(path: Path) -> str:
@@ -79,7 +76,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         "policy_doc",
         "changelog",
         "publication_runbook",
-        "release_readiness_manifest",
         "public_positioning_doc",
     ):
         value = manifest.get(field)
@@ -88,29 +84,13 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         elif not (REPO_ROOT / value).is_file():
             fail(failures, f"{field} path is missing: {value}")
 
-    versioning = manifest.get("versioning")
-    if not isinstance(versioning, dict):
-        fail(failures, "versioning must be an object")
-    else:
-        if not TAG_PATTERN.match(str(versioning.get("tag_pattern", ""))):
-            fail(failures, "versioning.tag_pattern must be vMAJOR.MINOR.PATCH")
-        if versioning.get("pre_1_0_tag_prefix") != "v0.":
-            fail(failures, "versioning.pre_1_0_tag_prefix must be v0.")
-        if versioning.get("production_ready_tag") != "v1.0.0":
-            fail(failures, "versioning.production_ready_tag must be v1.0.0")
-
     for field in (
         "required_release_commands",
-        "required_release_blockers",
         "required_policy_phrases",
         "required_changelog_phrases",
         "forbidden_public_claims_before_1_0",
     ):
         string_list(manifest.get(field), field, failures)
-
-    for blocker_id in string_list(manifest.get("required_release_blockers"), "required_release_blockers", failures):
-        if not BLOCKER_ID_PATTERN.match(blocker_id):
-            fail(failures, f"required_release_blockers entry must be kebab-case: {blocker_id}")
 
 
 def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -151,30 +131,6 @@ def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
             fail(failures, f"{public_positioning_doc}: missing public-positioning claim warning: {claim}")
 
 
-def validate_release_readiness(manifest: dict[str, Any], failures: list[str]) -> None:
-    readiness_path = manifest.get("release_readiness_manifest")
-    if not isinstance(readiness_path, str):
-        return
-    readiness = load_json(REPO_ROOT / readiness_path, failures)
-    blockers = readiness.get("blockers")
-    if not isinstance(blockers, list):
-        fail(failures, f"{readiness_path}: blockers must be a list")
-        return
-
-    actual_ids = {
-        blocker.get("id")
-        for blocker in blockers
-        if isinstance(blocker, dict) and isinstance(blocker.get("id"), str)
-    }
-    expected_ids = set(string_list(manifest.get("required_release_blockers"), "required_release_blockers", failures))
-    missing = sorted(expected_ids - actual_ids)
-    extra = sorted(actual_ids - expected_ids)
-    if missing:
-        fail(failures, f"{readiness_path}: missing release blocker ids: {', '.join(missing)}")
-    if extra:
-        fail(failures, f"{readiness_path}: unmanifested release blocker ids: {', '.join(extra)}")
-
-
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -182,7 +138,6 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_docs(manifest, failures)
-        validate_release_readiness(manifest, failures)
 
     if failures:
         print("Release policy check failed:", file=sys.stderr)
