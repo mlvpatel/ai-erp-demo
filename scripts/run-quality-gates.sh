@@ -83,9 +83,6 @@ echo "==> CI workflow"
 echo "==> GitHub labels"
 "$python_bin" scripts/check-github-labels.py
 
-echo "==> First public issues"
-"$python_bin" scripts/check-first-public-issues.py
-
 echo "==> MVP acceptance"
 "$python_bin" scripts/check-mvp-acceptance.py
 

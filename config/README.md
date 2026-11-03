@@ -34,9 +34,6 @@ secrets belong in the deployment platform or a secrets manager.
 - `performance-readiness.json`: machine-readable performance guardrail. It
   keeps load-profile examples, record-volume targets, safety invariants,
   workflow docs, and release checks aligned.
-- `first-public-issues.json`: launch-safe GitHub issue seed list. It keeps
-  early public issues small, license-gated, and away from ERP/AI safety
-  boundaries.
 - `mvp-acceptance.json`: machine-readable MVP acceptance map. It ties the
   acceptance metrics in `docs/product/mvp-scope.md` to evidence files, anchors,
   safety boundaries, and runnable verification commands.

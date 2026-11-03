@@ -74,7 +74,6 @@ require_file scripts/check-publication-secrets.py
 require_file scripts/check-github-metadata.py
 require_file scripts/check-ci-workflow.py
 require_file scripts/check-github-labels.py
-require_file scripts/check-first-public-issues.py
 require_file scripts/check-mvp-acceptance.py
 require_file scripts/check-fresh-clone-demo.py
 require_file scripts/check-demo-script.py
@@ -99,7 +98,6 @@ require_file config/operations-readiness.json
 require_file config/observability-readiness.json
 require_file config/performance-readiness.json
 require_file config/repository-structure.json
-require_file config/first-public-issues.json
 require_file config/mvp-acceptance.json
 require_file config/authorization-matrix.json
 require_file config/transaction-safety.json

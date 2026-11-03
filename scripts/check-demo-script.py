@@ -94,7 +94,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         "backlog",
         "dev_helper",
         "mvp_acceptance",
-        "first_public_issues",
     ):
         required_path(manifest, field, failures)
 
@@ -109,9 +108,6 @@ def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
         value = manifest.get(field)
         if not isinstance(value, list) or not value:
             fail(failures, f"{field} must be a non-empty list")
-
-    if not isinstance(manifest.get("first_public_issue_id"), str) or not manifest["first_public_issue_id"].strip():
-        fail(failures, "first_public_issue_id must be a non-empty string")
 
 
 def validate_commands(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -203,36 +199,6 @@ def validate_doc_phrases(manifest: dict[str, Any], failures: list[str]) -> None:
                 fail(failures, f"{path_value} missing demo-script phrase: {phrase}")
 
 
-def validate_first_public_issue(manifest: dict[str, Any], failures: list[str]) -> None:
-    issues_path = manifest.get("first_public_issues")
-    script_doc = manifest.get("script_doc")
-    issue_id = manifest.get("first_public_issue_id")
-    if not isinstance(issues_path, str) or not isinstance(script_doc, str) or not isinstance(issue_id, str):
-        return
-
-    value = load_json(REPO_ROOT / issues_path, failures)
-    if not isinstance(value, dict):
-        return
-    issues = value.get("issues")
-    if not isinstance(issues, list):
-        fail(failures, f"{issues_path}: issues must be a list")
-        return
-    issue = next(
-        (item for item in issues if isinstance(item, dict) and item.get("id") == issue_id),
-        None,
-    )
-    if issue is None:
-        fail(failures, f"{issues_path}: missing first public demo issue {issue_id}")
-        return
-    evidence_paths = issue.get("evidence_paths")
-    if not isinstance(evidence_paths, list) or script_doc not in evidence_paths:
-        fail(failures, f"{issue_id}: evidence_paths must include {script_doc}")
-    checks = issue.get("acceptance_checks")
-    check_text = json.dumps(checks, sort_keys=True)
-    if "demo script" not in check_text.lower():
-        fail(failures, f"{issue_id}: acceptance checks must mention the demo script")
-
-
 def main() -> int:
     failures: list[str] = []
     value = load_json(MANIFEST_PATH, failures)
@@ -243,7 +209,6 @@ def main() -> int:
         validate_commands(manifest, failures)
         validate_story_beats(manifest, failures)
         validate_doc_phrases(manifest, failures)
-        validate_first_public_issue(manifest, failures)
 
     if failures:
         print("Demo script check failed:", file=sys.stderr)

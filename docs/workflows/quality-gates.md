@@ -46,7 +46,6 @@ This checks:
 - GitHub repository metadata consistency,
 - GitHub Actions workflow consistency,
 - GitHub label manifest consistency,
-- first public issue manifest consistency,
 - MVP acceptance evidence consistency,
 - authorization and approval matrix consistency,
 - transaction safety invariant consistency,
