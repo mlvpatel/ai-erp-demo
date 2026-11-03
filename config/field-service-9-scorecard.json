@@ -11,8 +11,6 @@
   "process_owner": "Service Manager",
   "business_outcome": "Turn a service request into assigned work, verified execution, margin-aware closeout, and one draft invoice without losing source evidence or crossing ERP authorization boundaries.",
   "measurable_success_signal": "A design partner rates the evidence-to-cash workflow at 9/10 or better and automated gates prove no duplicate stock issue, duplicate invoice draft, duplicate AI proposal, autonomous posting, or unauthorized finance visibility.",
-  "current_demo_average_score": 8.1,
-  "target_average_score": 9.1,
   "requirements_status": {
     "verified": [
       "Technician and manager responsibilities are separated in the local demo.",

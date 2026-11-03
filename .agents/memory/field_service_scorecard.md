@@ -1,8 +1,9 @@
 # Field Service Scorecard Memory
 
 ## Benchmark Status
-- **Current Demo Average Score**: 8.1 / 10
-- **Target Average Score**: 9.1 / 10
+- **Current Demo Average Score**: 8.1 / 10 (mean of feature `current_score`
+  values in `config/field-service-9-scorecard.json`)
+- **Target Average Score**: 9.1 / 10 (mean of feature `target_score` values)
 - Do not treat the demo average as a shipped 9/10 product claim. Live OpenAI
   eval, design-partner / human UAT, and production/legal/GDPR evidence remain
   deferred or blocked.

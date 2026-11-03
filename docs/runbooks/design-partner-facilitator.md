@@ -318,7 +318,7 @@ passwords.
 Facilitator-only:
 
 - Keep blank cells blank if the partner did not rate that row.
-- Do not update `current_demo_average_score` in the scorecard from facilitator
+- Do not raise feature `current_score` values in the scorecard from facilitator
   opinion alone.
 - File product changes as backlog items; do not claim pilot approval.
 - Live OpenAI evaluation remains a separate private path:

@@ -200,13 +200,6 @@ def main() -> int:
         require_text(manifest.get(field), field, failures)
     require_text(manifest.get("process_owner"), "process_owner", failures, min_len=5)
 
-    target_average = manifest.get("target_average_score")
-    current_average = manifest.get("current_demo_average_score")
-    if not isinstance(target_average, (int, float)) or target_average < 9:
-        fail(failures, "target_average_score must be at least 9")
-    if not isinstance(current_average, (int, float)) or not 0 <= current_average < 9:
-        fail(failures, "current_demo_average_score must stay below 9 until validated evidence exists")
-
     validate_requirements_status(manifest.get("requirements_status"), failures)
     validate_system_records(manifest.get("system_records"), failures)
 
@@ -225,21 +218,8 @@ def main() -> int:
         if missing:
             fail(failures, f"missing required feature ids: {', '.join(sorted(missing))}")
 
-    if score_pairs:
-        calculated_current = round(sum(pair[0] for pair in score_pairs) / len(score_pairs), 1)
-        calculated_target = round(sum(pair[1] for pair in score_pairs) / len(score_pairs), 1)
-        if isinstance(current_average, (int, float)) and round(float(current_average), 1) != calculated_current:
-            fail(
-                failures,
-                "current_demo_average_score must equal the rounded average of feature current_score values "
-                f"({calculated_current})",
-            )
-        if isinstance(target_average, (int, float)) and round(float(target_average), 1) != calculated_target:
-            fail(
-                failures,
-                "target_average_score must equal the rounded average of feature target_score values "
-                f"({calculated_target})",
-            )
+    if score_pairs and round(sum(pair[0] for pair in score_pairs) / len(score_pairs), 1) >= 9:
+        fail(failures, "average feature current_score must stay below 9 until validated evidence exists")
 
     validate_claim_boundaries([path for path in source_docs if isinstance(path, str)], failures)
 
