@@ -122,6 +122,7 @@ def source_field_literals(module: ast.Module) -> set[str]:
 
 
 def class_fields(module: ast.Module, class_name: str) -> set[str]:
+    """Annotated fields of a class, including those inherited from classes in the same module."""
     fields: set[str] = set()
     for node in module.body:
         if not isinstance(node, ast.ClassDef) or node.name != class_name:
@@ -129,6 +130,9 @@ def class_fields(module: ast.Module, class_name: str) -> set[str]:
         for child in node.body:
             if isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
                 fields.add(child.target.id)
+        for base in node.bases:
+            if isinstance(base, ast.Name):
+                fields |= class_fields(module, base.id)
     return fields
 
 
