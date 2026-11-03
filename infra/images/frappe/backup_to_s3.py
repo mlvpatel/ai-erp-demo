@@ -30,11 +30,8 @@ def classify(path: Path) -> str | None:
 
 
 def digest(path: Path) -> str:
-    value = hashlib.sha256()
     with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            value.update(block)
-    return value.hexdigest()
+        return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
 def fresh_backup_files(backup_dir: Path, started_epoch: float) -> list[tuple[Path, str]]:
