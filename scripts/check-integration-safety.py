@@ -7,10 +7,19 @@ import re
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, load_json_object, read_text, string_list
+from _gate import (
+    REPO_ROOT,
+    contains_snippet,
+    joined_doc_phrases,
+    load_json,
+    load_json_object,
+    read_text,
+    string_list,
+)
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "integration-safety.json"
+DOC_FIELDS = ("workflow_doc", "contracts_readme", "events_readme", "contract_lifecycle_doc", "threat_model")
 
 
 def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> str | None:
@@ -162,23 +171,6 @@ def validate_tests(manifest: dict[str, Any], failures: list[str]) -> None:
             failures.append(f"{path_value} missing event-contract test snippet: {snippet}")
 
 
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            manifest.get("workflow_doc"),
-            manifest.get("contracts_readme"),
-            manifest.get("events_readme"),
-            manifest.get("contract_lifecycle_doc"),
-            manifest.get("threat_model"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"integration safety docs missing phrase: {phrase}")
-
-
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -189,7 +181,7 @@ def main() -> int:
         validate_event_contract(manifest, failures)
         validate_catalog(manifest, failures)
         validate_tests(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "integration safety", failures)
 
     if failures:
         print("Integration safety check failed:", file=sys.stderr)

@@ -7,10 +7,27 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, required_path, string_list
+from _gate import (
+    REPO_ROOT,
+    contains_snippet,
+    joined_doc_phrases,
+    load_json,
+    read_text,
+    rel,
+    required_path,
+    string_list,
+)
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "tenant-isolation.json"
+DOC_FIELDS = (
+    "adr",
+    "workflow_doc",
+    "threat_model",
+    "system_boundaries",
+    "mvp_blueprint_review",
+    "ai_control_plane_readme",
+)
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -52,24 +69,6 @@ def validate_source_anchors(manifest: dict[str, Any], failures: list[str]) -> No
         for snippet in string_list(anchor.get("required_snippets"), f"{anchor_id}.required_snippets", failures):
             if not contains_snippet(source_text, snippet):
                 failures.append(f"{anchor_id}: {path_value} missing snippet: {snippet}")
-
-
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            manifest.get("adr"),
-            manifest.get("workflow_doc"),
-            manifest.get("threat_model"),
-            manifest.get("system_boundaries"),
-            manifest.get("mvp_blueprint_review"),
-            manifest.get("ai_control_plane_readme"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"tenant isolation docs missing phrase: {phrase}")
 
 
 def iter_files(path: Path) -> list[Path]:
@@ -116,7 +115,7 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_source_anchors(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "tenant isolation", failures)
         validate_forbidden_source_terms(manifest, failures)
 
     if failures:

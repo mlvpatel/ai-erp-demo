@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -80,3 +80,41 @@ def required_path(manifest: dict[str, Any], field: str, failures: list[str]) -> 
     if not (REPO_ROOT / value).is_file():
         failures.append(f"{field} path is missing: {value}")
     return value
+
+
+def doc_phrase_entries(
+    manifest: dict[str, Any],
+    label: str,
+    failures: list[str],
+    match: Callable[[str, str], bool] = contains_snippet,
+) -> None:
+    """Check required_doc_phrases given as [{"path": ..., "phrases": [...]}, ...]."""
+    entries = manifest.get("required_doc_phrases")
+    if not isinstance(entries, list):
+        return
+    for index, entry in enumerate(entries, 1):
+        if not isinstance(entry, dict):
+            failures.append(f"required_doc_phrases[{index}] must be an object")
+            continue
+        path_value = entry.get("path")
+        if not isinstance(path_value, str) or not path_value:
+            failures.append(f"required_doc_phrases[{index}].path must be a non-empty string")
+            continue
+        text = read_text(REPO_ROOT / path_value, failures)
+        for phrase in string_list(entry.get("phrases"), f"required_doc_phrases[{index}].phrases", failures):
+            if not match(text, phrase):
+                failures.append(f"{path_value} missing {label} phrase: {phrase}")
+
+
+def joined_doc_phrases(
+    manifest: dict[str, Any], doc_fields: tuple[str, ...], label: str, failures: list[str]
+) -> None:
+    """Check that each required_doc_phrases entry appears in the docs named by doc_fields."""
+    doc_text = "\n".join(
+        read_text(REPO_ROOT / path_value, failures)
+        for path_value in (manifest.get(field) for field in doc_fields)
+        if isinstance(path_value, str)
+    )
+    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
+        if not contains_snippet(doc_text, phrase):
+            failures.append(f"{label} docs missing phrase: {phrase}")

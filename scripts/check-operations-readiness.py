@@ -7,7 +7,7 @@ import re
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, rel, string_list
+from _gate import REPO_ROOT, doc_phrase_entries, load_json, read_text, rel, string_list
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "operations-readiness.json"
@@ -49,24 +49,6 @@ def validate_local_artifacts(manifest: dict[str, Any], failures: list[str]) -> N
             failures.append(f"{rel(PUBLICATION_SOURCE_SCRIPT)} missing publication-source exclusion: {clause}")
 
 
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    entries = manifest.get("required_doc_phrases")
-    if not isinstance(entries, list):
-        return
-    for index, entry in enumerate(entries, 1):
-        if not isinstance(entry, dict):
-            failures.append(f"required_doc_phrases[{index}] must be an object")
-            continue
-        path_value = entry.get("path")
-        if not isinstance(path_value, str) or not path_value:
-            failures.append(f"required_doc_phrases[{index}].path must be a non-empty string")
-            continue
-        text = read_text(REPO_ROOT / path_value, failures)
-        for phrase in string_list(entry.get("phrases"), f"required_doc_phrases[{index}].phrases", failures):
-            if not contains_snippet(text, phrase):
-                failures.append(f"{path_value} missing operations-readiness phrase: {phrase}")
-
-
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -74,7 +56,7 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_local_artifacts(manifest, failures)
-        validate_docs(manifest, failures)
+        doc_phrase_entries(manifest, "operations-readiness", failures)
 
     if failures:
         print("Operations readiness check failed:", file=sys.stderr)

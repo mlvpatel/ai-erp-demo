@@ -10,6 +10,7 @@ from typing import Any
 from _gate import (
     REPO_ROOT,
     contains_snippet,
+    joined_doc_phrases,
     load_json,
     load_json_object,
     read_text,
@@ -20,6 +21,7 @@ from _gate import (
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "migration-safety.json"
+DOC_FIELDS = ("workflow_doc", "quality_gates_doc", "dependency_workflow_doc", "local_demo_runbook")
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -158,22 +160,6 @@ def validate_fresh_clone_steps(manifest: dict[str, Any], failures: list[str]) ->
             failures.append(f"{path_value}: missing migration/demo step id {step_id}")
 
 
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            manifest.get("workflow_doc"),
-            manifest.get("quality_gates_doc"),
-            manifest.get("dependency_workflow_doc"),
-            manifest.get("local_demo_runbook"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"migration safety docs missing phrase: {phrase}")
-
-
 def iter_text_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
@@ -216,7 +202,7 @@ def main() -> int:
         validate_dev_helper(manifest, failures)
         validate_bootstrap(manifest, failures)
         validate_fresh_clone_steps(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "migration safety", failures)
         validate_no_direct_schema_ddl(manifest, failures)
 
     if failures:

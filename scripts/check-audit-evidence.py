@@ -9,6 +9,7 @@ from typing import Any
 from _gate import (
     REPO_ROOT,
     contains_snippet,
+    joined_doc_phrases,
     load_json,
     load_json_object,
     read_text,
@@ -18,6 +19,7 @@ from _gate import (
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "audit-evidence.json"
+DOC_FIELDS = ("workflow_doc", "review_checklist", "threat_model", "service_workflow_doc")
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -134,22 +136,6 @@ def validate_test_anchors(manifest: dict[str, Any], failures: list[str]) -> None
             failures.append(f"service workflow tests missing audit anchor: {anchor}")
 
 
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            manifest.get("workflow_doc"),
-            manifest.get("review_checklist"),
-            manifest.get("threat_model"),
-            manifest.get("service_workflow_doc"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"audit evidence docs missing phrase: {phrase}")
-
-
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -159,7 +145,7 @@ def main() -> int:
         validate_doctype_fields(manifest, failures)
         validate_source_checks(manifest, failures)
         validate_test_anchors(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "audit evidence", failures)
 
     if failures:
         print("Audit evidence check failed:", file=sys.stderr)

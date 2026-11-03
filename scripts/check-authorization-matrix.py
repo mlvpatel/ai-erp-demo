@@ -8,10 +8,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, read_text, rel, string_list
+from _gate import REPO_ROOT, contains_snippet, joined_doc_phrases, read_text, rel, string_list
 
 
 MATRIX_PATH = REPO_ROOT / "config" / "authorization-matrix.json"
+DOC_FIELDS = ("workflow_doc", "service_workflow_doc", "threat_model")
 
 
 # Role fixtures are JSON lists, so this gate keeps a loader that returns any JSON value.
@@ -200,21 +201,6 @@ def validate_sensitive_actions(matrix: dict[str, Any], failures: list[str]) -> N
                 failures.append(f"{action_id}: test file missing anchor: {anchor}")
 
 
-def validate_docs(matrix: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (
-            matrix.get("workflow_doc"),
-            matrix.get("service_workflow_doc"),
-            matrix.get("threat_model"),
-        )
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(matrix.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"authorization docs missing phrase: {phrase}")
-
-
 def main() -> int:
     failures: list[str] = []
     value = load_json_value(MATRIX_PATH, failures)
@@ -225,7 +211,7 @@ def main() -> int:
         validate_roles(matrix, failures)
         validate_doctype_permissions(matrix, failures)
         validate_sensitive_actions(matrix, failures)
-        validate_docs(matrix, failures)
+        joined_doc_phrases(matrix, DOC_FIELDS, "authorization", failures)
 
     if failures:
         print("Authorization matrix check failed:", file=sys.stderr)

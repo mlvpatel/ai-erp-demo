@@ -6,10 +6,19 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, load_json_object, read_text, string_list
+from _gate import (
+    REPO_ROOT,
+    contains_snippet,
+    joined_doc_phrases,
+    load_json,
+    load_json_object,
+    read_text,
+    string_list,
+)
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "transaction-safety.json"
+DOC_FIELDS = ("workflow_doc", "service_workflow_doc")
 
 
 def validate_shape(manifest: dict[str, Any], failures: list[str]) -> None:
@@ -102,17 +111,6 @@ def validate_invariants(manifest: dict[str, Any], failures: list[str]) -> None:
             failures.append(f"{invariant_id}: acceptance claim is not in config/mvp-acceptance.json: {claim_id}")
 
 
-def validate_docs(manifest: dict[str, Any], failures: list[str]) -> None:
-    doc_text = "\n".join(
-        read_text(REPO_ROOT / path_value, failures)
-        for path_value in (manifest.get("workflow_doc"), manifest.get("service_workflow_doc"))
-        if isinstance(path_value, str)
-    )
-    for phrase in string_list(manifest.get("required_doc_phrases"), "required_doc_phrases", failures):
-        if not contains_snippet(doc_text, phrase):
-            failures.append(f"transaction safety docs missing phrase: {phrase}")
-
-
 def main() -> int:
     failures: list[str] = []
     manifest = load_json(MANIFEST_PATH, failures)
@@ -120,7 +118,7 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_invariants(manifest, failures)
-        validate_docs(manifest, failures)
+        joined_doc_phrases(manifest, DOC_FIELDS, "transaction safety", failures)
 
     if failures:
         print("Transaction safety check failed:", file=sys.stderr)
