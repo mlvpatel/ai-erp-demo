@@ -11,8 +11,8 @@ Classification policy: `docs/security/data-classification.md`.
 1. Synthetic data only for demo seed, fixtures, screenshots, and CI.
 2. AI remains proposal-only (ADR-0003). Review of an AI Proposal does not post
    stock, invoices, payroll, permissions, compliance state, or customer email.
-3. Before an OpenAI provider call, closeout and repair-memory paths minimize
-   identifiers and call `redact()` in
+3. Before an OpenAI provider call, the closeout path minimizes identifiers
+   and calls `redact()` in
    `services/ai_control_plane/src/ai_erp_control_plane/safety.py`.
 4. Template renderers use `quote_inline` / `quote_block` so free-text notes are
    redacted and instruction-like spans are neutralized before `draft_content`

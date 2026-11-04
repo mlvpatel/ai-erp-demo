@@ -45,8 +45,8 @@ Proposal types in the demo:
 
 Provider minimize/redaction behavior (code paths):
 
-- Closeout/repair-memory OpenAI paths strip tenant, user, work-order, and
-  warehouse identifiers from the provider request and run
+- The closeout OpenAI path strips tenant, user, work-order, and
+  warehouse identifiers from the provider request and runs
   `services/ai_control_plane/src/ai_erp_control_plane/safety.py` redaction
   (email, phone-shaped values, credential-shaped tokens).
 - Template renderers redact contact/credential-shaped free text and neutralize

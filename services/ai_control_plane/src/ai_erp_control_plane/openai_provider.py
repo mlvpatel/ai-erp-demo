@@ -5,7 +5,6 @@ import os
 from dataclasses import dataclass
 from hashlib import sha256
 from time import monotonic
-from typing import TypeVar
 
 import httpx
 from pydantic import ValidationError
@@ -16,8 +15,6 @@ from .models import (
 	Policy,
 	ProposalResponse,
 	ProviderAudit,
-	RepairMemoryProposalResponse,
-	RepairMemoryRequest,
 	ServiceCloseoutSummaryRequest,
 )
 from .render import POLICY_REASON
@@ -32,9 +29,6 @@ MAX_OUTPUT_TOKENS = 2_000
 MAX_PROVIDER_CALLS = 1
 MAX_AUTOMATIC_RETRIES = 0
 MAX_TIMEOUT_SECONDS = 8
-
-# A TypeVar instead of PEP 695 syntax: the static gate compiles src with the host Python 3.9.
-DraftResponse = TypeVar("DraftResponse", ProposalResponse, RepairMemoryProposalResponse)
 
 
 class OpenAIProviderError(RuntimeError):
@@ -150,15 +144,15 @@ def _output_text(payload: dict) -> str:
 	return ""
 
 
-def _render(  # noqa: UP047
-	request: ServiceCloseoutSummaryRequest | RepairMemoryRequest,
+def _render(
+	request: ServiceCloseoutSummaryRequest,
 	minimized: tuple[dict, int],
-	response_cls: type[DraftResponse],
+	response_cls: type[ProposalResponse],
 	proposal_type: str,
 	prompt_version: str,
 	task: str,
 	client: httpx.Client | None,
-) -> DraftResponse:
+) -> ProposalResponse:
 	"""Make the single provider call; policy, audit, and citations are added locally."""
 	config = OpenAIConfig.from_environment()
 	minimized_input, redaction_count = minimized
@@ -238,47 +232,5 @@ def render_openai(request: ServiceCloseoutSummaryRequest, client: httpx.Client |
 		"service_closeout_summary",
 		PROMPT_VERSION,
 		"Write a concise service closeout summary using only the supplied JSON facts.",
-		client,
-	)
-
-
-def _minimized_repair_memory_input(request: RepairMemoryRequest) -> tuple[dict, int]:
-	"""Exclude tenant, requester, record IDs, and redact high-confidence PII."""
-	redaction_count = 0
-
-	def clean(value: str) -> str:
-		nonlocal redaction_count
-		redacted, count = _redact(value)
-		redaction_count += count
-		return redacted
-
-	payload = {
-		"subject": clean(request.work_order.subject),
-		"status": request.work_order.status,
-		"description": clean(request.work_order.description),
-		"related_history": [
-			{
-				"subject": clean(entry.subject),
-				"status": entry.status,
-				"inspection_result": clean(entry.inspection_result),
-				"closeout_notes": clean(entry.closeout_notes),
-				"parts": [{"item": clean(part.item), "qty": part.qty} for part in entry.parts],
-			}
-			for entry in request.related_history
-		],
-	}
-	return payload, redaction_count
-
-
-def render_openai_repair_memory(
-	request: RepairMemoryRequest, client: httpx.Client | None = None
-) -> RepairMemoryProposalResponse:
-	return _render(
-		request,
-		_minimized_repair_memory_input(request),
-		RepairMemoryProposalResponse,
-		"repair_memory",
-		"repair-memory@v2",
-		"Synthesize cited repair memory from prior completed work using only the supplied JSON.",
 		client,
 	)

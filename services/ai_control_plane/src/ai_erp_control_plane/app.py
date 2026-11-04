@@ -18,7 +18,7 @@ from .models import (
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
-from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai, render_openai_repair_memory
+from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
 from .render import (
 	render_development_template,
 	render_recovery_template,
@@ -126,12 +126,8 @@ def draft_exception_recovery(request: ExceptionRecoveryRequest):
 	dependencies=[Depends(require_service_key)],
 )
 def draft_repair_memory(request: RepairMemoryRequest):
-	if _provider() == "template":
-		return render_repair_memory_template(request)
-	try:
-		return render_openai_repair_memory(request)
-	except OpenAIProviderError:
-		raise _unavailable() from None
+	_provider()  # renders deterministically (ADR-0011); an unapproved provider setting still fails closed
+	return render_repair_memory_template(request)
 
 
 @app.post(

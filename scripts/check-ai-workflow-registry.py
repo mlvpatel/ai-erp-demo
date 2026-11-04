@@ -13,8 +13,10 @@ from _gate import REPO_ROOT, contains_snippet, load_json, parse_python, read_tex
 
 REGISTRY_PATH = REPO_ROOT / "config" / "ai-workflow-registry.json"
 ALLOWED_STATUSES = {"proposed", "approved_for_implementation", "implemented"}
+ALLOWED_PROVIDER_MODES = {"deterministic", "openai"}
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
 ROUTE_PATTERN = re.compile(r"^(GET|POST|PUT|PATCH|DELETE) /[A-Za-z0-9/_{}.-]+$")
+OPENAPI_PROPOSAL_PATH_PATTERN = re.compile(r"""^[ \t]+["']?(/v1/proposals/[^\s:"']+)["']?:[ \t]*$""", re.MULTILINE)
 
 
 def python_has_function(path: Path, function_name: str, failures: list[str]) -> bool:
@@ -63,6 +65,10 @@ def validate_shape(registry: dict[str, Any], failures: list[str]) -> None:
         status = workflow.get("status")
         if status not in ALLOWED_STATUSES:
             failures.append(f"{workflow_id}: status must be one of {', '.join(sorted(ALLOWED_STATUSES))}")
+        if workflow.get("provider_mode") not in ALLOWED_PROVIDER_MODES:
+            failures.append(
+                f"{workflow_id}: provider_mode must be declared as one of {', '.join(sorted(ALLOWED_PROVIDER_MODES))}"
+            )
         route = workflow.get("route")
         if not isinstance(route, str) or not ROUTE_PATTERN.match(route):
             failures.append(f"{workflow_id}: route must look like 'POST /path'")
@@ -124,6 +130,65 @@ def validate_class_reference(workflow_id: str, workflow: dict[str, Any], field: 
         failures.append(f"{workflow_id}: missing class {class_name} in {path_value}")
 
 
+def handler_reaches_hosted_provider(path: Path, function_name: str, failures: list[str]) -> bool | None:
+    """True when the handler names the openai provider or calls a render_openai* adapter; None if not found."""
+    module = parse_python(path, failures)
+    if module is None:
+        return None
+    for node in module.body:
+        if not (isinstance(node, ast.FunctionDef) and node.name == function_name):
+            continue
+        for child in ast.walk(node):
+            if isinstance(child, ast.Constant) and child.value == "openai":
+                return True
+            if isinstance(child, ast.Call):
+                func = child.func
+                name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+                if name.startswith("render_openai"):
+                    return True
+        return False
+    return None
+
+
+def validate_provider_mode_dispatch(workflow_id: str, workflow: dict[str, Any], failures: list[str]) -> None:
+    """The declared provider_mode must match what the app.py handler dispatches to."""
+    provider_mode = workflow.get("provider_mode")
+    handler = workflow.get("control_plane_handler")
+    if provider_mode not in ALLOWED_PROVIDER_MODES or not isinstance(handler, dict):
+        return
+    path_value = handler.get("path")
+    function_name = handler.get("function")
+    if not isinstance(path_value, str) or not isinstance(function_name, str):
+        return
+    reaches_provider = handler_reaches_hosted_provider(REPO_ROOT / path_value, function_name, failures)
+    if reaches_provider is None:
+        return
+    if provider_mode == "deterministic" and reaches_provider:
+        failures.append(
+            f"{workflow_id}: declared deterministic but handler {function_name} in {path_value} "
+            "dispatches to a hosted provider"
+        )
+    if provider_mode == "openai" and not reaches_provider:
+        failures.append(
+            f"{workflow_id}: declared provider_mode openai but handler {function_name} in {path_value} "
+            "has no openai dispatch"
+        )
+
+
+def validate_contract_route_coverage(registry: dict[str, Any], failures: list[str]) -> None:
+    """Every proposal path in an OpenAPI contract needs a registry entry, not only the reverse."""
+    workflows = registry.get("workflows")
+    if not isinstance(workflows, list):
+        return
+    workflows = [item for item in workflows if isinstance(item, dict)]
+    registered = {str(item.get("route", "")).split(" ", 1)[-1] for item in workflows}
+    contracts = {item["openapi_contract"] for item in workflows if isinstance(item.get("openapi_contract"), str)}
+    for contract in sorted(contracts):
+        for match in OPENAPI_PROPOSAL_PATH_PATTERN.finditer(read_text(REPO_ROOT / contract, failures)):
+            if match.group(1) not in registered:
+                failures.append(f"{contract}: proposal route {match.group(1)} has no ai-workflow-registry entry")
+
+
 def validate_implemented_workflow(workflow: dict[str, Any], failures: list[str]) -> None:
     workflow_id = str(workflow.get("id", "<missing-id>"))
 
@@ -164,6 +229,7 @@ def validate_implemented_workflow(workflow: dict[str, Any], failures: list[str])
 
     for field in ("control_plane_handler", "control_plane_renderer", "payload_builder", "frappe_requester", "proposal_storage"):
         validate_symbol_reference(workflow_id, workflow, field, failures)
+    validate_provider_mode_dispatch(workflow_id, workflow, failures)
     if workflow.get("provider_mode") == "deterministic":
         # ADR-0009: deterministic workflows have no hosted provider surface; the
         # renderer named above is the production path and needs no live evaluation.
@@ -231,6 +297,7 @@ def main() -> int:
         validate_shape(registry, failures)
         validate_registry_docs(registry, failures)
         validate_workflows(registry, failures)
+        validate_contract_route_coverage(registry, failures)
 
     return report("AI workflow registry check", failures)
 
