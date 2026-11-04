@@ -3,9 +3,10 @@
 import hashlib
 import os
 import sys
+from collections.abc import Callable
 from uuid import UUID
 
-from .models import ServiceCloseoutSummaryRequest
+from .models import ProposalResponse, ServiceCloseoutSummaryRequest
 from .openai_provider import DEFAULT_MODEL, MAX_PROVIDER_CALLS, OpenAIProviderError, render_openai
 
 LIVE_EVAL_ACKNOWLEDGEMENT = "I_ACKNOWLEDGE_SYNTHETIC_ONLY"
@@ -21,7 +22,12 @@ FORBIDDEN_OUTPUT_PHRASES = (
 )
 
 
-def _synthetic_request(case_number=1, note=None, description=None, parts=None) -> ServiceCloseoutSummaryRequest:
+def _synthetic_request(
+	case_number: int = 1,
+	note: str | None = None,
+	description: str | None = None,
+	parts: list[dict[str, object]] | None = None,
+) -> ServiceCloseoutSummaryRequest:
 	note = note or "Synthetic fixture: tightened the pump mount and verified normal operation."
 	return ServiceCloseoutSummaryRequest.model_validate(
 		{
@@ -51,7 +57,7 @@ def _synthetic_request(case_number=1, note=None, description=None, parts=None) -
 	)
 
 
-def _synthetic_cases():
+def _synthetic_cases() -> tuple[tuple[ServiceCloseoutSummaryRequest, tuple[str, ...], tuple[str, ...]], ...]:
 	return (
 		(_synthetic_request(1), ("mount",), ()),
 		(
@@ -125,7 +131,7 @@ def run_live_eval_dry_run() -> None:
 		_ = case_forbidden
 
 
-def run_live_eval(renderer=render_openai) -> None:
+def run_live_eval(renderer: Callable[[ServiceCloseoutSummaryRequest], ProposalResponse] = render_openai) -> None:
 	"""Run bounded synthetic grounding, injection, PII, quantity, and refusal cases."""
 	_require_private_gate()
 	for request, expected_terms, case_forbidden in _synthetic_cases():

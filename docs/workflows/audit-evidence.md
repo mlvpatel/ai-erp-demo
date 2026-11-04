@@ -23,6 +23,16 @@ does not become the system of record.
    source record. Stock Entry identifiers are stored on Service Work Order part
    rows. Sales Invoice identifiers are stored on the Service Work Order.
 
+## Append-only ledger
+
+AI Proposal rows cannot be deleted. No role in the doctype carries a delete
+grant, and the controller's `on_trash` refuses deletion outright, so a
+proposal and its Source child rows stay in place once written. The static
+gate checks both: it fails if any permission row regains a delete grant or if
+the `on_trash` guard disappears from the controller. The guard covers
+`frappe.delete_doc`; a raw SQL delete bypasses document hooks, and no code
+path in the custom apps issues one against this table.
+
 ## Review expectations
 
 Every future AI workflow must answer:

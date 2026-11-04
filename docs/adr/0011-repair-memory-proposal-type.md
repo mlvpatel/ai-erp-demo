@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-17
 - Owners: AI ERP Demo
+- 2026-11-04: removed an unused hosted-provider branch from the route handler; it now renders deterministically as decided here.
 
 ## Context
 

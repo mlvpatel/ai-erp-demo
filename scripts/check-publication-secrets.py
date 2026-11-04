@@ -342,6 +342,17 @@ def validate_policy_documents(manifest: dict[str, Any], failures: list[str]) -> 
                 failures.append(f"{path_value}: missing publication safety phrase: {phrase}")
 
 
+def validate_scanner_canary(manifest: dict[str, Any], failures: list[str]) -> None:
+    # Ruff's S105 recognises password- and token-shaped names only, so this scan
+    # is the gate layer that catches a hardcoded key assigned to a name like
+    # api_key. Prove on every run that the detection still fires.
+    canary_line = 'api_key = "abcd1234"'
+    canary_failures: list[str] = []
+    scan_sensitive_assignments(REPO_ROOT / "canary.py", canary_line, manifest, canary_failures)
+    if not canary_failures:
+        failures.append(f"sensitive-assignment scan no longer flags the hardcoded API key canary {canary_line!r}")
+
+
 def scan_files(manifest: dict[str, Any], failures: list[str]) -> None:
     patterns = compile_patterns(manifest, failures)
     files = iter_scan_files(manifest, failures)
@@ -360,6 +371,7 @@ def main() -> int:
 
     if manifest:
         validate_shape(manifest, failures)
+        validate_scanner_canary(manifest, failures)
         validate_forbidden_tracked_paths(manifest, failures)
         validate_policy_documents(manifest, failures)
         scan_files(manifest, failures)

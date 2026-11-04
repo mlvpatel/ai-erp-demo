@@ -50,6 +50,9 @@ class AIProposal(Document):
 			return
 		self._validate_existing_proposal()
 
+	def on_trash(self):
+		raise frappe.PermissionError(_("AI Proposal records are append-only review evidence and cannot be deleted."))
+
 	def _validate_new_proposal(self):
 		if not self.flags.from_control_plane:
 			frappe.throw(_("AI Proposals can only be created from the validated control-plane boundary."))

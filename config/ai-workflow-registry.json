@@ -6,6 +6,7 @@
     {
       "id": "service_closeout_summary",
       "status": "implemented",
+      "provider_mode": "openai",
       "route": "POST /v1/proposals/service-closeout-summary",
       "proposal_type": "service_closeout_summary",
       "policy": {

@@ -11,7 +11,7 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM"]
+select = ["E", "F", "I", "B", "UP", "SIM", "S"]
 ignore = ["E501"]
 
 [tool.mypy]
@@ -40,8 +40,3 @@ source = ["services/ai_control_plane/src"]
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
-
-[tool.bandit]
-targets = ["services/ai_control_plane/src", "apps"]
-exclude_dirs = ["tests", "node_modules"]
-skips = ["B101"]

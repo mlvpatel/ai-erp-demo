@@ -31,8 +31,10 @@
         "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
         "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
         "python-version: '3.14'",
-        "python -m pip install ruff==0.14.10",
-        "ruff check --no-cache apps/ services/"
+        "python -m pip install ruff==0.14.10 mypy==2.3.0",
+        "python -m pip install ./services/ai_control_plane",
+        "ruff check --no-cache apps/ services/",
+        "python -m mypy services/ai_control_plane/src"
       ]
     },
     {

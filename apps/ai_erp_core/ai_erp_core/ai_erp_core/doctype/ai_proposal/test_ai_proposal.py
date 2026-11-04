@@ -37,6 +37,14 @@ class IntegrationTestAIProposalPermissions(IntegrationTestCase):
 			owner_proposal.check_permission("read")
 		self.assertTrue(other_proposal.has_permission("read"))
 
+	def test_ai_proposal_cannot_be_deleted(self):
+		proposal = self._make_proposal(self.owner)
+
+		frappe.set_user("Administrator")
+		with self.assertRaises(frappe.PermissionError):
+			frappe.delete_doc("AI Proposal", proposal.name)
+		self.assertTrue(frappe.db.exists("AI Proposal", proposal.name))
+
 	def _make_requester(self, label):
 		email = "ai.proposal.{0}.{1}@example.test".format(label, frappe.generate_hash(length=8))
 		user = frappe.get_doc(

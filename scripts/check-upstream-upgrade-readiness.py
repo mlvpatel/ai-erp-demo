@@ -54,7 +54,7 @@ def validate_env_pins(manifest: dict[str, Any], failures: list[str]) -> None:
     for commit_pin in ("FRAPPE_COMMIT", "ERPNEXT_COMMIT"):
         if not re.search(rf"^{commit_pin}=[0-9a-f]{{40}}$", env_text, flags=re.MULTILINE):
             failures.append(f"{path_value} {commit_pin} must be a full 40-character commit hash")
-    for image_pin in ("MARIADB_IMAGE", "REDIS_IMAGE", "FRAPPE_BENCH_IMAGE"):
+    for image_pin in ("MARIADB_IMAGE", "REDIS_IMAGE", "FRAPPE_BENCH_IMAGE", "PLAYWRIGHT_IMAGE"):
         if not re.search(rf"^{image_pin}=\S+@sha256:[0-9a-f]{{64}}$", env_text, flags=re.MULTILINE):
             failures.append(f"{path_value} {image_pin} must be digest-pinned")
 

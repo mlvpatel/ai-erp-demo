@@ -18,7 +18,7 @@ from .models import (
 	SchedulingProposalResponse,
 	ServiceCloseoutSummaryRequest,
 )
-from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai, render_openai_repair_memory
+from .openai_provider import OpenAIConfig, OpenAIProviderError, render_openai
 from .render import (
 	render_development_template,
 	render_recovery_template,
@@ -60,7 +60,7 @@ def _provider() -> str:
 	return provider
 
 
-def require_service_key(credentials: HTTPAuthorizationCredentials | None = _bearer_dependency):
+def require_service_key(credentials: HTTPAuthorizationCredentials | None = _bearer_dependency) -> None:
 	expected = os.environ.get("AI_CONTROL_PLANE_SHARED_SECRET", "")
 	provided = credentials.credentials if credentials and credentials.scheme.lower() == "bearer" else ""
 	if not expected or not hmac.compare_digest(provided, expected):
@@ -68,7 +68,7 @@ def require_service_key(credentials: HTTPAuthorizationCredentials | None = _bear
 
 
 @app.get("/healthz")
-def healthz():
+def healthz() -> dict[str, str]:
 	return {"status": "ok"}
 
 
@@ -81,7 +81,7 @@ def healthz():
 		}
 	},
 )
-def readyz():
+def readyz() -> dict[str, str]:
 	if _provider() == "openai":
 		try:
 			OpenAIConfig.from_environment()
@@ -99,7 +99,7 @@ def readyz():
 	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
-def draft_scheduling_explanation(request: SchedulingExplanationRequest):
+def draft_scheduling_explanation(request: SchedulingExplanationRequest) -> SchedulingProposalResponse:
 	return render_scheduling_template(request)
 
 
@@ -112,7 +112,7 @@ def draft_scheduling_explanation(request: SchedulingExplanationRequest):
 	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
-def draft_exception_recovery(request: ExceptionRecoveryRequest):
+def draft_exception_recovery(request: ExceptionRecoveryRequest) -> ExceptionRecoveryProposalResponse:
 	return render_recovery_template(request)
 
 
@@ -125,13 +125,9 @@ def draft_exception_recovery(request: ExceptionRecoveryRequest):
 	responses=AUTH_RESPONSES,
 	dependencies=[Depends(require_service_key)],
 )
-def draft_repair_memory(request: RepairMemoryRequest):
-	if _provider() == "template":
-		return render_repair_memory_template(request)
-	try:
-		return render_openai_repair_memory(request)
-	except OpenAIProviderError:
-		raise _unavailable() from None
+def draft_repair_memory(request: RepairMemoryRequest) -> RepairMemoryProposalResponse:
+	_provider()  # renders deterministically (ADR-0011); an unapproved provider setting still fails closed
+	return render_repair_memory_template(request)
 
 
 @app.post(
@@ -146,7 +142,7 @@ def draft_repair_memory(request: RepairMemoryRequest):
 	},
 	dependencies=[Depends(require_service_key)],
 )
-def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
+def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest) -> ProposalResponse:
 	if _provider() == "template":
 		return render_development_template(request)
 	logger.info("ai_provider_attempt")
@@ -155,13 +151,17 @@ def draft_service_closeout_summary(request: ServiceCloseoutSummaryRequest):
 	except OpenAIProviderError as exc:
 		logger.error("ai_provider_failure", extra={"error_category": exc.category})
 		raise _unavailable() from None
+	audit = result.audit
+	if audit is None:
+		logger.error("ai_provider_failure", extra={"error_category": "missing_audit"})
+		raise _unavailable()
 	logger.info(
 		"ai_provider_success",
 		extra={
-			"duration_ms": result.audit.duration_ms,
-			"input_tokens": result.audit.input_tokens,
-			"output_tokens": result.audit.output_tokens,
-			"redaction_count": result.audit.redaction_count,
+			"duration_ms": audit.duration_ms,
+			"input_tokens": audit.input_tokens,
+			"output_tokens": audit.output_tokens,
+			"redaction_count": audit.redaction_count,
 		},
 	)
 	return result

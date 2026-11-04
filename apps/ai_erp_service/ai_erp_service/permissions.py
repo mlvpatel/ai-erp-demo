@@ -42,7 +42,7 @@ def service_request_query(user=None):
 	if _is_privileged(user):
 		return None
 	if "Service Technician" in user_roles(user):
-		return (
+		return (  # noqa: S608 -- Frappe permission-query fragment; user is frappe.db.escape()d
 			"`tabService Request`.`name` IN "
 			"(SELECT `service_request` FROM `tabService Work Order` "
 			"WHERE `assigned_technician` = {0} AND `service_request` IS NOT NULL)"
@@ -69,7 +69,7 @@ def service_location_query(user=None):
 	if _is_privileged(user):
 		return None
 	if "Service Technician" in user_roles(user):
-		return (
+		return (  # noqa: S608 -- Frappe permission-query fragment; user is frappe.db.escape()d
 			"`tabService Location`.`name` IN "
 			"(SELECT `service_location` FROM `tabService Work Order` "
 			"WHERE `assigned_technician` = {0} AND `service_location` IS NOT NULL)"
@@ -98,7 +98,7 @@ def service_closure_exception_query(user=None):
 	if "Service Closure Owner" in user_roles(user):
 		return "`tabService Closure Exception`.`exception_owner` = {0}".format(frappe.db.escape(user))
 	if "Service Technician" in user_roles(user):
-		return (
+		return (  # noqa: S608 -- Frappe permission-query fragment; user is frappe.db.escape()d
 			"`tabService Closure Exception`.`work_order` IN "
 			"(SELECT `name` FROM `tabService Work Order` "
 			"WHERE `assigned_technician` = {0})"

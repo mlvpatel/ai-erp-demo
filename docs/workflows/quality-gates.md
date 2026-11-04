@@ -40,6 +40,7 @@ This checks:
 - performance readiness consistency,
 - AI data-boundary consistency,
 - AI workflow registry consistency,
+- capacity import resolution (static symbol checks for `capacity.py`),
 - tenant isolation consistency,
 - migration safety consistency,
 - GitHub repository metadata consistency,
@@ -62,19 +63,47 @@ This checks:
 - public claim/release-blocker consistency,
 - Python syntax for custom apps, the AI control plane, and contract tests.
 
+The capacity import resolution step (`scripts/check-capacity-imports.py`)
+statically resolves every in-repo symbol that
+`apps/ai_erp_service/ai_erp_service/capacity.py` imports, and every
+module-level name its in-repo dependencies read, using `ast` and `symtable`
+only: no frappe import, no network, no database. The module runs only from the
+manual `production-capacity.yml` workflow, and that AWS execution path has
+never been run against a real AWS account, so a renamed helper in
+`performance.py` would otherwise surface in no run at all. Passing this step
+says the symbols resolve; it says nothing about capacity behavior.
+
 ## Python lint gate
 
 GitHub CI runs this as the required `Python lint` check. The version matches
 both custom-app pre-commit configurations, and cache writes are disabled so the
-repository-structure gate sees no generated root entry.
+repository-structure gate sees no generated root entry. The rule selection
+includes ruff's flake8-bandit (`S`) rules in the root and both custom-app
+configurations; they replace the unused `[tool.bandit]` table. A suppression
+takes a `# noqa: S...` with a stated reason. The ruff pin is held on purpose and
+recorded under `held_tool_pins` in `config/dependency-updates.json`.
 
-This is intentionally separate from `scripts/run-quality-gates.sh`. The always-
-run static gate must not flip based on whether `ruff` or `mypy` happen to be
-installed on a laptop.
+Ruff's `S105` matches password- and token-shaped names only, so a hardcoded
+value assigned to a name like `api_key` passes the lint job on any ruff version.
+`scripts/check-publication-secrets.py` in the always-run static gate catches
+those assignments in `apps/`, `services/`, and the other publishable trees, and
+it carries a built-in canary that fails the gate if that detection stops firing.
+
+The same job type-checks the control-plane sources with mypy 2.3.0, using the
+`[tool.mypy]` configuration in the root `pyproject.toml`, which requires typed
+definitions in `ai_erp_control_plane.*`. The job installs the control-plane
+package first so mypy resolves FastAPI, pydantic, and httpx. The check covers
+`services/ai_control_plane/src` only; `apps/` stays out because Frappe ships no
+usable stubs. The mypy pin is held and recorded next to the ruff pin.
+
+Both tools are intentionally separate from `scripts/run-quality-gates.sh`. The
+always-run static gate must not flip based on whether `ruff` or `mypy` happen
+to be installed on a laptop.
 
 ```sh
-python -m pip install ruff==0.14.10
+python -m pip install ruff==0.14.10 mypy==2.3.0 ./services/ai_control_plane
 ruff check --no-cache apps/ services/
+python -m mypy services/ai_control_plane/src
 ```
 
 Pre-commit also runs ruff when configured via `.pre-commit-config.yaml`.

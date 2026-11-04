@@ -148,7 +148,18 @@
       ]
     }
   ],
+  "append_only_doctypes": [
+    "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.json"
+  ],
   "source_checks": [
+    {
+      "id": "ai-proposal-append-only-ledger",
+      "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py",
+      "required_snippets": [
+        "def on_trash(self):",
+        "AI Proposal records are append-only review evidence and cannot be deleted."
+      ]
+    },
     {
       "id": "ai-proposal-created-only-through-control-plane-boundary",
       "path": "apps/ai_erp_core/ai_erp_core/ai_erp_core/doctype/ai_proposal/ai_proposal.py",
