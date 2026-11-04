@@ -18,6 +18,10 @@ runtime upgrade is safe.
 The source-of-truth automation map is `config/dependency-updates.json`; the
 static quality gate runs `scripts/check-dependency-updates.py` so Dependabot
 entries, labels, manual-only pins, and this workflow stay aligned.
+The `Control-plane unit tests` CI job regenerates
+`services/ai_control_plane/requirements.lock` from `uv.lock` with the held uv
+pin and fails on any diff, so a PR that changes only `uv.lock` fails until the
+regenerated export is committed with it.
 For upstream ERP runtime changes, also follow
 `docs/workflows/upstream-upgrade-readiness.md`.
 
