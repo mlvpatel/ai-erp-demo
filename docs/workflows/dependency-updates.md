@@ -33,7 +33,10 @@ Update these only through an explicit maintainer PR:
 - `ERPNEXT_COMMIT` in `development/.env.example`.
 - digest-pinned `MARIADB_IMAGE`, `REDIS_IMAGE`, and `FRAPPE_BENCH_IMAGE`.
 - digest-pinned `PLAYWRIGHT_IMAGE`, kept at the same version as
-  `@playwright/test` in `tests/e2e/package.json`.
+  `@playwright/test` in `tests/e2e/package.json`. `playwright_image` in
+  `config/dependency-updates.json` records the image's version and digest, and
+  the dependency update policy check fails when the env digest, the package
+  pin, or its `tests/e2e/package-lock.json` entry disagrees with that record.
 - Python version changes.
 - Frappe/ERPNext branches.
 - dependencies that affect money, stock, permissions, payroll, compliance,
