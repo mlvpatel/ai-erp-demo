@@ -2,6 +2,7 @@
 
 This document maps the MVP custom DocTypes to ERPNext records. It is a
 contributor guide, not a replacement for the DocType JSON files in `apps/`.
+Operational definitions are listed in the [service operations glossary](../workflows/service-operations.md#service-operations-and-frappe-glossary).
 
 ## Model overview
 

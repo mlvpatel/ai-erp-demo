@@ -2,8 +2,18 @@ import unittest
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
 from ai_erp_control_plane.app import app
+from ai_erp_control_plane.models import (
+	ExceptionRecoveryRequest,
+	PartUsage,
+	RepairMemoryRequest,
+	SchedulingExplanationRequest,
+	ServiceCloseoutSummaryRequest,
+	SourceReference,
+	TimeEntry,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -212,6 +222,110 @@ class TestAIControlPlaneOpenAPIContract(unittest.TestCase):
 						self.contract["components"]["schemas"][schema_name]["properties"][fieldname][key],
 						expected,
 					)
+
+	def test_runtime_model_rejects_boundary_violations(self):
+		for invalid_hours in (0, -1.5, 24.5, float("inf"), float("nan")):
+			with self.subTest(hours=invalid_hours):
+				with self.assertRaises(ValidationError):
+					TimeEntry.model_validate(
+						{
+							"technician": "service.technician@example.test",
+							"work_date": "2026-07-31",
+							"time_type": "Labor",
+							"hours": invalid_hours,
+						}
+					)
+
+		for invalid_qty in (0, -0.5, 100_001, float("inf"), float("nan")):
+			with self.subTest(qty=invalid_qty):
+				with self.assertRaises(ValidationError):
+					PartUsage.model_validate(
+						{
+							"item": "AI-ERP-DEMO-PART",
+							"qty": invalid_qty,
+							"source_warehouse": "Stores - AIERP",
+							"issued": True,
+						}
+					)
+
+		for invalid_hash in ("0" * 63, "0" * 65, "g" * 64, "NOT_A_HASH"):
+			with self.subTest(content_hash=invalid_hash):
+				with self.assertRaises(ValidationError):
+					SourceReference.model_validate(
+						{
+							"doctype": "Service Work Order",
+							"name": "SVC-WO-00001",
+							"field": "status",
+							"content_hash": invalid_hash,
+						}
+					)
+
+	def test_runtime_requests_reject_extraneous_action_fields(self):
+		base_sources = [
+			{
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00001",
+				"field": "status",
+				"content_hash": "a" * 64,
+			}
+		]
+
+		scheduling_payload = {
+			"schema_version": 1,
+			"request_id": "00000000-0000-4000-8000-000000000002",
+			"tenant_site": "demo.localhost",
+			"requested_by": "dispatcher@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00001",
+				"subject": "Inspect pump",
+				"status": "Scheduled",
+			},
+			"candidates": [],
+			"sources": base_sources,
+			"auto_assign": True,
+		}
+		with self.assertRaises(ValidationError):
+			SchedulingExplanationRequest.model_validate(scheduling_payload)
+
+		recovery_payload = {
+			"schema_version": 1,
+			"request_id": "00000000-0000-4000-8000-000000000003",
+			"tenant_site": "demo.localhost",
+			"requested_by": "manager@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00001",
+				"subject": "Inspect pump",
+				"status": "Cannot Close",
+			},
+			"exception": {
+				"name": "EXC-00001",
+				"reason": "Missing parts",
+				"status": "Open",
+			},
+			"sources": base_sources,
+			"force_close": True,
+		}
+		with self.assertRaises(ValidationError):
+			ExceptionRecoveryRequest.model_validate(recovery_payload)
+
+		repair_payload = {
+			"schema_version": 1,
+			"request_id": "00000000-0000-4000-8000-000000000004",
+			"tenant_site": "demo.localhost",
+			"requested_by": "technician@example.test",
+			"work_order": {
+				"doctype": "Service Work Order",
+				"name": "SVC-WO-00001",
+				"subject": "Inspect pump",
+				"status": "In Progress",
+			},
+			"sources": base_sources,
+			"auto_apply_fix": True,
+		}
+		with self.assertRaises(ValidationError):
+			RepairMemoryRequest.model_validate(repair_payload)
 
 
 if __name__ == "__main__":

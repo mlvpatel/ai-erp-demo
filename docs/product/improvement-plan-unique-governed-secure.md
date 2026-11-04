@@ -170,7 +170,8 @@ contract failures so hosted eval is a drop-in later (roadmap Phase 3A/3B/6A).
 
 1. Tighten control-plane contract tests: schema rejection, timeout,
    unavailable, malformed output, rate limit, model mismatch, PII/credential
-   redaction, invented-quantity refusal, prompt-injection refusal
+   redaction, invented-quantity refusal, prompt-injection refusal, and
+   boundary-value rejection on hours, parts, hashes, and unsupported actions
    (`services/ai_control_plane/tests/`,
    `tests/contract/test_ai_control_plane_openapi.py`).
 2. Expand synthetic repair-memory history corpus and retrieval edge tests

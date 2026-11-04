@@ -13,6 +13,12 @@ from ai_erp_service.ai_erp_service.doctype.service_request.service_request impor
 
 DEMO_CUSTOMER = "AI ERP Demo Customer"
 DEMO_LOCATION = "AI ERP Demo Service Site"
+DEMO_LOCATION_NORTH = "AI ERP Demo North Facility"
+DEMO_LOCATION_HARBOR = "AI ERP Demo Harbor Depot"
+DEMO_ADDITIONAL_LOCATIONS = (
+	(DEMO_LOCATION_NORTH, "Synthetic north district maintenance facility. Do not replace with customer data."),
+	(DEMO_LOCATION_HARBOR, "Synthetic coastal depot operations site. Do not replace with customer data."),
+)
 DEMO_REQUEST_SUBJECT = "AI ERP Demo Pump Inspection"
 DEMO_PART_ITEM = "AI-ERP-DEMO-PART"
 DEMO_LABOR_ITEM = "AI-ERP-DEMO-LABOR"
@@ -149,6 +155,7 @@ def seed_service_demo():
 	labor_item = _ensure_item(DEMO_LABOR_ITEM, "AI ERP Demo Service Labor", stock_uom=uom, is_stock_item=0)
 	stock_entry = _ensure_initial_stock(part_item, warehouse, company)
 	location = _ensure_location(customer, warehouse)
+	additional_locations = _ensure_additional_locations(customer, warehouse)
 	request = _ensure_request(customer, location)
 	work_order = _ensure_work_order(request.name, technician, part_item, warehouse, labor_item)
 
@@ -157,6 +164,7 @@ def seed_service_demo():
 	return {
 		"customer": customer,
 		"service_location": location,
+		"additional_locations": additional_locations,
 		"technician_user": technician,
 		"manager_user": manager,
 		"dispatcher_user": dispatcher,
@@ -459,6 +467,34 @@ def _ensure_location(customer, warehouse):
 		}
 	).insert()
 	return doc.name
+
+
+def _ensure_additional_locations(customer, warehouse):
+	created = []
+	for location_name, notes in DEMO_ADDITIONAL_LOCATIONS:
+		location = frappe.db.get_value(
+			"Service Location",
+			{"location_name": location_name, "customer": customer},
+			"name",
+		)
+		if not location:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Service Location",
+					"location_name": location_name,
+					"customer": customer,
+					"default_warehouse": warehouse,
+					"notes": notes,
+				}
+			).insert()
+			created.append(doc.name)
+		else:
+			doc = frappe.get_doc("Service Location", location)
+			if doc.default_warehouse != warehouse:
+				doc.default_warehouse = warehouse
+				doc.save()
+			created.append(location)
+	return created
 
 
 def _ensure_user(email, first_name, last_name, roles):
