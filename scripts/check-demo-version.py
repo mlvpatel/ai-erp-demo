@@ -74,10 +74,6 @@ def main() -> int:
     if "demo-version-loop.md" not in readme or "demo-version-stack.md" not in readme:
         failures.append("README.md must link demo-version-loop.md and demo-version-stack.md")
 
-    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    if "demo-version-loop.md" not in agents:
-        failures.append("AGENTS.md must reference demo-version-loop.md")
-
     return report("Demo Version packaging check", failures)
 
 

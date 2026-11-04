@@ -41,11 +41,12 @@ development/.venv/
 .vscode/
 config/owner-decisions.local.json
 
-# Agent tooling: keep shared skills/rules tracked; ignore machine-local settings only.
-.claude/settings.local.json
-.claude/settings.json
-.claude/*.local.*
-.cursor/*.local.*
+# Agent instructions and skills stay on developer machines and are never published.
+/CLAUDE.md
+/AGENTS.md
+/.agents
+/.claude
+/.cursor
 
 # Terraform local state and private production inputs
 .terraform/
