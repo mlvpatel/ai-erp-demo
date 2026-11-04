@@ -42,6 +42,7 @@ python_gates=(
   "performance-readiness|Performance readiness"
   "ai-data-boundary|AI data boundary"
   "ai-workflow-registry|AI workflow registry"
+  "capacity-imports|Capacity import resolution"
   "tenant-isolation|Tenant isolation"
   "migration-safety|Migration safety"
   "github-metadata|GitHub metadata"

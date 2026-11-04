@@ -95,7 +95,14 @@
     {
       "path": "docs/workflows/quality-gates.md",
       "phrases": [
-        "operations and recovery readiness consistency"
+        "operations and recovery readiness consistency",
+        "AWS execution path has never been run against a real AWS account"
+      ]
+    },
+    {
+      "path": "docs/workflows/performance-readiness.md",
+      "phrases": [
+        "This AWS execution path has never been run against a real AWS account, so no capacity measurement exists."
       ]
     },
     {

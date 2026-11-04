@@ -40,6 +40,7 @@ This checks:
 - performance readiness consistency,
 - AI data-boundary consistency,
 - AI workflow registry consistency,
+- capacity import resolution (static symbol checks for `capacity.py`),
 - tenant isolation consistency,
 - migration safety consistency,
 - GitHub repository metadata consistency,
@@ -61,6 +62,16 @@ This checks:
 - synthetic service-pilot evidence and pending-gate consistency,
 - public claim/release-blocker consistency,
 - Python syntax for custom apps, the AI control plane, and contract tests.
+
+The capacity import resolution step (`scripts/check-capacity-imports.py`)
+statically resolves every in-repo symbol that
+`apps/ai_erp_service/ai_erp_service/capacity.py` imports, and every
+module-level name its in-repo dependencies read, using `ast` and `symtable`
+only: no frappe import, no network, no database. The module runs only from the
+manual `production-capacity.yml` workflow, and that AWS execution path has
+never been run against a real AWS account, so a renamed helper in
+`performance.py` would otherwise surface in no run at all. Passing this step
+says the symbols resolve; it says nothing about capacity behavior.
 
 ## Python lint gate
 

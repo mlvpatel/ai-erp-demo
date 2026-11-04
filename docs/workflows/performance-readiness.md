@@ -118,6 +118,11 @@ This is a billable, protected deployment gate. A checked-in workflow or a local
 smoke pass does not count as capacity evidence. Only a successful authorized
 workflow run against the promoted image digest satisfies the deployment gate.
 
+This AWS execution path has never been run against a real AWS account, so no
+capacity measurement exists. The only coverage `capacity.py` has outside an
+authorized run is the static import-resolution step in
+`scripts/run-quality-gates.sh`, which checks that its in-repo symbols resolve.
+
 ## Verification
 
 Run the static check:
