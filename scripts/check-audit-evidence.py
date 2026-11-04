@@ -104,6 +104,16 @@ def validate_doctype_fields(manifest: dict[str, Any], failures: list[str]) -> No
                 )
 
 
+def validate_append_only_doctypes(manifest: dict[str, Any], failures: list[str]) -> None:
+    """No permission row on an append-only doctype may grant delete."""
+    for path_value in string_list(manifest.get("append_only_doctypes"), "append_only_doctypes", failures):
+        doctype_json = load_json_object(REPO_ROOT / path_value, failures) or {}
+        for permission in doctype_json.get("permissions", []):
+            if isinstance(permission, dict) and permission.get("delete"):
+                role = permission.get("role", "<unknown role>")
+                failures.append(f"{path_value} grants delete to role {role}; the ledger must stay append-only")
+
+
 def validate_source_checks(manifest: dict[str, Any], failures: list[str]) -> None:
     seen_ids: set[str] = set()
     for index, check in enumerate(manifest.get("source_checks", []), 1):
@@ -143,6 +153,7 @@ def main() -> int:
     if manifest:
         validate_shape(manifest, failures)
         validate_doctype_fields(manifest, failures)
+        validate_append_only_doctypes(manifest, failures)
         validate_source_checks(manifest, failures)
         validate_test_anchors(manifest, failures)
         joined_doc_phrases(manifest, DOC_FIELDS, "audit evidence", failures)
