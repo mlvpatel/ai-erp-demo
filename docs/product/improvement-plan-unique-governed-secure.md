@@ -43,7 +43,6 @@ Evidence-backed claims only. These are structural, not marketing adjectives.
    `check-authorization-matrix.py`, `check-tenant-isolation.py`,
    `check-publication-secrets.py`, contract/replay harnesses, and
    `config/ai-workflow-registry.json` registration for every proposal type.
-   Skills under `.agents/skills/` bind the same rules to coding agents.
 
 5. **Synthetic Demo Version packaging with explicit claim boundaries.**
    `config/demo-version.json` carries the claim boundary and forbidden
@@ -312,8 +311,7 @@ provider contract failure matrix—still agent-executable.
 
 ## How to execute each PR
 
-1. Read `AGENTS.md`, governance/security/minimal-change skills, quality-gates
-   doc, this plan, and files in the PR’s blast radius.
+1. Read the quality-gates doc, this plan, and files in the PR’s blast radius.
 2. Smallest correct change; ADR if new provider/datastore/service.
 3. Run proportional gates; always `scripts/run-quality-gates.sh`.
 4. Update scorecard `optimization_step` / scores only with evidence.

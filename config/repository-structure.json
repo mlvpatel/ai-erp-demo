@@ -48,16 +48,12 @@
   ],
   "allowed_root_entries": [
     ".DS_Store",
-    ".agents",
-    ".claude",
-    ".cursor",
     ".git",
     ".gitattributes",
     ".gitignore",
     ".pre-commit-config.yaml",
     "BACKLOG.md",
     "CHANGELOG.md",
-    "CLAUDE.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
@@ -65,36 +61,8 @@
     "ROADMAP.md",
     "SECURITY.md",
     "SUPPORT.md",
-    "AGENTS.md",
     "pyproject.toml",
     "uv.lock"
-  ],
-  "required_agent_skill_files": [
-    ".agents/skills/behuman/SKILL.md",
-    ".agents/skills/behuman/references/patterns.md",
-    ".agents/skills/behuman/references/wordlists.md",
-    ".agents/skills/behuman/references/mediawiki.md",
-    ".cursor/rules/behuman.mdc"
-  ],
-  "claude_allowed_children": [
-    "skills"
-  ],
-  "cursor_allowed_children": [
-    "rules",
-    "skills"
-  ],
-  "cursor_forbidden_names": [
-    ".env",
-    ".env.local",
-    "mcp.json",
-    "mcp.jsonc",
-    "argv.json",
-    "ide_state.json",
-    "credentials",
-    "secrets",
-    "node_modules",
-    "settings.local.json",
-    "settings.json"
   ],
   "forbidden_root_directories": [
     "frontend",
@@ -126,9 +94,13 @@
     "contracts": "versioned OpenAPI and business-event contracts only",
     "docs": "product, architecture, discovery, security, runbooks, and workflows",
     "infra": "non-secret infrastructure configuration only",
-    "tests": "contract, e2e, fixture, and performance tests",
-    ".agents": "shared agent entrypoints and skills",
-    ".claude": "Claude Code skills symlink only; local settings stay gitignored",
-    ".cursor": "versioned Cursor agent skills and always-on rules only; no secrets or MCP credentials"
-  }
+    "tests": "contract, e2e, fixture, and performance tests"
+  },
+  "local_only_agent_paths": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    ".agents",
+    ".claude",
+    ".cursor"
+  ]
 }

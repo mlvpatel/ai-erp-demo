@@ -156,139 +156,14 @@ def _is_git_tracked(entry: Path) -> bool:
         return False
 
 
-def validate_required_agent_skill_files(failures: list[str], manifest: dict[str, Any]) -> None:
-    """Require tracked BEhuMan / agent skill files so prose and Cursor gates stay enforceable."""
-    for path_value in require_string_list(failures, manifest, "required_agent_skill_files"):
-        path = REPO_ROOT / path_value
-        if not path.is_file():
-            failures.append(f"missing required agent skill file: {path_value}")
-            continue
-        if path.stat().st_size < 200:
-            failures.append(f"required agent skill file is empty or too small: {path_value}")
-        if not _is_git_tracked(path):
-            failures.append(f"required agent skill file must be tracked by git: {path_value}")
-
-
-def _validate_skill_tree(failures: list[str], skills_dir: Path, root_label: str, forbidden_lower: set[str]) -> None:
-    if not skills_dir.is_dir():
-        failures.append(f"missing required directory: {root_label}/skills")
-        return
-
-    skill_dirs = sorted(
-        (path for path in skills_dir.iterdir() if path.is_dir()),
-        key=lambda path: path.name,
-    )
-    if not skill_dirs:
-        failures.append(f"{root_label}/skills must contain at least one skill directory")
-    for skill_dir in skill_dirs:
-        if not skill_dir.name.replace("-", "").isalnum() or skill_dir.name != skill_dir.name.lower():
-            failures.append(f"{root_label}/skills names must be lowercase kebab-case: {rel(skill_dir)}")
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_md.is_file():
-            failures.append(f"missing skill entrypoint: {rel(skill_md)}")
-        for path in skill_dir.rglob("*"):
-            if path.is_dir():
-                continue
-            relative = rel(path)
-            if path.name.lower() in forbidden_lower:
-                failures.append(f"{root_label} forbids sensitive file: {relative}")
-            if path.suffix.lower() in {".env", ".pem", ".key", ".p12", ".pfx"}:
-                failures.append(f"{root_label} forbids credential-like file: {relative}")
-            if ".." in path.parts:
-                failures.append(f"{root_label} path traversal is forbidden: {relative}")
-
-
-def validate_cursor_layout(failures: list[str], manifest: dict[str, Any]) -> None:
-    """Hard-bound .cursor: skills and rules only; no secrets, MCP configs, or junk."""
-    cursor_root = REPO_ROOT / ".cursor"
-    if not cursor_root.is_dir():
-        failures.append("bounded root directory missing: .cursor")
-        return
-
-    allowed_children = require_string_list(failures, manifest, "cursor_allowed_children")
-    forbidden_names = require_string_list(failures, manifest, "cursor_forbidden_names")
-    forbidden_lower = {name.lower() for name in forbidden_names}
-
-    for child in sorted(cursor_root.iterdir(), key=lambda path: path.name):
-        if child.name in allowed_children:
-            continue
-        if _is_git_ignored(child) and not _is_git_tracked(child):
-            # Local-only ignored files may exist; they must never be tracked.
-            continue
-        if child.name.startswith(".") and child.name not in {".", ".."}:
-            failures.append(f".cursor forbids hidden entries: {rel(child)}")
-            continue
-        if child.name.lower() in forbidden_lower:
-            failures.append(f".cursor forbids sensitive or unmanaged path: {rel(child)}")
-            continue
-        failures.append(
-            f".cursor contains unexpected entry {child.name!r}; "
-            f"allowed children: {', '.join(sorted(allowed_children))}",
-        )
-
-    rules_dir = cursor_root / "rules"
-    if not rules_dir.is_dir():
-        failures.append("missing required directory: .cursor/rules")
-    else:
-        rule_files = sorted(rules_dir.iterdir(), key=lambda path: path.name)
-        if not rule_files:
-            failures.append(".cursor/rules must contain at least one .mdc rule")
-        for path in rule_files:
-            if not path.is_file() or path.suffix != ".mdc":
-                failures.append(f".cursor/rules must contain only .mdc files: {rel(path)}")
-                continue
-            text = path.read_text(encoding="utf-8")
-            if path.name == "behuman.mdc" and "alwaysApply: true" not in text:
-                failures.append(".cursor/rules/behuman.mdc must set alwaysApply: true")
-            if "behuman" in path.name and "SKILL.md" not in text:
-                failures.append(f"{rel(path)} must reference the behuman SKILL.md path")
-
-    _validate_skill_tree(failures, cursor_root / "skills", ".cursor", forbidden_lower)
-
-
-def validate_claude_layout(failures: list[str], manifest: dict[str, Any]) -> None:
-    """Hard-bound .claude: the skills symlink only; local settings must stay untracked."""
-    claude_root = REPO_ROOT / ".claude"
-    if not claude_root.is_dir():
-        failures.append("bounded root directory missing: .claude")
-        return
-
-    allowed_children = require_string_list(failures, manifest, "claude_allowed_children")
-    forbidden_names = require_string_list(failures, manifest, "cursor_forbidden_names")
-    forbidden_lower = {name.lower() for name in forbidden_names}
-
-    for child in sorted(claude_root.iterdir(), key=lambda path: path.name):
-        if child.name in allowed_children:
-            continue
-        if _is_git_tracked(child):
-            failures.append(f".claude must not track local/unmanaged path: {rel(child)}")
-            continue
-        if _is_git_ignored(child):
-            continue
-        if child.name.lower() in forbidden_lower:
-            failures.append(f".claude forbids sensitive or unmanaged path: {rel(child)}")
-            continue
-        failures.append(
-            f".claude contains unexpected entry {child.name!r}; "
-            f"allowed children: {', '.join(sorted(allowed_children))}",
-        )
-
-    _validate_skill_tree(failures, claude_root / "skills", ".claude", forbidden_lower)
-
-
-def validate_agents_layout(failures: list[str], manifest: dict[str, Any]) -> None:
-    """Require shared .agents skills and forbid credential-like files there."""
-    agents_root = REPO_ROOT / ".agents"
-    if not agents_root.is_dir():
-        failures.append("bounded root directory missing: .agents")
-        return
-    if not (agents_root / "AGENTS.md").is_file():
-        failures.append("missing required file: .agents/AGENTS.md")
-    skills_dir = agents_root / "skills"
-    forbidden_lower = {
-        name.lower() for name in require_string_list(failures, manifest, "cursor_forbidden_names")
-    }
-    _validate_skill_tree(failures, skills_dir, ".agents", forbidden_lower)
+def validate_local_only_agent_paths(failures: list[str], manifest: dict[str, Any]) -> None:
+    """Agent instructions and skills stay on developer machines: gitignored and never tracked."""
+    for path_value in require_string_list(failures, manifest, "local_only_agent_paths"):
+        entry = REPO_ROOT / path_value
+        if _is_git_tracked(entry):
+            failures.append(f"agent path must not be tracked: {path_value}")
+        if not _is_git_ignored(entry):
+            failures.append(f"agent path must be gitignored: {path_value}")
 
 
 def main() -> int:
@@ -301,10 +176,7 @@ def main() -> int:
         validate_forbidden_root_dirs(failures, manifest)
         validate_implemented_apps(failures, manifest)
         validate_bounded_roots(failures, manifest)
-        validate_required_agent_skill_files(failures, manifest)
-        validate_agents_layout(failures, manifest)
-        validate_claude_layout(failures, manifest)
-        validate_cursor_layout(failures, manifest)
+        validate_local_only_agent_paths(failures, manifest)
 
     return report("Repository structure check", failures)
 
