@@ -4,14 +4,18 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
-from _gate import REPO_ROOT, contains_snippet, load_json, read_text, report
+from _gate import REPO_ROOT, contains_snippet, load_json, load_json_object, read_text, rel, report
 
 
 MANIFEST_PATH = REPO_ROOT / "config" / "dependency-updates.json"
 LABELS_PATH = REPO_ROOT / ".github" / "labels.json"
 ENV_EXAMPLE = REPO_ROOT / "development" / ".env.example"
+E2E_DIR = REPO_ROOT / "tests" / "e2e"
+EXACT_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+IMAGE_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 def label_names(failures: list[str]) -> set[str]:
@@ -175,6 +179,8 @@ def validate_manual_pins_and_docs(manifest: dict[str, Any], failures: list[str])
         if not re.search(rf"^{commit_pin}=[0-9a-f]{{40}}$", env_text, flags=re.MULTILINE):
             failures.append(f"{commit_pin} must stay pinned to a full commit")
 
+    validate_playwright_versions(manifest, env_text, failures)
+
     phrases = manifest.get("manual_only_doc_phrases")
     if not isinstance(phrases, list) or not phrases:
         failures.append("manual_only_doc_phrases must be a non-empty list")
@@ -184,6 +190,53 @@ def validate_manual_pins_and_docs(manifest: dict[str, Any], failures: list[str])
                 failures.append("manual_only_doc_phrases entries must be strings")
             elif not contains_snippet(policy_text, phrase):
                 failures.append(f"dependency update workflow missing phrase: {phrase}")
+
+
+def validate_playwright_versions(
+    manifest: dict[str, Any], env_text: str, failures: list[str], e2e_dir: Path = E2E_DIR
+) -> None:
+    """Keep @playwright/test, its lockfile entry, and PLAYWRIGHT_IMAGE on the recorded version.
+
+    The browser image only carries browsers for its own Playwright version, so a
+    package bump without an image bump fails at runtime with a missing executable.
+    The image reference is a bare digest, so playwright_image records its version.
+    """
+    record = manifest.get("playwright_image")
+    version = record.get("version") if isinstance(record, dict) else None
+    digest = record.get("digest") if isinstance(record, dict) else None
+    if not isinstance(version, str) or not EXACT_VERSION.fullmatch(version):
+        failures.append("playwright_image.version must be an exact X.Y.Z version")
+        return
+    if not isinstance(digest, str) or not IMAGE_DIGEST.fullmatch(digest):
+        failures.append("playwright_image.digest must be sha256:<64 hex>")
+        return
+
+    image = re.search(r"^PLAYWRIGHT_IMAGE=([^\n]+)$", env_text, flags=re.MULTILINE)
+    if not image or not image.group(1).endswith(f"@{digest}"):
+        failures.append(
+            "development/.env.example PLAYWRIGHT_IMAGE digest differs from playwright_image.digest "
+            f"(Playwright {version}); update both in the same PR"
+        )
+
+    package_path = e2e_dir / "package.json"
+    lock_path = e2e_dir / "package-lock.json"
+    package = load_json_object(package_path, failures)
+    lock = load_json_object(lock_path, failures)
+    if package is None or lock is None:
+        return
+    dev_dependencies = package.get("devDependencies")
+    pinned = dev_dependencies.get("@playwright/test") if isinstance(dev_dependencies, dict) else None
+    if pinned != version:
+        failures.append(
+            f"{rel(package_path)} pins @playwright/test {pinned!r}, but PLAYWRIGHT_IMAGE is Playwright {version}"
+        )
+    packages = lock.get("packages")
+    entry = packages.get("node_modules/@playwright/test") if isinstance(packages, dict) else None
+    locked = entry.get("version") if isinstance(entry, dict) else None
+    if locked != version:
+        failures.append(
+            f"{rel(lock_path)} resolves @playwright/test {locked!r}, but PLAYWRIGHT_IMAGE is Playwright {version}"
+        )
 
 
 def main() -> int:

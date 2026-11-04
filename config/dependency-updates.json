@@ -91,10 +91,14 @@
     "FRAPPE_BENCH_IMAGE",
     "PLAYWRIGHT_IMAGE"
   ],
+  "playwright_image": {
+    "version": "1.64.1",
+    "digest": "sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f"
+  },
   "manual_review_notes": [
     {
       "name": "playwright_npm_versus_image_coherence",
-      "note": "The @playwright/test npm pin in tests/e2e/package.json and the PLAYWRIGHT_IMAGE digest in development/.env.example are maintained independently, and no gate compares them. When Dependabot proposes an npm bump, confirm by hand that the pinned image carries the matching Playwright version before merging. A scripted comparator was rejected because a hand-maintained sibling version string is itself a drift surface."
+      "note": "scripts/check-dependency-updates.py fails unless the @playwright/test pin in tests/e2e/package.json and its tests/e2e/package-lock.json entry equal playwright_image.version, and the PLAYWRIGHT_IMAGE digest in development/.env.example equals playwright_image.digest, so a Dependabot npm bump stays red until the image and this record move with it. The gate cannot tell which version a digest is: when moving PLAYWRIGHT_IMAGE, confirm by hand that the new digest is the one the registry publishes for the new version, update both playwright_image fields in the same PR, then run scripts/dev.sh e2e-test."
     }
   ],
   "manual_only_doc_phrases": [

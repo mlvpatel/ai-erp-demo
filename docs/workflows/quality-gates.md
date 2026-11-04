@@ -73,6 +73,12 @@ never been run against a real AWS account, so a renamed helper in
 `performance.py` would otherwise surface in no run at all. Passing this step
 says the symbols resolve; it says nothing about capacity behavior.
 
+The dependency update policy step (`scripts/check-dependency-updates.py`) also
+fails when the `@playwright/test` pin, its lockfile entry, or the
+`PLAYWRIGHT_IMAGE` digest disagrees with `playwright_image` in
+`config/dependency-updates.json`, because the browser image only carries
+browsers for its own Playwright version.
+
 ## Python lint gate
 
 GitHub CI runs this as the required `Python lint` check. The version matches
