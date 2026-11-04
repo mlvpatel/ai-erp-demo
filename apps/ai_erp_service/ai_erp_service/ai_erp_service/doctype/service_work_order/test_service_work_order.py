@@ -2217,6 +2217,9 @@ class IntegrationTestServiceWorkOrder(IntegrationTestCase):
 
 		self.assertEqual(retry["service_request"], result["service_request"])
 		self.assertEqual(retry["service_work_order"], result["service_work_order"])
+		self.assertEqual(retry["service_location"], result["service_location"])
+		self.assertEqual(retry["additional_locations"], result["additional_locations"])
+		self.assertEqual(len(result["additional_locations"]), 2)
 		self.assertEqual(retry["customer"], result["customer"])
 		self.assertEqual(retry["part_item"], result["part_item"])
 		self.assertEqual(frappe.db.count("Sales Invoice"), invoices_before)
