@@ -14,6 +14,7 @@ from ai_erp_control_plane.openai_provider import (
 	MAX_OUTPUT_TOKENS,
 	MAX_PROVIDER_CALLS,
 	MAX_TIMEOUT_SECONDS,
+	REASONING_EFFORT,
 	OpenAIProviderError,
 	render_openai,
 )
@@ -102,6 +103,8 @@ class TestOpenAIProvider(unittest.TestCase):
 		self.assertNotIn("tools", outbound)
 		self.assertTrue(outbound["text"]["format"]["strict"])
 		self.assertEqual(outbound["max_output_tokens"], MAX_OUTPUT_TOKENS)
+		self.assertEqual(outbound["reasoning"], {"effort": REASONING_EFFORT})
+		self.assertEqual(outbound["reasoning"]["effort"], "none")
 		self.assertNotIn("tenant_site", model_input)
 		self.assertNotIn("requested_by", model_input)
 		self.assertNotIn("name", model_input)
