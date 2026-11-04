@@ -66,7 +66,17 @@ This checks:
 
 GitHub CI runs this as the required `Python lint` check. The version matches
 both custom-app pre-commit configurations, and cache writes are disabled so the
-repository-structure gate sees no generated root entry.
+repository-structure gate sees no generated root entry. The rule selection
+includes ruff's flake8-bandit (`S`) rules in the root and both custom-app
+configurations; they replace the unused `[tool.bandit]` table. A suppression
+takes a `# noqa: S...` with a stated reason. The ruff pin is held on purpose and
+recorded under `held_tool_pins` in `config/dependency-updates.json`.
+
+Ruff's `S105` matches password- and token-shaped names only, so a hardcoded
+value assigned to a name like `api_key` passes the lint job on any ruff version.
+`scripts/check-publication-secrets.py` in the always-run static gate catches
+those assignments in `apps/`, `services/`, and the other publishable trees, and
+it carries a built-in canary that fails the gate if that detection stops firing.
 
 This is intentionally separate from `scripts/run-quality-gates.sh`. The always-
 run static gate must not flip based on whether `ruff` or `mypy` happen to be

@@ -517,7 +517,8 @@ def _start_local_web():
 	# The harness may run with its working directory at the bench root or at
 	# sites/, so the spawn resolves both paths from the bench explicitly.
 	bench_path = frappe.utils.get_bench_path()
-	return subprocess.Popen(
+	# Fixed argument list, no shell; the only variable is the bench path from bench config.
+	return subprocess.Popen(  # noqa: S603
 		[
 			os.path.join(bench_path, "env", "bin", "gunicorn"),
 			"--chdir=sites",
@@ -590,7 +591,7 @@ def _record_counts(context):
 			where child.parenttype = 'Service Work Order'
 			  and child.parentfield = %s
 			  and work_order.subject like %s
-			""",
+			""",  # noqa: S608 -- table is one of the two literal names below; values are bound
 			(parentfield, f"{prefix}%"),
 		)[0][0]
 
@@ -612,7 +613,9 @@ def _record_counts(context):
 
 def _write_evidence(evidence):
 	path = Path(os.environ.get("CAPACITY_EVIDENCE_PATH", ""))
-	if path != Path("/tmp/ai-erp-capacity-evidence.json"):
+	# Deliberate exact-match pin shared with infra/images/frappe/capacity_run.py on an
+	# ephemeral drill runner; any other path is refused.
+	if path != Path("/tmp/ai-erp-capacity-evidence.json"):  # noqa: S108
 		raise CapacityProfileError("capacity evidence path is not the approved task-local path")
 	path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

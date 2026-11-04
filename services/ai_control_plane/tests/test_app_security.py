@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from ai_erp_control_plane.app import app
 
 PROPOSAL_PATH = "/v1/proposals/service-closeout-summary"
-SHARED_SECRET = "example-shared-secret"
+SHARED_SECRET = "example-shared-secret"  # noqa: S105 -- synthetic test fixture, not a credential
 
 
 def _env(provider):

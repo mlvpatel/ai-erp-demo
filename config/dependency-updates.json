@@ -63,6 +63,14 @@
       "open_pull_requests_limit": 2
     }
   ],
+  "held_tool_pins": [
+    {
+      "tool": "ruff",
+      "version": "0.14.10",
+      "reason": "Held deliberately: the flake8-bandit (S) rules were enabled on this pin, and a version bump changes the default rule set in ways that are not separable from a select change afterwards. Confirm the new default rules before any bump.",
+      "review_by": "2027-02-04"
+    }
+  ],
   "manual_only_env_pins": [
     "FRAPPE_COMMIT",
     "ERPNEXT_COMMIT",
