@@ -101,16 +101,16 @@ vs any generic copilot.
 
 1. Finish manager Evidence Replay / packet polish:
    `apps/ai_erp_service/.../evidence.py`, Desk JS, compact ledger stages,
-   finance_handoff only for permitted roles. (landed)
+   finance_handoff only for permitted roles.
 2. Add negative permission + e2e coverage for technician vs manager vs
-   accounts packet views (`tests/e2e/service-operations.spec.ts`). (landed)
+   accounts packet views (`tests/e2e/service-operations.spec.ts`).
 3. Proposal v2 safe metadata gaps (roadmap Phase 3C): policy category,
    citation hashes, token/duration where already returned, concurrent
-   idempotency proof on `input_context_hash`. (landed)
+   idempotency proof on `input_context_hash`.
 4. Expand replay fixtures under `tests/fixtures/replay-bundles/` so every
    registered type in `config/ai-workflow-registry.json` has a cited bundle
    with `@today` relative dates; evidence packets include finance and invoice
-   handoff packaging. (landed)
+   handoff packaging.
 
 **Success evidence:** `service-test`, `e2e-test`, `contract-test`,
 `test_replay_harness.py`, quality gates green; scorecard notes updated with
@@ -262,7 +262,7 @@ scores invented. Order maximizes uniqueness and score delta.
 | Days 1–21 | Phase A ledger + replay metadata + fixtures | ledger 8.2→~8.8; replay 8.0→~8.6 |
 | Days 22–42 | Phase B margin + scheduling + recovery polish | margin 7.8→~8.5; scheduling 7.5→~8.3; recovery 8.0→~8.5 |
 | Days 43–63 | Phase C synthetic repair-memory + provider contract edges | repair memory 6.5→~7.6; contract refusal coverage |
-| Days 64–84 | Phase D mobile online depth | mobile 6.1→7.8 (landed) |
+| Days 64–84 | Phase D mobile online depth | mobile 6.1→7.8 |
 | Days 85–90 | Phase E scorecard/docs/Demo Version resync | governed release 7.3→~7.8; average toward **~8.5** if evidence supports each bump |
 
 Rough check if those land: ~8.8 + 8.5 + 8.5 + 7.6 + 8.6 + 8.3 + 7.8 + 7.8
