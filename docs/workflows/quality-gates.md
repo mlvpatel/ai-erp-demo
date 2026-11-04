@@ -124,6 +124,11 @@ The local Python interpreter must satisfy the repository requirement in
 Docker-backed `scripts/dev.sh control-plane-test` and
 `scripts/dev.sh contract-test` helpers instead.
 
+The required `Control-plane unit tests` check also reruns the `uv export`
+command recorded in the header of `services/ai_control_plane/requirements.lock`
+with uv 0.11.26 and fails if the committed file differs, because the production
+image installs from that file, not from `uv.lock`.
+
 ## ERP service workflow gate
 
 Run when changing `apps/ai_erp_core/`, `apps/ai_erp_service/`, fixtures,

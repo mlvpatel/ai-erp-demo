@@ -75,6 +75,12 @@
       "version": "2.3.0",
       "reason": "Held deliberately: the CI lint job type-checks services/ai_control_plane/src on this pin, and a mypy upgrade can add or reclassify errors. Rerun the check locally on the candidate version before any bump.",
       "review_by": "2027-02-04"
+    },
+    {
+      "tool": "uv",
+      "version": "0.11.26",
+      "reason": "Held deliberately: the control-plane CI job regenerates services/ai_control_plane/requirements.lock from uv.lock with this uv and fails on any diff, and a uv upgrade can change the export header or formatting. Rerun the export on the candidate version and commit the regenerated file in the same PR as the bump.",
+      "review_by": "2027-02-04"
     }
   ],
   "manual_only_env_pins": [
