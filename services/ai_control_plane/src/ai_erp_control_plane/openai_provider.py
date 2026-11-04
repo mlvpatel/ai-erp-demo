@@ -48,7 +48,7 @@ class OpenAIConfig:
 	timeout_seconds: float
 
 	@classmethod
-	def from_environment(cls):
+	def from_environment(cls) -> OpenAIConfig:
 		credential = os.environ.get("OPENAI_API_KEY", "")
 		model = os.environ.get("OPENAI_MODEL", DEFAULT_MODEL)
 		base_url = os.environ.get("OPENAI_BASE_URL", "https://eu.api.openai.com/v1").rstrip("/")
@@ -132,16 +132,18 @@ def _request_body(minimized_input: dict, model: str, schema_name: str, task: str
 
 
 def _output_text(payload: dict) -> str:
-	if isinstance(payload.get("output_text"), str):
-		return payload["output_text"]
+	top_level_text = payload.get("output_text")
+	if isinstance(top_level_text, str):
+		return top_level_text
 	for output in payload.get("output", []):
 		if output.get("type") != "message":
 			continue
 		for content in output.get("content", []):
 			if content.get("type") == "refusal":
 				raise OpenAIProviderError("provider refused the request", "refusal")
-			if content.get("type") == "output_text" and isinstance(content.get("text"), str):
-				return content["text"]
+			text = content.get("text")
+			if content.get("type") == "output_text" and isinstance(text, str):
+				return text
 	return ""
 
 

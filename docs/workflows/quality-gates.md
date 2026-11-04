@@ -78,13 +78,21 @@ value assigned to a name like `api_key` passes the lint job on any ruff version.
 those assignments in `apps/`, `services/`, and the other publishable trees, and
 it carries a built-in canary that fails the gate if that detection stops firing.
 
-This is intentionally separate from `scripts/run-quality-gates.sh`. The always-
-run static gate must not flip based on whether `ruff` or `mypy` happen to be
-installed on a laptop.
+The same job type-checks the control-plane sources with mypy 2.3.0, using the
+`[tool.mypy]` configuration in the root `pyproject.toml`, which requires typed
+definitions in `ai_erp_control_plane.*`. The job installs the control-plane
+package first so mypy resolves FastAPI, pydantic, and httpx. The check covers
+`services/ai_control_plane/src` only; `apps/` stays out because Frappe ships no
+usable stubs. The mypy pin is held and recorded next to the ruff pin.
+
+Both tools are intentionally separate from `scripts/run-quality-gates.sh`. The
+always-run static gate must not flip based on whether `ruff` or `mypy` happen
+to be installed on a laptop.
 
 ```sh
-python -m pip install ruff==0.14.10
+python -m pip install ruff==0.14.10 mypy==2.3.0 ./services/ai_control_plane
 ruff check --no-cache apps/ services/
+python -m mypy services/ai_control_plane/src
 ```
 
 Pre-commit also runs ruff when configured via `.pre-commit-config.yaml`.

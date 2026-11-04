@@ -6,6 +6,7 @@ from _payloads import envelope, source
 from fastapi.testclient import TestClient
 
 from ai_erp_control_plane.app import app
+from ai_erp_control_plane.models import ProposalResponse
 
 PROPOSAL_PATH = "/v1/proposals/service-closeout-summary"
 SHARED_SECRET = "example-shared-secret"  # noqa: S105 -- synthetic test fixture, not a credential
@@ -79,6 +80,35 @@ class TestAppSecurity(unittest.TestCase):
 		self.assertIn("ai_provider_failure", joined)
 		for sensitive in (SHARED_SECRET, "demo.localhost", "SVC-WO-00001", "Tightened the mount"):
 			self.assertNotIn(sensitive, joined)
+
+	def test_provider_result_without_audit_fails_closed_as_503(self):
+		payload = _valid_request_payload()
+		result_without_audit = ProposalResponse.model_validate(
+			{
+				"schema_version": 1,
+				"request_id": payload["request_id"],
+				"proposal_type": "service_closeout_summary",
+				"policy": {"decision": "draft_only", "allowed_action": "none", "reason": "draft only"},
+				"model": {"provider": "openai", "name": "synthetic-model", "prompt_version": "test@v1"},
+				"audit": None,
+				"draft_content": "Synthetic draft.",
+				"sources": payload["sources"],
+			}
+		)
+		with (
+			patch.dict(os.environ, _env("openai"), clear=True),
+			patch("ai_erp_control_plane.app.render_openai", return_value=result_without_audit),
+			self.assertLogs("ai_erp_control_plane.provider", level="INFO") as captured,
+		):
+			response = self.client.post(
+				PROPOSAL_PATH, headers={"Authorization": f"Bearer {SHARED_SECRET}"}, json=payload
+			)
+
+		self.assertEqual(response.status_code, 503)
+		self.assertEqual(response.json()["detail"], "approved model provider is unavailable")
+		joined = " ".join(captured.output)
+		self.assertIn("ai_provider_failure", joined)
+		self.assertNotIn("ai_provider_success", joined)
 
 	def test_readiness_is_separate_from_liveness_and_fails_closed(self):
 		with patch.dict(os.environ, {"AI_ERP_PROVIDER": "openai"}, clear=True):

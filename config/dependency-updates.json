@@ -69,6 +69,12 @@
       "version": "0.14.10",
       "reason": "Held deliberately: the flake8-bandit (S) rules were enabled on this pin, and a version bump changes the default rule set in ways that are not separable from a select change afterwards. Confirm the new default rules before any bump.",
       "review_by": "2027-02-04"
+    },
+    {
+      "tool": "mypy",
+      "version": "2.3.0",
+      "reason": "Held deliberately: the CI lint job type-checks services/ai_control_plane/src on this pin, and a mypy upgrade can add or reclassify errors. Rerun the check locally on the candidate version before any bump.",
+      "review_by": "2027-02-04"
     }
   ],
   "manual_only_env_pins": [
