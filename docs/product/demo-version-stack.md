@@ -20,7 +20,7 @@ Related: [`demo-version-loop.md`](demo-version-loop.md),
 | Hosted provider path | OpenAI adapter with redaction, budgets, `store=false`; live eval gated | ADR-0006, `docs/runbooks/openai-live-evaluation.md` |
 | Contracts | OpenAPI 3.1 control-plane + versioned service events | `contracts/openapi/`, `contracts/events/` |
 | Data / queue | MariaDB + Redis (digest-pinned images) | `infra/compose/docker-compose.dev.yml` |
-| Browser proof | Playwright `1.61.0` | `tests/e2e/package.json` |
+| Browser proof | Playwright `1.64.1` | `tests/e2e/package.json` |
 | Gates | `scripts/run-quality-gates.sh` plus `scripts/dev.sh` suites | `docs/workflows/quality-gates.md` |
 | Prod reference | Terraform for AWS ECS prepared; apply not authorized from this demo | `infra/aws/terraform/` |
 
